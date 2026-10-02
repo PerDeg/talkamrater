@@ -63,6 +63,15 @@ h1, h2, h3 { font-family: var(--display); line-height: 1.05; margin: 0; text-wra
 .pill .star { color: var(--sun); font-size: 1.2rem; -webkit-text-stroke: 1px #D99A00; }
 .icon-btn { width: 40px; height: 40px; justify-content: center; padding: 0; font-size: 1.15rem; }
 .icon-btn[aria-pressed="false"] { opacity: 0.45; }
+@media (max-width: 400px) {
+  .brand-name { font-size: 1.25rem; }
+  .logo span:first-child { width: 22px; height: 22px; }
+  .logo span:last-child { width: 18px; height: 18px; }
+  .top-actions { gap: 5px; }
+  .pill { padding: 5px 9px; }
+  .icon-btn { width: 36px; height: 36px; padding: 0; font-size: 1rem; }
+}
+@media (max-width: 345px) { .brand-name { font-size: 1.05rem; } .app { padding-inline: 12px; } }
 
 .screen { animation: enter 0.35s ease both; }
 @keyframes enter { from { opacity: 0.4; transform: translateY(8px); } to { opacity: 1; transform: none; } }
@@ -243,7 +252,8 @@ details.friends summary { font-family: var(--display); font-weight: 800; font-si
 /* Effects */
 #fx { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 50; }
 .cheer {
-  position: fixed; left: 50%; top: 38%; z-index: 60; pointer-events: none; white-space: nowrap;
+  position: fixed; left: 50%; top: 38%; z-index: 60; pointer-events: none;
+  width: min(92vw, 720px); text-align: center; line-height: 1; text-wrap: balance;
   font-family: var(--display); font-weight: 800; font-size: clamp(2.6rem, 13vw, 5rem); color: var(--sun);
   -webkit-text-stroke: 3px var(--ink); paint-order: stroke fill; text-shadow: 0 6px 0 var(--ink);
   animation: cheer 1.25s ease forwards;
@@ -525,6 +535,11 @@ details.friends summary { font-family: var(--display); font-weight: 800; font-si
     d.className = 'cheer' + (mega ? ' mega' : '');
     d.textContent = text;
     document.body.appendChild(d);
+    // Krymp texten tills den får plats på skärmen (även långa ord på mobil)
+    let size = parseFloat(getComputedStyle(d).fontSize);
+    while (size > 22 && (d.scrollWidth > d.clientWidth || d.scrollHeight > size * 2.3)) {
+      size -= 2; d.style.fontSize = size + 'px';
+    }
     setTimeout(() => d.remove(), 1300);
   }
 
