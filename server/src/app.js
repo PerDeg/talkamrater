@@ -30,7 +30,7 @@ export function createApp({ db, t, client, adminKey, publicDir, trustProxy = 'lo
       'X-Content-Type-Options': 'nosniff',
       'Referrer-Policy': 'same-origin',
       'X-Frame-Options': 'SAMEORIGIN',
-      'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; frame-ancestors 'self'"
+      'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; media-src 'self' blob: data:; connect-src 'self'; frame-ancestors 'self'"
     });
     next();
   });

@@ -232,15 +232,84 @@
   }
 
   /* ================= Ljud ================= */
+  // Mobiler (särskilt iOS) spelar inget webbljud förrän en tryckning har
+  // "låst upp" det. Vi låser upp vid första tryckningen och håller ljudet
+  // vid liv när appen kommer tillbaka från bakgrunden.
   let ac = null;
+  function audioContext() {
+    if (!ac) {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return null;
+      ac = new AC();
+    }
+    return ac;
+  }
   function audio() {
     if (!prefs.sound) return null;
     try {
-      ac = ac || new (window.AudioContext || window.webkitAudioContext)();
-      if (ac.state === 'suspended') ac.resume();
-      return ac;
+      const a = audioContext();
+      if (a && a.state !== 'running') a.resume().catch(() => {});
+      return a;
     } catch (e) { return null; }
   }
+
+  // iOS: spela ljud även när telefonen står på ljudlöst (ljudströmbrytaren).
+  // Nyare iOS har navigator.audioSession; äldre behöver ett tyst <audio>-element.
+  let silentEl = null;
+  function silentWavUrl() {
+    const rate = 8000, n = rate / 2, buf = new ArrayBuffer(44 + n * 2), v = new DataView(buf);
+    const w = (o, str) => [...str].forEach((c, i) => v.setUint8(o + i, c.charCodeAt(0)));
+    w(0, 'RIFF'); v.setUint32(4, 36 + n * 2, true); w(8, 'WAVE'); w(12, 'fmt ');
+    v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+    v.setUint32(24, rate, true); v.setUint32(28, rate * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true);
+    w(36, 'data'); v.setUint32(40, n * 2, true);
+    return URL.createObjectURL(new Blob([buf], { type: 'audio/wav' }));
+  }
+  function playThroughMuteSwitch() {
+    try {
+      if (navigator.audioSession) { navigator.audioSession.type = 'playback'; return; }
+      if (!/iPad|iPhone|iPod/.test(navigator.userAgent) && !(navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)) return;
+      if (!silentEl) {
+        silentEl = document.createElement('audio');
+        silentEl.setAttribute('x-webkit-airplay', 'deny');
+        silentEl.preload = 'auto'; silentEl.loop = true; silentEl.src = silentWavUrl();
+      }
+      silentEl.play().catch(() => {});
+    } catch (e) {}
+  }
+
+  let unlocked = false;
+  function unlockAudio() {
+    if (prefs.sound) {
+      playThroughMuteSwitch();
+      try {
+        const a = audioContext();
+        if (a) {
+          if (a.state !== 'running') a.resume().catch(() => {});
+          // En kort tyst ton i samma tryckning låser upp ljudet på iOS
+          const b = a.createBuffer(1, 1, 22050), src = a.createBufferSource();
+          src.buffer = b; src.connect(a.destination); src.start(0);
+        }
+      } catch (e) {}
+    }
+    if (!unlocked && prefs.voice && window.speechSynthesis) {
+      try {
+        const u = new SpeechSynthesisUtterance(' ');
+        u.volume = 0; u.lang = 'sv-SE';
+        speechSynthesis.speak(u);
+      } catch (e) {}
+    }
+    unlocked = true;
+  }
+  // Varje tryckning ser till att ljudet är igång (iOS pausar det i bakgrunden)
+  ['pointerdown', 'touchend', 'keydown'].forEach(ev => addEventListener(ev, () => {
+    if (!unlocked || (ac && ac.state !== 'running') || (silentEl && silentEl.paused)) unlockAudio();
+  }, { capture: true, passive: true }));
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) { if (silentEl) silentEl.pause(); }
+    else unlocked = false; // lås upp igen vid nästa tryckning
+  });
+
   function tone(freq, start, dur, type = 'sine', vol = 0.18, toFreq) {
     const a = audio(); if (!a) return;
     const t = a.currentTime + start;
@@ -270,19 +339,40 @@
   };
 
   /* ================= Röst ================= */
+  let voices = [];
+  const loadVoices = () => { try { voices = speechSynthesis.getVoices() || []; } catch (e) {} };
+  if (window.speechSynthesis) {
+    loadVoices();
+    try { speechSynthesis.addEventListener('voiceschanged', loadVoices); } catch (e) {}
+  }
+  const swedishVoice = () => {
+    const sv = voices.filter(v => (v.lang || '').toLowerCase().replace('_', '-').startsWith('sv'));
+    // Föredra bättre röster (Enhanced/Premium/Google) om de finns
+    return sv.find(v => /enhanced|premium|förbättrad|google/i.test(v.name)) || sv[0] || null;
+  };
+  let currentUtterance = null, speakTimer = 0;
   function say(text) {
-    if (!prefs.voice) return;
+    if (!prefs.voice || !window.speechSynthesis) return;
     try {
-      const s = window.speechSynthesis; if (!s) return;
-      s.cancel();
+      const s = window.speechSynthesis;
       const u = new SpeechSynthesisUtterance(text.replaceAll(MINUS, ' minus ').replace(/[^\p{L}\p{N}\s!?,.+=-]/gu, ''));
       u.lang = 'sv-SE';
-      const v = s.getVoices().find(v => (v.lang || '').toLowerCase().replace('_', '-').startsWith('sv'));
+      const v = swedishVoice();
       if (v) u.voice = v;
       u.rate = 1.05; u.pitch = 1.25;
-      s.speak(u);
+      currentUtterance = u; // håll kvar referensen, annars kan Safari tappa meningen
+      clearTimeout(speakTimer);
+      if (s.speaking || s.pending) {
+        // iOS tappar ibland det som sägs direkt efter cancel(), så vänta lite
+        s.cancel();
+        speakTimer = setTimeout(() => s.speak(u), 80);
+      } else {
+        if (s.paused) s.resume();
+        s.speak(u);
+      }
     } catch (e) {}
   }
+  function stopSpeech() { clearTimeout(speakTimer); try { if (speechSynthesis.speaking || speechSynthesis.pending) speechSynthesis.cancel(); } catch (e) {} }
 
   /* ================= Konfetti och hejarop ================= */
   const cv = $('#fx'), cx = cv.getContext('2d');
@@ -350,7 +440,7 @@
     if (m && mood) { m.classList.remove('happy', 'oops'); void m.offsetWidth; m.classList.add(mood); }
   }
   function stopGame() {
-    try { speechSynthesis.cancel(); } catch (e) {}
+    stopSpeech();
     clearTimeout(timer); clearInterval(ticker);
     G = null; D = null;
   }
@@ -1720,8 +1810,15 @@
     $('#hello').textContent = `Hej ${save.name}!`;
     persist();
   });
-  $('#soundBtn').addEventListener('click', () => { prefs.sound = !prefs.sound; savePrefs(); renderStart(); if (prefs.sound) sfx.select(); });
-  $('#voiceBtn').addEventListener('click', () => { prefs.voice = !prefs.voice; savePrefs(); renderStart(); if (prefs.voice) say('Hej!'); else try { speechSynthesis.cancel(); } catch (e) {} });
+  $('#soundBtn').addEventListener('click', () => { prefs.sound = !prefs.sound; savePrefs(); renderStart(); if (prefs.sound) { unlockAudio(); sfx.right(); } else if (silentEl) silentEl.pause(); });
+  $('#voiceBtn').addEventListener('click', () => {
+    prefs.voice = !prefs.voice; savePrefs(); renderStart();
+    if (!prefs.voice) return stopSpeech();
+    loadVoices();
+    if (!window.speechSynthesis) cheer('Rösten finns inte här');
+    else if (voices.length && !swedishVoice()) cheer('Ingen svensk röst på enheten');
+    else say(`Hej ${save.name}!`);
+  });
   let resetArmed = 0;
   $('#resetBtn').addEventListener('click', e => {
     if (!resetArmed) {
@@ -1735,7 +1832,6 @@
     e.target.textContent = 'Nollställ allt';
     renderStart();
   });
-  try { speechSynthesis && speechSynthesis.getVoices(); } catch (e) {}
 
   boot();
 })();
