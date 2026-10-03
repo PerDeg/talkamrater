@@ -78,41 +78,65 @@ Lärarsidan visar för varje elev: stjärnor, steg på vägen, medaljer, **vilka
 
 ## Driftsätta på Unraid med nginx
 
-### 1. Databasen (koppla till din befintliga)
+Spelet körs som en egen container i stacken **mina-appar**, där alla egna appar samlas, skilda från containrar som installerats via Community Apps. Mallen finns i `deploy/mina-appar/`.
 
-Servern stöder **PostgreSQL**, **MySQL/MariaDB** och **SQLite**. Tabellerna skapas automatiskt vid första start och får prefixet `tk_` (ändras med `DB_TABLE_PREFIX`), så de kan ligga i en befintlig databas.
+Så här ser det ut på Unraid:
 
-Skapa en användare och databas med `deploy/sql/skapa-databas.sql`. Fyll sedan i `.env` utifrån `.env.example`:
-
-```env
-ADMIN_KEY=en-lång-hemlig-sträng
-DB_CLIENT=postgres          # eller mysql / mariadb / sqlite
-DATABASE_URL=postgres://talkamrater:losenord@192.168.1.10:5432/talkamrater
-DB_TABLE_PREFIX=tk_
+```
+/mnt/user/appdata/mina-appar/
+  docker-compose.yml        ← alla egna appar
+  uppdatera.sh              ← hämtar koden, bygger om och startar om
+  env/talkamrater.env       ← hemligheter (ADMIN_KEY, databas)
+  src/talkamrater/          ← git clone av det här repot
 ```
 
-Sätt gärna `TZ=Europe/Stockholm`, så att veckans uppdrag byts vid midnatt svensk tid.
-
-### 2. Containern
+### 1. Lägg upp stacken
 
 ```bash
-docker build -t talkamrater .
-docker run -d --name talkamrater --restart unless-stopped --env-file .env -p 3000:3000 talkamrater
+mkdir -p /mnt/user/appdata/mina-appar/src
+cd /mnt/user/appdata/mina-appar
+git clone https://github.com/PerDeg/talkamrater.git src/talkamrater
+cp -r src/talkamrater/deploy/mina-appar/. .
+cp env/talkamrater.env.example env/talkamrater.env
+openssl rand -hex 24          # klistra in som ADMIN_KEY
+nano env/talkamrater.env      # databasuppgifter
+nano docker-compose.yml       # byt 192.168.1.10 i ikon-adressen till Unraid-IP:n
 ```
 
-Använder du Compose Manager på Unraid kan du utgå från `deploy/docker-compose.yml`.
+### 2. Databasen
 
-Med `DB_CLIENT=sqlite` behöver du en volym för databasfilen, t.ex. `/mnt/user/appdata/talkamrater:/data`. Kör då containern med `--user 99:100` så att den får skriva i appdata.
+Servern stöder **PostgreSQL**, **MySQL/MariaDB** och **SQLite**. Tabellerna skapas automatiskt vid första start och får prefixet `tk_`. Skapa en användare och databas med `deploy/sql/skapa-databas.sql`, till exempel:
 
-### 3. nginx
+```bash
+docker exec -it postgresql psql -U postgres -c "CREATE USER talkamrater WITH PASSWORD 'byt-losenord';" -c "CREATE DATABASE talkamrater OWNER talkamrater;"
+```
 
-Se `deploy/nginx-talkamrater.conf`. Där finns två alternativ: en egen subdomän, eller en sökväg som `/talkamrater/`. Med Nginx Proxy Manager eller SWAG räcker det att peka en proxy-host mot `http://<unraid-ip>:3000`.
+### 3. Starta
 
-### 4. Kom igång
+```bash
+./uppdatera.sh
+curl http://localhost:3080/api/health
+```
+
+Med pluginen **Docker Compose Manager** kan stacken också startas, stoppas och uppdateras från Docker-fliken.
+
+### 4. nginx
+
+Peka en proxy-host mot `http://<unraid-ip>:3080`. Konfigurationsexempel finns i `deploy/nginx-talkamrater.conf`.
+
+### 5. Kom igång
 
 1. Gå till `https://din-adress/admin.html` och logga in med `ADMIN_KEY`.
 2. Skapa klassen.
-3. Tryck *Kopiera* och skicka texten till föräldrarna i klassen.
+3. Tryck *Kopiera* och skicka texten till föräldrarna.
+
+### Uppdatera
+
+```bash
+/mnt/user/appdata/mina-appar/uppdatera.sh
+```
+
+All data finns i databasen, och nya tabeller läggs till automatiskt.
 
 ## API
 

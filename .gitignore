@@ -4,3 +4,4 @@ server/data/
 *.db-wal
 *.db-shm
 .env
+deploy/mina-appar/env/*.env

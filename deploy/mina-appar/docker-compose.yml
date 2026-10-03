@@ -1,0 +1,42 @@
+# ---------------------------------------------------------------
+#  Mina appar – alla egna tjänster i en stack
+#  Ligger på Unraid i /mnt/user/appdata/mina-appar/
+#
+#  Ny app: klona koden till src/<namn>, lägg env i env/<namn>.env
+#  och kopiera blocket för talkamrater nedan.
+#  Uppdatera allt: ./uppdatera.sh
+# ---------------------------------------------------------------
+name: mina-appar
+
+services:
+  talkamrater:
+    build: ./src/talkamrater
+    image: mina-appar/talkamrater:latest
+    container_name: talkamrater
+    restart: unless-stopped
+    env_file: ./env/talkamrater.env
+    ports:
+      - "3080:3000"
+    labels:
+      # Visas i Unraids Docker-flik: ikon och "WebUI" i menyn
+      net.unraid.docker.webui: "http://[IP]:[PORT:3080]/"
+      net.unraid.docker.icon: "http://192.168.1.10:3080/icon.png"   # byt till Unraid-IP:n
+      # Gemensam etikett för alla egna appar, bra för filtrering och mappar
+      se.mina-appar.owner: "egen"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # nasta-app:
+  #   build: ./src/nasta-app
+  #   image: mina-appar/nasta-app:latest
+  #   container_name: nasta-app
+  #   restart: unless-stopped
+  #   env_file: ./env/nasta-app.env
+  #   ports:
+  #     - "3081:3000"
+  #   labels:
+  #     net.unraid.docker.webui: "http://[IP]:[PORT:3081]/"
+  #     se.mina-appar.owner: "egen"
