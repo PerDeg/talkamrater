@@ -23,7 +23,7 @@ test('husdjur och dagens utmaning slås ihop rätt', () => {
   const a = { pet: { xp: 30, last: 100, born: 90, name: 'Plutt' }, daily: { day: 100, streak: 4, best: 6, count: 20 } };
   const b = { pet: { xp: 12, last: 101, born: 95, name: '' }, daily: { day: 101, streak: 1, best: 2, count: 3 } };
   const m = mergeProgress(a, b);
-  assert.deepEqual(m.pet, { xp: 30, last: 101, born: 90, name: 'Plutt' });
+  assert.deepEqual({ ...m.pet }, { xp: 30, last: 101, born: 90, name: 'Plutt', wish: null, wishDay: 0, wishCount: 0, treats: 0 });
   assert.deepEqual(m.daily, { day: 101, streak: 1, best: 6, count: 20 });
   const s = summarize({ path: { 't-z1': 9, 't-mz1': 8, mexpert: 1 } });
   assert.equal(s.medals, 2);
@@ -97,7 +97,9 @@ for (const [label, envFor] of targets) {
       assert.equal(put2.body.progress.total, 5);
       assert.equal(put2.body.progress.stickers.length, 2);
 
-      assert.equal((await call('POST', '/me/rounds', { level: '8', mode: 'find', stars: 3, score: 9, total: 9 }, auth)).status, 204);
+      const rr = await call('POST', '/me/rounds', { level: '8', mode: 'bubbles', stars: 3, score: 9, total: 5 }, auth);
+      assert.equal(rr.status, 200);
+      assert.ok(rr.body.mission.mine > 0);
 
       const id = reg.body.player.id;
       const bad = await call('POST', '/login', { code, playerId: id, pin: [3, 2, 1] });
@@ -129,7 +131,8 @@ for (const [label, envFor] of targets) {
       assert.equal(ev.status, 201);
       assert.equal((await call('POST', '/me/events', { type: 'medal', detail: 't-z1' }, alvaAuth)).body.duplicate, true);
       assert.equal((await call('POST', '/me/events', { type: 'hack', detail: 'x' }, alvaAuth)).status, 400);
-      assert.equal((await call('POST', '/me/events', { type: 'title', detail: '<script>' }, alvaAuth)).status, 400);
+      assert.equal((await call('POST', '/me/events', { type: 'medal', detail: '<script>' }, alvaAuth)).status, 400);
+      assert.equal((await call('POST', '/me/events', { type: 'title', detail: 'Talkompis' }, alvaAuth)).status, 400);
       const meAuth = { authorization: `Bearer ${fresh.body.token}` };
       assert.equal((await call('POST', `/events/${ev.body.id}/cheer`, null, meAuth)).body.cheers, 1);
       assert.equal((await call('POST', `/events/${ev.body.id}/cheer`, null, meAuth)).body.cheers, 1);
@@ -142,6 +145,27 @@ for (const [label, envFor] of targets) {
       assert.equal(wall2.body.myCheers, 1);
       assert.ok(wall2.body.mission.goal > 0);
       assert.ok(wall2.body.mission.progress > 0);
+
+      // Publik klassstatus: av tills läraren slår på den
+      assert.equal((await call('GET', `/public/classes/${code}?name=Edwin`)).status, 404);
+      assert.equal((await call('PATCH', `/admin/classes/${cls.body.id}`, { public: true }, ADMIN)).status, 200);
+      const pub = await call('GET', `/public/classes/${code}?name=edwin`);
+      assert.equal(pub.status, 200);
+      assert.equal(pub.body.me.name, 'Edwin');
+      assert.equal(pub.body.class.players, 2);
+      assert.ok(pub.body.mission.goal > 0);
+      assert.equal((await call('GET', `/public/classes/${code}?name=Okänd`)).body.nameNotFound, true);
+
+      // Klassen klarar veckans uppdrag: en händelse, bara en gång
+      const meAuth2 = { authorization: `Bearer ${fresh.body.token}` };
+      let done = 0;
+      for (let i = 0; i < 35; i++) {
+        const r = await call('POST', '/me/rounds', { level: '8', mode: 'bubbles', stars: 3, score: 1000, total: 1000 }, meAuth2);
+        if (r.body.completed) done++;
+      }
+      assert.equal(done, 1);
+      const wall3 = await call('GET', '/me/class', null, meAuth2);
+      assert.equal(wall3.body.events.filter(e => e.type === 'mission').length, 1);
 
       const logout = await call('POST', '/logout', null, { authorization: `Bearer ${fresh.body.token}` });
       assert.equal(logout.status, 204);

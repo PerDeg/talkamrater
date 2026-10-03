@@ -8,6 +8,13 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Nunito:wght@500;700;800&display=swap">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 64 64%22%3E%3Ccircle cx=%2226%22 cy=%2236%22 r=%2220%22 fill=%22%232F6BFF%22/%3E%3Ccircle cx=%2246%22 cy=%2240%22 r=%2215%22 fill=%22%23FF6B3D%22/%3E%3C/svg%3E">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#BFE6FF">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Talkamrater">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -25,6 +32,28 @@
     </div>
   </header>
 
+  <!-- VÄLKOMMEN -->
+  <section class="screen welcome" id="welcome" hidden>
+    <div class="welcome-hero">
+      <div class="mascot happy" aria-hidden="true"><div class="eyes"><i></i><i></i></div><div class="mouth"></div></div>
+      <h1>Välkommen till Talkamrater!</h1>
+      <p>Här tränar du talkamrater, minus och dubblor, samlar stjärnor och tar hand om ditt eget husdjur.</p>
+    </div>
+    <div class="panel welcome-class" id="welcomeJoin" hidden>
+      <div class="label">Går du i en klass?</div>
+      <p>Gå med i klassen så hjälps ni åt med veckans uppdrag, ser varandras medaljer och sparar dina stjärnor på alla enheter.</p>
+      <button class="chunky coral" id="welcomeJoinBtn">Gå med i min klass</button>
+    </div>
+    <div class="or" id="welcomeOr" hidden><span>eller</span></div>
+    <div class="panel formstack">
+      <div class="label">Spela själv</div>
+      <label class="lead" for="welcomeName">Vad heter du?</label>
+      <input class="textfield" id="welcomeName" maxlength="16" autocomplete="off" placeholder="Ditt förnamn">
+      <p class="error" id="welcomeErr"></p>
+      <button class="chunky" id="welcomeGo">Börja spela</button>
+    </div>
+  </section>
+
   <!-- START -->
   <section class="screen" id="start">
     <div class="hero">
@@ -34,6 +63,24 @@
         <p>Vilka tal är kompisar? Ta dig hela vägen till expert!</p>
         <span class="rank">Din titel <b id="rankName">Talspanare</b></span>
       </div>
+    </div>
+
+    <div class="panel classtop" id="classTop" hidden>
+      <div class="ct-head">
+        <span class="kicker">Klassens uppdrag · <span id="ctName">Klassen</span></span>
+        <span class="badge" id="cheerBadge" hidden></span>
+      </div>
+      <div class="ct-title" id="ctMission"></div>
+      <div class="meter"><i id="ctMeter"></i></div>
+      <div class="ct-row"><b id="ctProgress"></b><span id="ctMine"></span></div>
+      <p class="ct-event" id="ctEvent" hidden></p>
+      <button class="chunky sun" id="openClass">Till klassen</button>
+    </div>
+
+    <div class="panel joincard" id="joinCard" hidden>
+      <div class="label">Spela med din klass</div>
+      <p>Hjälps åt med veckans uppdrag, heja på varandra och spara dina stjärnor på alla enheter.</p>
+      <button class="chunky coral" id="openJoin">Gå med i klassen</button>
     </div>
 
     <div class="panel daily" id="dailyCard">
@@ -56,6 +103,11 @@
         <div class="meter"><i id="petMeter"></i></div>
         <small class="petnext" id="petNext"></small>
         <button class="textbtn" id="petRename">Byt namn</button>
+      </div>
+      <div class="wish" id="petWish" hidden>
+        <span class="wish-icon" id="wishIcon" aria-hidden="true">🍦</span>
+        <div class="wish-body"><b id="wishText"></b><div class="meter"><i id="wishMeter"></i></div><small id="wishCount"></small></div>
+        <button class="chunky sun" id="wishBtn">Hjälp Plutt!</button>
       </div>
     </div>
 
@@ -93,17 +145,12 @@
         <p>Samla alla 30 och medaljerna från vägen.</p>
         <button class="chunky sun" id="openBook">Titta i boken</button>
       </div>
-      <div class="panel" id="classCard" hidden>
-        <div class="label">Klassen <small id="classCardSmall"></small></div>
-        <p id="classCardText">Se kompisarna och klassens stjärnburk.</p>
-        <span class="badge" id="cheerBadge" hidden></span>
-        <button class="chunky" id="openClass">Se klassen</button>
-      </div>
-      <div class="panel" id="joinCard" hidden>
-        <div class="label">Spela med klassen</div>
-        <p>Spara dina stjärnor och se klasskompisarna.</p>
-        <button class="chunky" id="openJoin">Gå med i klassen</button>
-      </div>
+    </div>
+
+    <div class="panel installcard" id="installCard" hidden>
+      <span class="install-icon" aria-hidden="true"><img src="icon-192.png" alt="" width="48" height="48"></span>
+      <div><b>Installera spelet</b><p id="installText"></p></div>
+      <div class="install-actions"><button class="chunky" id="installBtn" hidden>Installera</button><button class="textbtn" id="installHide">Inte nu</button></div>
     </div>
 
     <div class="foot">

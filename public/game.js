@@ -26,7 +26,9 @@
 
   // Bara svenska hejarop, så att talsyntesen läser dem rätt
   const CHEERS = ['Hurra!','Jippi!','Toppen!','Snyggt!','Klockrent!','Kanon!','Jättebra!','Grymt!','Superbra!','Mattemagi!','Helt rätt!','Strålande!','Bingo!','Fantastiskt!','Häftigt!','Ja, ja, ja!','Briljant!','Pang på!'];
-  const nameCheers = () => [`Bra jobbat ${save.name}!`, `Heja ${save.name}!`, `${save.name}, du är en mattestjärna!`, `Så ska det se ut, ${save.name}!`];
+  // Namnet används i hejarop; utan namn blir det "kompis"
+  const nm = () => save.name || 'kompis';
+  const nameCheers = () => [`Bra jobbat ${nm()}!`, `Heja ${nm()}!`, `${nm()}, du är en mattestjärna!`, `Så ska det se ut, ${nm()}!`];
   const OOPS = ['Nästan! Försök igen.', 'Oj, inte riktigt. Du klarar det!', 'Prova en gång till!', 'Hmm, räkna en gång till.'];
   const STREAKS = { 3: '3 i rad!', 5: '5 i rad! Hurra!', 7: '7 i rad! Ostoppbar!', 10: '10 i rad! Legendariskt!', 15: '15 i rad! Mästare!', 20: '20 i rad! Otroligt!' };
 
@@ -109,7 +111,7 @@
   }
   function loadGuest() {
     const g = ls.get(GUEST_KEY) || {};
-    return withDefaults({ name: g.name || 'Edwin' }, g);
+    return withDefaults({ name: g.name || '' }, g);
   }
   const oldGuest = ls.get(GUEST_KEY) || {};
   const prefs = Object.assign({ sound: oldGuest.sound ?? true, voice: oldGuest.voice ?? true, world: 'plus', seenCheers: {}, flip: null }, ls.get(PREFS_KEY) || {});
@@ -169,7 +171,26 @@
   }
   addEventListener('online', () => { if (net.player) sync(); });
 
-  function logRound(r) { if (net.player) api('POST', 'me/rounds', r).catch(() => {}); }
+  // Loggar rundan och visar hur mycket den hjälpte klassens veckouppdrag
+  async function logRound(r) {
+    if (!net.player) return;
+    try {
+      const res = await api('POST', 'me/rounds', r);
+      const m = res && res.mission;
+      if (!m) return;
+      const before = net.classInfo && net.classInfo.mission ? net.classInfo.mission.mine : null;
+      if (net.classInfo) net.classInfo.mission = m;
+      const added = before == null ? 0 : m.mine - before;
+      if (current === 'done' && added > 0) {
+        const un = $('#unlock');
+        un.hidden = false;
+        un.insertAdjacentHTML('afterbegin', `🤝 Du hjälpte klassen med <b>${added} ${esc(m.unit)}</b> (${m.progress} av ${m.goal})<br>`);
+      }
+      if (res.completed) {
+        setTimeout(() => { cheer('Klassen klarade veckans uppdrag!', true); rain(220); sfx.fanfare(); say('Hurra! Klassen klarade veckans uppdrag!'); }, 1500);
+      }
+    } catch (e) {}
+  }
   function postEvent(type, detail) { if (net.player) api('POST', 'me/events', { type, detail: String(detail) }).catch(() => {}); }
 
   function useAccount(token, player, progress, dirty = false) {
@@ -212,7 +233,15 @@
       net.token = cached.token; net.player = cached.player;
       save = withDefaults({ name: cached.player.name }, cached.progress);
     }
+    // Länk från t.ex. klassens webbsida: ?klass=SOL-4821 öppnar "Gå med i klassen"
+    let klass = '';
+    try {
+      const params = new URLSearchParams(location.search);
+      klass = (params.get('klass') || '').trim();
+      if (params.has('klass')) history.replaceState(null, '', location.pathname);
+    } catch (e) {}
     renderStart();
+    if (needsWelcome() && !klass) showWelcome();
     try {
       const h = await api('GET', 'health');
       net.online = !!(h && h.app === 'talkamrater');
@@ -228,7 +257,36 @@
       }
     }
     if (current === 'start') renderStart();
+    if (current === 'welcome') showWelcome();
+    if (klass && !net.player && net.online) openJoin(klass);
     refreshClassInfo();
+  }
+
+  /* ================= Installera som app (PWA) ================= */
+  let installEvt = null;
+  const standalone = () => (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true;
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  function renderInstall() {
+    const card = $('#installCard');
+    const visible = net.online && !standalone() && !prefs.installHidden && (installEvt || isIOS);
+    card.hidden = !visible;
+    if (!visible) return;
+    $('#installText').innerHTML = installEvt
+      ? 'Lägg spelet på hemskärmen så startar det som en egen app.'
+      : 'Tryck på <b>Dela</b>-knappen i Safari och välj <b>Lägg till på hemskärmen</b>. Då startar spelet som en egen app.';
+    $('#installBtn').hidden = !installEvt;
+  }
+  addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e; renderInstall(); });
+  addEventListener('appinstalled', () => { installEvt = null; prefs.installHidden = true; savePrefs(); renderInstall(); });
+  $('#installBtn').addEventListener('click', async () => {
+    if (!installEvt) return;
+    installEvt.prompt();
+    try { await installEvt.userChoice; } catch (e) {}
+    installEvt = null; renderInstall();
+  });
+  $('#installHide').addEventListener('click', () => { prefs.installHidden = true; savePrefs(); renderInstall(); });
+  if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
   }
 
   /* ================= Ljud ================= */
@@ -440,11 +498,12 @@
     if (m && mood) { m.classList.remove('happy', 'oops'); void m.offsetWidth; m.classList.add(mood); }
   }
   function stopGame() {
+    wishNote = null;
     stopSpeech();
     clearTimeout(timer); clearInterval(ticker);
     G = null; D = null;
   }
-  function goHome() { stopGame(); renderStart(); show('start'); }
+  function goHome() { if (needsWelcome()) return showWelcome(); stopGame(); renderStart(); show('start'); }
 
   const starStr = n => [0, 1, 2].map(i => `<span class="${i < n ? 'on' : ''}">★</span>`).join('');
   const mascotHTML = '<div class="mascot happy" aria-hidden="true"><div class="eyes"><i></i><i></i></div><div class="mouth"></div></div>';
@@ -460,19 +519,79 @@
   const today = () => dayNumber();
 
   /* ================= Husdjuret ================= */
-  const PET_STAGES = [[0, 'Ägg'], [6, 'Bebis'], [20, 'Liten'], [45, 'Stor'], [90, 'Jätte'], [160, 'Kung']];
+  // Husdjuret växer av stjärnfrukter (= stjärnor från rundor) och av godsaker
+  // från önskningar. Det ska ta många rundor att nå kung.
+  const PET_STAGES = [[0, 'Ägg'], [10, 'Bebis'], [40, 'Liten'], [100, 'Stor'], [200, 'Jätte'], [400, 'Kung']];
   const PET_ICONS = ['🥚', '🐣', '🐾', '💜', '✨', '👑'];
+  const WISH_XP = 5, WISHES_PER_DAY = 3;
   const petStage = xp => PET_STAGES.reduce((s, [min], i) => (xp >= min ? i : s), 0);
   const petName = () => save.pet.name || 'Plutt';
+
+  // Önskningar: "Lös det här så får jag en glass!"
+  const TREATS = [['glass', '🍦', 'en glass'], ['pizza', '🍕', 'en pizzabit'], ['banan', '🍌', 'en banan'], ['tarta', '🎂', 'en tårtbit'],
+    ['kaka', '🍪', 'en kaka'], ['popcorn', '🍿', 'popcorn'], ['boll', '⚽', 'en ny boll'], ['ballong', '🎈', 'en ballong'], ['jordgubb', '🍓', 'jordgubbar']];
+  const inWorld = (w, fn) => () => { prefs.world = w; savePrefs(); roadContext = false; fn(); };
+  const WISH_TYPES = {
+    answers: { make: () => ({ need: pick([10, 12, 15]) }), text: w => `Svara rätt på ${w.need} frågor`, go: () => inWorld('plus', () => startMix(1))() },
+    minus: { make: () => ({ need: pick([6, 8]) }), text: w => `Svara rätt på ${w.need} minusfrågor`, go: () => inWorld('minus', () => startMix(0))() },
+    dubbel: { make: () => ({ need: pick([5, 6]) }), text: w => `Svara rätt på ${w.need} dubbelfrågor`, go: () => inWorld('dubbel', () => startMix(1))() },
+    bubbles: { make: () => ({ n: rnd(6, 14) }), text: w => `Poppa alla bubbelpar som blir ${w.n}`, go: w => inWorld('plus', () => startBubbles(w.n))() },
+    number: { make: () => ({ n: rnd(5, 18) }), text: w => `Klara talet ${w.n} med minst två stjärnor`, go: w => inWorld('plus', () => startFindLevel('plus', w.n))() },
+    streak: { make: () => ({}), text: () => 'Få 5 rätt i rad', go: () => inWorld('plus', () => startMix(1))() },
+    stars3: { make: () => ({}), text: () => 'Få tre stjärnor på en runda', go: () => inWorld('plus', () => startMix(0))() },
+    daily: { make: () => ({}), ok: () => !dailyDone(), text: () => 'Klara dagens utmaning', go: () => startDaily() }
+  };
+  const treatOf = w => TREATS.find(t => t[0] === (w && w.treat)) || TREATS[0];
+  function newWish() {
+    const types = Object.keys(WISH_TYPES).filter(t => !WISH_TYPES[t].ok || WISH_TYPES[t].ok());
+    const type = pick(types);
+    return { type, need: 1, have: 0, n: 0, ...WISH_TYPES[type].make(), treat: pick(TREATS)[0], day: today() };
+  }
+  function currentWish() {
+    const p = save.pet;
+    if (petStage(p.xp) === 0) return null;
+    if (p.wishDay !== today()) { p.wishDay = today(); p.wishCount = 0; p.wish = null; }
+    if (p.wish && !WISH_TYPES[p.wish.type]) p.wish = null;
+    if (!p.wish && p.wishCount < WISHES_PER_DAY) { p.wish = newWish(); persist(); }
+    return p.wish;
+  }
+  let wishNote = null;
+  function wishProgress(ev) {
+    const p = save.pet, w = p.wish;
+    if (!w || w.day !== today()) return;
+    let hit = false;
+    switch (w.type) {
+      case 'answers': hit = ev.kind === 'answer'; break;
+      case 'minus': hit = ev.kind === 'answer' && ev.w === 'minus'; break;
+      case 'dubbel': hit = ev.kind === 'answer' && ev.w === 'dubbel'; break;
+      case 'streak': hit = ev.kind === 'answer' && ev.streak >= 5; break;
+      case 'bubbles': hit = ev.kind === 'round' && ev.game === 'bubbles' && ev.n === w.n; break;
+      case 'number': hit = ev.kind === 'round' && ev.game === 'find' && ev.kindOf === 'train' && ev.world === 'plus' && ev.n === w.n && ev.stars >= 2; break;
+      case 'stars3': hit = ev.kind === 'round' && ev.stars === 3; break;
+      case 'daily': hit = ev.kind === 'round' && ev.daily; break;
+    }
+    if (!hit) return;
+    w.have = Math.min(w.need, w.have + 1);
+    if (w.have < w.need) return;
+    const t = treatOf(w);
+    p.wish = null; p.wishCount++; p.treats++;
+    const grew = feedPet(WISH_XP);
+    wishNote = { t, grew };
+    setTimeout(() => { cheer(`${petName()} fick ${t[2]}! ${t[1]}`, true); sfx.streak(); say(`Tack ${nm()}! Nu fick jag ${t[2]}!`); }, 700);
+  }
+
   function petMood() {
     const p = save.pet;
-    if (!p.last) return { cls: 'mood-new', text: 'Ägget väntar på dig. Spela en runda så börjar det kläckas!' };
-    const days = today() - p.last;
-    if (petStage(p.xp) === 0) return { cls: 'mood-happy', text: 'Ägget gungar! Spela mer så kläcks det snart.' };
-    if (days <= 0) return { cls: 'mood-happy', text: pick([`${petName()} är mätt och glad!`, `${petName()} dansar av glädje!`, `${petName()} älskar matte!`]) };
-    if (days === 1) return { cls: 'mood-ok', text: `${petName()} undrar om ni ska spela idag.` };
-    if (days <= 3) return { cls: 'mood-hungry', text: `${petName()} är hungrig! Spela en runda för att mata.` };
-    return { cls: 'mood-hungry', text: `${petName()} har längtat efter dig! En runda så blir allt bra igen.` };
+    const st = petStage(p.xp);
+    if (st === 0) {
+      const left = PET_STAGES[1][0] - p.xp;
+      return { cls: p.last ? 'mood-happy' : 'mood-new', text: p.last ? `Ägget gungar! ${left} 🍓 till så kläcks det.` : 'Ägget väntar på dig. Varje stjärna du tar värmer det!' };
+    }
+    const days = p.last ? today() - p.last : 99;
+    if (days >= 2) return { cls: 'mood-hungry', text: days <= 3 ? `${petName()} är hungrig! Spela en runda för att mata.` : `${petName()} har längtat efter dig! En runda så blir allt bra igen.` };
+    if (p.wishDay === today() && p.wishCount >= WISHES_PER_DAY) return { cls: 'mood-happy', text: `${petName()} har fått allt den önskat sig idag och är överlycklig! 💜` };
+    if (p.wishDay === today() && p.wishCount > 0) return { cls: 'mood-happy', text: `${petName()} är glad! Tack för ${p.wishCount === 1 ? 'godsaken' : 'godsakerna'}.` };
+    return { cls: days <= 0 ? 'mood-happy' : 'mood-ok', text: days <= 0 ? `${petName()} är mätt men har en önskan …` : `${petName()} undrar om ni ska spela idag.` };
   }
   function petHTML(stage, moodCls) {
     if (stage === 0) return `<div class="pet egg ${moodCls}" aria-hidden="true"><i class="spot s1"></i><i class="spot s2"></i><i class="spot s3"></i></div>`;
@@ -487,12 +606,12 @@
   function feedPet(food) {
     const p = save.pet;
     const before = petStage(p.xp);
-    p.xp += food; p.last = today(); if (!p.born) p.born = today();
+    if (food > 0) { p.xp += food; p.last = today(); if (!p.born) p.born = today(); }
     const after = petStage(p.xp);
     return after > before ? after : 0;
   }
   function renderPet() {
-    const st = petStage(save.pet.xp), mood = petMood();
+    const st = petStage(save.pet.xp), wish = currentWish(), mood = petMood();
     $('#petView').innerHTML = petHTML(st, mood.cls);
     $('#petName').textContent = petName();
     $('#petStageName').textContent = PET_STAGES[st][1];
@@ -501,13 +620,24 @@
     const from = PET_STAGES[st][0];
     $('#petMeter').style.width = next ? (100 * (save.pet.xp - from) / (next[0] - from)) + '%' : '100%';
     $('#petNext').textContent = next ? `${next[0] - save.pet.xp} 🍓 kvar tills ${petName()} blir ${next[1].toLowerCase()}` : `${petName()} är fullvuxen kung!`;
+    const box = $('#petWish');
+    box.hidden = !wish;
+    if (wish) {
+      const t = treatOf(wish);
+      $('#wishIcon').textContent = t[1];
+      $('#wishText').textContent = `"Lös det här så får jag ${t[2]}!" ${WISH_TYPES[wish.type].text(wish)}.`;
+      $('#wishMeter').style.width = (100 * wish.have / wish.need) + '%';
+      $('#wishCount').textContent = wish.need > 1 ? `${wish.have} av ${wish.need}` : (wish.have ? 'Klart!' : 'Inte klart än');
+      $('#wishBtn').textContent = `Hjälp ${petName()}!`;
+    }
   }
+  $('#wishBtn').addEventListener('click', () => { const w = save.pet.wish; if (w && WISH_TYPES[w.type]) WISH_TYPES[w.type].go(w); });
   $('#petBtn').addEventListener('click', () => {
     const el = $('#petView .pet'); if (!el) return;
     el.classList.remove('jump'); void el.offsetWidth; el.classList.add('jump');
     sfx.select();
     const st = petStage(save.pet.xp);
-    const lines = st === 0 ? ['Knack knack!', 'Det rör sig där inne!', 'Snart, snart …'] : ['Hihi, det kittlas!', 'Mer matte!', `Jag gillar dig, ${save.name}!`, 'Mums, stjärnfrukt!', 'Vet du vad 7 + 3 är? Tio!'];
+    const lines = st === 0 ? ['Knack knack!', 'Det rör sig där inne!', 'Snart, snart …'] : ['Hihi, det kittlas!', 'Mer matte!', `Jag gillar dig, ${nm()}!`, 'Mums, stjärnfrukt!', 'Vet du vad 7 + 3 är? Tio!'];
     const line = pick(lines);
     $('#petMood').textContent = line;
     say(line);
@@ -830,7 +960,7 @@
     } else {
       $('#introTitle').textContent = s.name;
       list.innerHTML = `<li>📝 ${s.count} frågor: ${what}</li><li>🎯 ${s.pass} rätt behövs för att klara</li><li>🙈 Inga pärlor nu, du har dem i huvudet!</li>`;
-      talk(s.kind === 'final' ? `Det här är det stora provet, ${save.name}. Klarar du det blir du ${w.expertTitle}!` : 'Ett svar per fråga. Ta det lugnt och tänk efter.');
+      talk(s.kind === 'final' ? `Det här är det stora provet, ${nm()}. Klarar du det blir du ${w.expertTitle}!` : 'Ett svar per fråga. Ta det lugnt och tänk efter.');
     }
     $('#introGo').onclick = () => (s.kind === 'challenge' ? startChallenge(s) : startTest(s));
     $('#introBack').onclick = () => openRoad();
@@ -859,7 +989,7 @@
   /* ================= Startsidan ================= */
   function renderStart() {
     const w = W();
-    $('#hello').textContent = `Hej ${save.name}!`;
+    $('#hello').textContent = save.name ? `Hej ${save.name}!` : 'Hej!';
     $('#heroFace').innerHTML = net.player ? `<div class="avatar-big" aria-hidden="true">${net.player.avatar}</div>` : mascotHTML;
     $('#nameInput').value = save.name;
     $('#rankName').textContent = titleFor(save.total);
@@ -897,16 +1027,9 @@
     $('#mixB').textContent = w.mixes[1].label;
 
     const acc = !!net.player;
-    $('#classCard').hidden = !acc;
+    renderClassTop();
+    renderInstall();
     $('#joinCard').hidden = acc || !net.online;
-    if (acc) {
-      const ci = net.classInfo;
-      const fresh = ci ? ci.myCheers - (prefs.seenCheers[net.player.id] || 0) : 0;
-      $('#classCardSmall').textContent = net.player.className || '';
-      $('#classCardText').textContent = ci && ci.mission ? `Veckans uppdrag: ${ci.mission.progress} av ${ci.mission.goal} ${ci.mission.unit}` : 'Se kompisarna och klassens stjärnburk.';
-      $('#cheerBadge').hidden = fresh <= 0;
-      $('#cheerBadge').textContent = fresh > 0 ? `👏 ${fresh} nya hejarop` : '';
-    }
     $('#nameField').hidden = acc;
     $('#resetBtn').hidden = acc;
     $('#logoutBtn').hidden = !acc;
@@ -917,6 +1040,53 @@
     $('#soundBtn').textContent = prefs.sound ? '🔊' : '🔇';
     $('#voiceBtn').setAttribute('aria-pressed', String(prefs.voice));
   }
+
+  // Klassen överst på startsidan: veckans uppdrag, ditt bidrag och senaste händelsen
+  function renderClassTop() {
+    const box = $('#classTop');
+    if (!net.player) { box.hidden = true; return; }
+    box.hidden = false;
+    const ci = net.classInfo;
+    $('#ctName').textContent = net.player.className || 'Klassen';
+    const fresh = ci ? ci.myCheers - (prefs.seenCheers[net.player.id] || 0) : 0;
+    $('#cheerBadge').hidden = fresh <= 0;
+    $('#cheerBadge').textContent = fresh > 0 ? `👏 ${fresh} ${fresh === 1 ? 'nytt hejarop' : 'nya hejarop'}` : '';
+    if (!ci || !ci.mission) {
+      $('#ctMission').textContent = net.online ? 'Hämtar klassens uppdrag …' : 'Klassen syns när du har internet.';
+      $('#ctMeter').style.width = '0%'; $('#ctMine').textContent = ''; $('#ctEvent').hidden = true;
+      return;
+    }
+    const m = ci.mission;
+    const done = m.progress >= m.goal;
+    $('#ctMission').textContent = m.title;
+    $('#ctMeter').style.width = Math.min(100, 100 * m.progress / m.goal) + '%';
+    $('#ctProgress').textContent = done ? `Klart! ${m.progress} ${m.unit} 🎉` : `${m.progress} av ${m.goal} ${m.unit}`;
+    $('#ctMine').textContent = m.mine > 0 ? `Du har bidragit med ${m.mine} ${m.unit}. Tack! 🤝` : 'Spela en runda så hjälper du klassen!';
+    const ev = ci.events && ci.events[0];
+    $('#ctEvent').hidden = !ev;
+    if (ev) $('#ctEvent').innerHTML = `${esc(ev.avatar)} ${eventText(ev)}`;
+    $('#classTop').classList.toggle('is-done', done);
+  }
+
+  // Första gången: välj namn eller gå med i klassen. Inget förvalt namn.
+  function needsWelcome() { return !net.player && !save.name && !ls.get(ACCOUNT_KEY); }
+  function showWelcome() {
+    stopGame();
+    show('welcome');
+    $('#welcomeJoin').hidden = !net.online;
+    $('#welcomeOr').hidden = !net.online;
+    $('#welcomeName').value = '';
+  }
+  function welcomeStart() {
+    const name = $('#welcomeName').value.replace(/[<>]/g, '').trim().slice(0, 16);
+    if (name.length < 2) { $('#welcomeErr').textContent = 'Skriv ditt namn (minst två bokstäver).'; $('#welcomeName').focus(); return; }
+    save.name = name; persist();
+    goHome();
+    cheer(`Välkommen ${name}!`, true); sfx.fanfare(); say(`Välkommen ${name}! Nu kör vi!`);
+  }
+  $('#welcomeGo').addEventListener('click', welcomeStart);
+  $('#welcomeName').addEventListener('keydown', e => { if (e.key === 'Enter') welcomeStart(); });
+  $('#welcomeJoinBtn').addEventListener('click', () => openJoin());
 
   /* ================= Välj spelsätt (plus) ================= */
   let chosenN = 8;
@@ -942,7 +1112,7 @@
   /* ================= Spel: Hitta kamraten / prov ================= */
   function startFindLevel(w, n) {
     const Wd = WORLDS[w];
-    startFind({ kind: 'train', world: w, level: `${Wd.prefix}${n}`, mode: 'find', label: Wd.level(n), qs: allQs(w, n), beads: true, retry: true });
+    startFind({ kind: 'train', world: w, n, level: `${Wd.prefix}${n}`, mode: 'find', label: Wd.level(n), qs: allQs(w, n), beads: true, retry: true });
   }
   function startMix(i) {
     const w = W(), m = w.mixes[i];
@@ -1007,6 +1177,7 @@
       else G.marks[G.idx] = false;
       G.streak++; G.bestStreak = Math.max(G.bestStreak, G.streak);
       setStreak($('#findStreak'), G.streak);
+      wishProgress({ kind: 'answer', w: q.w, streak: G.streak });
       $('#findExplain').innerHTML = explainRight(q);
       celebrate(btn, G.streak);
       G.idx++;
@@ -1120,6 +1291,7 @@
       const [x1, y1] = centerOf(a), [x2, y2] = centerOf(b);
       burst(x1, y1, 22, .8); burst(x2, y2, 22, .8);
       G.found++; G.waveLeft--; G.streak++; G.bestStreak = Math.max(G.bestStreak, G.streak);
+      wishProgress({ kind: 'answer', w: 'plus', streak: G.streak });
       if (G.missStreak === 0) G.firstTry++;
       G.missStreak = 0;
       setStreak($('#bubStreak'), G.streak);
@@ -1231,6 +1403,7 @@
       G.score++; G.streak++; G.bestStreak = Math.max(G.bestStreak, G.streak);
       markTricky(q, false);
       $('#chScore').textContent = G.score;
+      wishProgress({ kind: 'answer', w: q.w, streak: G.streak });
       setStreak($('#chStreak'), G.streak);
       $('#chEquation').innerHTML = equationHTML(q, true);
       celebrate(btn, G.streak, true);
@@ -1262,7 +1435,7 @@
     stopGame();
     show('duel');
     $('#duelSetup').hidden = false; $('#duelPlay').hidden = true; $('#duelWin').hidden = true;
-    if (!$('#duelP1').value) $('#duelP1').value = save.name;
+    if (!$('#duelP1').value) $('#duelP1').value = save.name || 'Spelare 1';
     if (!$('#duelP2').value) $('#duelP2').value = 'Kompis';
     if (prefs.flip == null) prefs.flip = !!(window.matchMedia && matchMedia('(pointer: coarse)').matches);
     $('#duelFlip').checked = prefs.flip;
@@ -1406,19 +1579,22 @@
     if (bookDone) save.path.book = 1;
 
     // Mata husdjuret
-    const food = r.stars + 1;
-    const grew = feedPet(food);
+    // Mata husdjuret: en stjärnfrukt per stjärna
+    const food = r.stars;
+    let grew = feedPet(food);
+    wishProgress({ kind: 'round', game: g.game, world: wid, n: g.n, stars: r.stars, daily: !!daily, kindOf: g.kind });
+    if (wishNote && wishNote.grew) grew = wishNote.grew;
 
     persist();
-    logRound({ level: g.level, mode: g.mode, stars: r.stars, score: r.score, total: r.total, mistakes: g.mistakes });
+    const roundInfo = { level: g.level, mode: g.mode, stars: r.stars, score: r.score, total: r.total, mistakes: g.mistakes };
+    logRound(roundInfo);
 
     const newTitle = titleFor(save.total);
+    // Bara stora händelser till klassflödet, så att det inte svämmar över
     if (medalKey) postEvent('medal', medalKey);
-    if (newTitle !== oldTitle) postEvent('title', newTitle);
-    if (daily && DAILY_MILESTONES.includes(daily)) postEvent('daily', daily);
-    if (grew) postEvent('pet', grew);
+    if (daily && [7, 30, 100].includes(daily)) postEvent('daily', daily);
+    if (grew === PET_STAGES.length - 1) postEvent('pet', grew);
     if (bookDone) postEvent('book', 'alla');
-    if (r.newRecord && r.passed && g.station) postEvent('record', `${g.station.id}:${r.score}`);
 
     if (g.kind === 'final' && r.passed) {
       postEvent('expert', wid);
@@ -1443,9 +1619,10 @@
     if (daily) notes.push(`🔥 Dagens utmaning klar! <b>${daily} ${daily === 1 ? 'dag' : 'dagar'} i rad</b>`);
     if (afterDone > beforeDone && next && g.kind !== 'daily') notes.push(`Ett steg till på vägen till expert! Nästa: <b>${esc(next.name)}</b>`);
     if (r.newRecord) notes.push('Nytt rekord!');
-    notes.push(grew
-      ? `🍓 ${esc(petName())} åt ${food} stjärnfrukter och <b>växte till ${PET_STAGES[grew][1].toLowerCase()}!</b>`
-      : `🍓 ${esc(petName())} åt ${food} ${food === 1 ? 'stjärnfrukt' : 'stjärnfrukter'}. Mums!`);
+    if (wishNote) notes.push(`${wishNote.t[1]} ${esc(petName())} fick ${wishNote.t[2]}! Önskan uppfylld.`);
+    wishNote = null;
+    if (grew) notes.push(`🍓 ${esc(petName())} <b>växte och blev ${PET_STAGES[grew][1].toLowerCase()}!</b>`);
+    else if (food) notes.push(`🍓 ${esc(petName())} åt ${food} ${food === 1 ? 'stjärnfrukt' : 'stjärnfrukter'}. Mums!`);
     if (!r.passed && g.missed && g.missed.length) {
       notes.push(`Öva lite extra på: <b>${g.missed.slice(0, 4).map(equationText).join(', ')}</b>`);
     }
@@ -1469,13 +1646,13 @@
       if (grew) setTimeout(() => { cheer(`${petName()} växte!`, true); sfx.streak(); }, 1300);
       else if (medal) setTimeout(() => cheer(medal[1], true), 1200);
       else if (newTitle !== oldTitle) setTimeout(() => cheer(newTitle, true), 1200);
-      say(medal ? `Hurra ${save.name}! Du klarade provet och vann ${medal[1]}!`
+      say(medal ? `Hurra ${nm()}! Du klarade provet och vann ${medal[1]}!`
         : daily ? `Hurra! Dagens utmaning klar, ${daily} ${daily === 1 ? 'dag' : 'dagar'} i rad!`
-        : r.stars === 3 ? `Hurra! Tre stjärnor, ${save.name}! Du är grym!`
-        : `Bra jobbat ${save.name}! Du fick ${r.stars} ${r.stars === 1 ? 'stjärna' : 'stjärnor'}.`);
+        : r.stars === 3 ? `Hurra! Tre stjärnor, ${nm()}! Du är grym!`
+        : `Bra jobbat ${nm()}! Du fick ${r.stars} ${r.stars === 1 ? 'stjärna' : 'stjärnor'}.`);
     } else {
       sfx.sad();
-      say(`Bra försök ${save.name}! Öva lite till, sen klarar du det.`);
+      say(`Bra försök ${nm()}! Öva lite till, sen klarar du det.`);
     }
   }
   function equationText(q) {
@@ -1504,14 +1681,14 @@
     $('#dipTitle').textContent = w.expertTitle;
     $('#dipText').textContent = w.diploma;
     $('#dipSeal').textContent = EXPERT_ICON[wid];
-    $('#dipName').textContent = save.name;
+    $('#dipName').textContent = save.name || 'en riktig mattestjärna';
     $('#dipDate').textContent = new Date().toLocaleDateString('sv-SE', { year: 'numeric', month: 'long', day: 'numeric' });
     $('#dipPrint').hidden = !net.online;
     $('#dipRoad').onclick = () => openRoad(wid);
     if (celebrateNow) {
       sfx.fanfare(); rain(220); setTimeout(() => rain(160), 900); setTimeout(() => sfx.fanfare(), 1200);
       setTimeout(() => cheer(`${w.expertTitle}!`, true), 600);
-      say(`Grattis ${save.name}! Nu är du ${w.expertTitle}!`);
+      say(`Grattis ${nm()}! Nu är du ${w.expertTitle}!`);
     }
   }
   $('#dipPrint').addEventListener('click', () => { try { window.print(); } catch (e) {} });
@@ -1544,6 +1721,7 @@
       case 'title': return `${n} har fått titeln ${esc(e.detail)}! ⭐`;
       case 'daily': return `${n} har gjort dagens utmaning ${esc(e.detail)} dagar i rad! 🔥`;
       case 'book': return `${n} har samlat alla klistermärken! 📒`;
+      case 'mission': return `🎉 <b>Klassen klarade veckans uppdrag!</b> Sista biten: ${n}`;
       case 'pet': return `<b>${esc(genitive(e.name))}</b> husdjur växte och blev ${esc((PET_STAGES[+e.detail] || [0, 'större'])[1].toLowerCase())}! ${PET_ICONS[+e.detail] || '🐾'}`;
       case 'record': {
         const [id, sc] = String(e.detail).split(':');
@@ -1650,13 +1828,13 @@
   /* ================= Gå med i klassen ================= */
   const J = { cls: null, code: '' };
   const body = () => $('#joinBody');
-  function openJoin() {
+  function openJoin(code) {
     stopGame();
     show('join');
-    joinCode(ls.get(CLASS_KEY) || '');
+    joinCode(code || ls.get(CLASS_KEY) || '', !!code);
   }
-  function joinCode(prefill) {
-    $('#joinBack').onclick = goHome;
+  function joinCode(prefill, auto) {
+    $('#joinBack').onclick = () => (needsWelcome() ? showWelcome() : goHome());
     body().innerHTML = `<div class="formstack">
       <h2>Skriv klasskoden</h2>
       <p class="lead">Koden får du av din lärare, till exempel SOL-4821.</p>
@@ -1677,6 +1855,7 @@
     $('#codeGo').addEventListener('click', go);
     $('#classCode').addEventListener('keydown', e => { if (e.key === 'Enter') go(); });
     $('#classCode').focus();
+    if (auto) go();
   }
   function joinWho() {
     $('#joinBack').onclick = () => joinCode(J.code);
@@ -1806,8 +1985,8 @@
   $('#openJoin').addEventListener('click', openJoin);
   $('#logoutBtn').addEventListener('click', () => logout(false));
   $('#nameInput').addEventListener('input', e => {
-    save.name = e.target.value.trim() || 'Edwin';
-    $('#hello').textContent = `Hej ${save.name}!`;
+    save.name = e.target.value.replace(/[<>]/g, '').trim().slice(0, 16);
+    $('#hello').textContent = save.name ? `Hej ${save.name}!` : 'Hej!';
     persist();
   });
   $('#soundBtn').addEventListener('click', () => { prefs.sound = !prefs.sound; savePrefs(); renderStart(); if (prefs.sound) { unlockAudio(); sfx.right(); } else if (silentEl) silentEl.pause(); });
@@ -1817,7 +1996,7 @@
     loadVoices();
     if (!window.speechSynthesis) cheer('Rösten finns inte här');
     else if (voices.length && !swedishVoice()) cheer('Ingen svensk röst på enheten');
-    else say(`Hej ${save.name}!`);
+    else say(`Hej ${nm()}!`);
   });
   let resetArmed = 0;
   $('#resetBtn').addEventListener('click', e => {

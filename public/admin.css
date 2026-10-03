@@ -25,3 +25,7 @@ td .em { font-size: 1.4rem; }
 .adm-foot { text-align: center; }
 .goal-edit { display: inline-flex; gap: 6px; align-items: center; font-weight: 800; }
 .goal-edit input { width: 6em; border: 3px solid var(--line); border-radius: 10px; padding: 4px 8px; font: inherit; }
+.adm-public { background: var(--sky-2); border-radius: 14px; padding: 10px 12px; margin-bottom: 12px; display: grid; gap: 8px; }
+.adm-embed { display: grid; gap: 8px; justify-items: start; }
+.adm-embed p { margin: 0; }
+.adm-code-block { margin: 0; width: 100%; overflow-x: auto; background: var(--ink); color: #E6ECFF; border-radius: 10px; padding: 10px; font-size: 0.78rem; white-space: pre; }

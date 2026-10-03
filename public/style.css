@@ -486,6 +486,48 @@ details.friends summary { font-family: var(--display); font-weight: 800; font-si
 .heja:disabled { background: transparent; box-shadow: none; cursor: default; }
 .error.center { text-align: center; }
 
+/* Välkomstskärmen */
+.welcome { display: grid; gap: 16px; }
+.welcome-hero { display: grid; justify-items: center; text-align: center; gap: 8px; padding-block: 12px 4px; }
+.welcome-hero h1 { font-size: clamp(2rem, 8vw, 3rem); font-weight: 800; }
+.welcome-hero p { margin: 0; font-weight: 700; color: var(--ink-soft); max-width: 30em; }
+.welcome-class { background: var(--ink); color: var(--card); display: grid; gap: 10px; }
+.welcome-class p { margin: 0; font-weight: 700; color: #DCE3F5; }
+.or { display: flex; align-items: center; gap: 12px; color: var(--ink-soft); font-weight: 800; }
+.or::before, .or::after { content: ""; flex: 1; height: 3px; border-radius: 2px; background: var(--line); }
+.welcome .panel + .panel { margin-top: 0; }
+
+/* Klassen överst på startsidan */
+.classtop { background: var(--grape); color: var(--card); display: grid; gap: 10px; margin-bottom: 16px; }
+.classtop.is-done { background: linear-gradient(135deg, var(--grape), var(--berry)); }
+.ct-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+.classtop .kicker { font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; font-size: 0.78rem; color: #E6DFFF; }
+.ct-title { font-family: var(--display); font-weight: 800; font-size: clamp(1.4rem, 6vw, 1.8rem); line-height: 1.1; }
+.classtop .meter { background: rgba(255,255,255,0.2); }
+.classtop .meter i { background: linear-gradient(90deg, var(--sun), #FFE58A); }
+.ct-row { display: flex; justify-content: space-between; gap: 6px 12px; flex-wrap: wrap; font-weight: 700; color: #F1EDFF; }
+.ct-row b { color: var(--card); }
+.ct-event { margin: 0; background: rgba(255,255,255,0.14); border-radius: 12px; padding: 8px 10px; font-weight: 700; overflow-wrap: anywhere; }
+.joincard { background: var(--ink); color: var(--card); display: grid; gap: 10px; margin-bottom: 16px; }
+.joincard p { margin: 0; font-weight: 700; color: #DCE3F5; }
+#classTop + .panel, #joinCard + .panel { margin-top: 0; }
+
+/* Husdjurets önskan */
+.wish { grid-column: 1 / -1; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px 12px; align-items: center; background: #FFF6DA; border-radius: 18px; padding: 10px 12px; }
+.wish-icon { font-size: 2.4rem; line-height: 1; animation: wobble 2.6s ease-in-out infinite; }
+.wish-body { display: grid; gap: 6px; min-width: 0; }
+.wish-body b { font-weight: 800; line-height: 1.25; }
+.wish-body .meter { background: var(--card); height: 10px; }
+.wish-body .meter i { background: linear-gradient(90deg, var(--sun), var(--coral)); }
+.wish-body small { font-weight: 800; color: var(--ink-soft); }
+.wish .chunky { grid-column: 1 / -1; }
+
+/* Installera som app */
+.installcard { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px 12px; align-items: center; margin-top: 16px; }
+.installcard p { margin: 2px 0 0; font-weight: 700; color: var(--ink-soft); }
+.install-icon img { border-radius: 12px; display: block; }
+.install-actions { grid-column: 1 / -1; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+
 /* Effects */
 #fx { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 50; }
 .cheer {

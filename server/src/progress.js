@@ -16,12 +16,21 @@ const intMap = (obj, max, keyRe = KEY, maxKeys = 400) => {
 const obj = v => (v && typeof v === 'object' && !Array.isArray(v) ? v : {});
 const cleanText = (v, max) => String(v ?? '').replace(/[\u0000-\u001f<>]/g, '').trim().slice(0, max);
 
+// Husdjurets önskan, t.ex. { type: 'answers', need: 12, have: 3, n: 0, treat: 'glass', day: 20730 }
+function sanitizeWish(w) {
+  if (!w || typeof w !== 'object' || !/^[a-z0-9]{1,12}$/.test(String(w.type))) return null;
+  return {
+    type: String(w.type), need: int(w.need, 1, 100), have: int(w.have, 0, 100), n: int(w.n, 0, 20),
+    treat: cleanText(w.treat, 16), day: int(w.day, 0, 1e6)
+  };
+}
+
 export const EXPERT_KEYS = { plus: 'expert', minus: 'mexpert', dubbel: 'dexpert' };
 
 export function emptyProgress() {
   return {
     best: {}, total: 0, rounds: 0, stickers: [], path: {}, records: {}, tricky: {},
-    pet: { xp: 0, last: 0, born: 0, name: '' },
+    pet: { xp: 0, last: 0, born: 0, name: '', wish: null, wishDay: 0, wishCount: 0, treats: 0 },
     daily: { day: 0, streak: 0, best: 0, count: 0 }
   };
 }
@@ -40,7 +49,11 @@ export function sanitizeProgress(p) {
     records: intMap(src.records, 10000),
     // Kluriga kamrater: "8:3" (plus), "m8:3" (minus), "d6:6" (dubblor)
     tricky: intMap(src.tricky, 99, /^[md]?\d{1,2}:\d{1,2}$/),
-    pet: { xp: int(pet.xp, 0, 1e6), last: int(pet.last, 0, 1e6), born: int(pet.born, 0, 1e6), name: cleanText(pet.name, 16) },
+    pet: {
+      xp: int(pet.xp, 0, 1e6), last: int(pet.last, 0, 1e6), born: int(pet.born, 0, 1e6), name: cleanText(pet.name, 16),
+      wish: sanitizeWish(pet.wish),
+      wishDay: int(pet.wishDay, 0, 1e6), wishCount: int(pet.wishCount, 0, 100), treats: int(pet.treats, 0, 1e6)
+    },
     daily: { day: int(daily.day, 0, 1e6), streak: int(daily.streak, 0, 1e5), best: int(daily.best, 0, 1e5), count: int(daily.count, 0, 1e6) }
   };
 }
@@ -74,7 +87,10 @@ export function mergeProgress(stored, incoming) {
       xp: Math.max(a.pet.xp, b.pet.xp),
       last: Math.max(a.pet.last, b.pet.last),
       born: Math.min(...[a.pet.born, b.pet.born].filter(Boolean), 1e6) % 1e6,
-      name: b.pet.name || a.pet.name
+      name: b.pet.name || a.pet.name,
+      // Önskan och dagens räknare: den senaste versionen vinner
+      wish: b.pet.wish, wishDay: b.pet.wishDay, wishCount: b.pet.wishCount,
+      treats: Math.max(a.pet.treats, b.pet.treats)
     },
     daily: { ...newer, best: Math.max(a.daily.best, b.daily.best, newer.streak), count: Math.max(a.daily.count, b.daily.count) }
   };

@@ -148,6 +148,15 @@ function migrations(t, client) {
       await knex.schema.dropTableIfExists(t.cheers);
       await knex.schema.dropTableIfExists(t.events);
     }
+  }, {
+    // Läraren kan låta klassens status visas på en extern webbsida (widget)
+    name: '003_public_class',
+    async up(knex) {
+      await knex.schema.alterTable(t.classes, tb => { tb.boolean('public').notNullable().defaultTo(false); });
+    },
+    async down(knex) {
+      await knex.schema.alterTable(t.classes, tb => { tb.dropColumn('public'); });
+    }
   }];
 }
 

@@ -1,0 +1,39 @@
+body.widget { background: transparent; }
+.w-wrap { max-width: 520px; margin: 0 auto; padding: 8px; display: grid; gap: 10px; }
+.w-loading { text-align: center; font-weight: 800; color: var(--ink-soft); padding: 20px; background: var(--card); border-radius: 20px; }
+.w-form { display: grid; gap: 8px; }
+.w-form p { margin: 0; font-weight: 700; color: var(--ink-soft); }
+.w-form label { font-weight: 800; }
+.w-wrap .panel + .panel { margin-top: 0; }
+.w-head { display: flex; align-items: center; gap: 10px; background: var(--card); border-radius: 18px; padding: 8px 12px; box-shadow: 0 4px 0 var(--shadow); }
+.w-head > div { flex: 1; min-width: 0; display: grid; }
+.w-head b { font-family: var(--display); font-size: 1.3rem; line-height: 1.1; }
+.w-head small { font-weight: 700; color: var(--ink-soft); }
+.kicker { font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; font-size: 0.75rem; }
+.w-mission { background: var(--grape); color: var(--card); display: grid; gap: 8px; }
+.w-mission.is-done { background: linear-gradient(135deg, var(--grape), var(--berry)); }
+.w-mission .kicker { color: #E6DFFF; }
+.w-title { font-family: var(--display); font-weight: 800; font-size: 1.35rem; line-height: 1.15; }
+.w-mission .meter { background: rgba(255,255,255,0.2); }
+.w-mission .meter i { background: linear-gradient(90deg, var(--sun), #FFE58A); }
+.w-row { display: flex; justify-content: space-between; gap: 4px 10px; flex-wrap: wrap; font-weight: 700; color: #F1EDFF; }
+.w-row b { color: var(--card); }
+.w-me { display: grid; gap: 10px; }
+.w-me-head { display: flex; gap: 10px; align-items: center; }
+.w-me-head > div { display: grid; min-width: 0; }
+.w-me-head b { font-family: var(--display); font-size: 1.3rem; line-height: 1.1; }
+.w-me-head small { font-weight: 700; color: var(--ink-soft); overflow-wrap: anywhere; }
+.w-avatar { font-size: 2.2rem; }
+.w-help { margin: 0; font-weight: 800; color: var(--grape); }
+.w-pet { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 12px; align-items: center; }
+.w-pet .petstage { width: 92px; height: 92px; }
+.w-pet-info { display: grid; gap: 4px; }
+.w-pet-info p { margin: 0; font-weight: 700; color: var(--ink-soft); }
+.w-wish { background: #FFF6DA; border-radius: 12px; padding: 6px 10px; color: var(--ink) !important; }
+.w-note { margin: 0; background: #FFE0EA; color: var(--berry); font-weight: 800; border-radius: 14px; padding: 8px 12px; }
+.w-feed ul { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 6px; }
+.w-feed li { display: flex; gap: 8px; font-weight: 700; overflow-wrap: anywhere; }
+.w-jar { text-align: center; font-weight: 700; color: var(--ink-soft); }
+.w-jar b { color: var(--ink); }
+.w-play { text-align: center; text-decoration: none; display: block; }
+#wContent { display: grid; gap: 10px; }

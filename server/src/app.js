@@ -2,12 +2,15 @@ import express from 'express';
 import { insertId } from './db.js';
 import { newToken, hashToken, validPin, hashPin, checkPin, safeEqual, newClassCode, normalizeCode, rateLimiter } from './auth.js';
 import { emptyProgress, sanitizeProgress, mergeProgress, summarize } from './progress.js';
-import { classMission } from './mission.js';
+import { classMission, celebrateMission } from './mission.js';
 
 // Händelser som kan visas i klassens flöde. Texten byggs i spelet utifrån typ + detalj.
-const EVENT_TYPES = ['medal', 'expert', 'title', 'daily', 'book', 'pet', 'record'];
+// Bara större händelser, så att flödet inte svämmar över i en stor klass.
+// 'mission' skapas av servern när klassen klarar veckans uppdrag.
+const EVENT_TYPES = ['medal', 'expert', 'daily', 'book', 'pet'];
 const EVENT_DETAIL = /^[\p{L}\p{N} :_-]{0,32}$/u;
-const EVENTS_PER_DAY = 25;
+const EVENTS_PER_DAY = 3;
+const FEED_LENGTH = 12;
 
 const AVATARS = ['🦊', '🐼', '🐸', '🦁', '🐯', '🐨', '🐵', '🐰', '🐶', '🐱', '🦄', '🐲'];
 const MAX_PLAYERS_PER_CLASS = 60;
@@ -20,18 +23,22 @@ class HttpError extends Error {
 const fail = (status, message) => { throw new HttpError(status, message); };
 const cleanName = n => String(n || '').replace(/[\u0000-\u001f<>]/g, '').replace(/\s+/g, ' ').trim().slice(0, 24);
 
-export function createApp({ db, t, client, adminKey, publicDir, trustProxy = 'loopback, linklocal, uniquelocal' }) {
+export function createApp({ db, t, client, adminKey, publicDir, trustProxy = 'loopback, linklocal, uniquelocal', allowedOrigins = [] }) {
   const app = express();
   app.disable('x-powered-by');
   app.set('trust proxy', trustProxy);
 
+  const origins = allowedOrigins.filter(Boolean);
   app.use((req, res, next) => {
+    // Widgeten får bäddas in på de sajter som står i ALLOWED_ORIGINS
+    const embeddable = req.path === '/widget.html';
+    const ancestors = embeddable ? ["'self'", ...origins].join(' ') : "'self'";
     res.set({
       'X-Content-Type-Options': 'nosniff',
       'Referrer-Policy': 'same-origin',
-      'X-Frame-Options': 'SAMEORIGIN',
-      'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; media-src 'self' blob: data:; connect-src 'self'; frame-ancestors 'self'"
+      'Content-Security-Policy': `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; media-src 'self' blob: data:; connect-src 'self'; worker-src 'self'; manifest-src 'self'; frame-ancestors ${ancestors}`
     });
+    if (!embeddable) res.set('X-Frame-Options', 'SAMEORIGIN');
     next();
   });
 
@@ -187,7 +194,10 @@ export function createApp({ db, t, client, adminKey, publicDir, trustProxy = 'lo
       stars: n(b.stars, 3), score: n(b.score, 1000), total: n(b.total, 1000), mistakes: n(b.mistakes, 1000),
       created_at: Date.now()
     });
-    res.status(204).end();
+    const count = await db(t.players).where({ class_id: req.player.class_id }).count({ n: '*' }).first();
+    const mission = await classMission(db, t, req.player.class_id, Number(count.n), req.player.id);
+    const completed = await celebrateMission(db, t, client, req.player.class_id, req.player.id, mission);
+    res.json({ mission, completed });
   });
 
   api.get('/me/class', auth, async (req, res) => {
@@ -204,7 +214,7 @@ export function createApp({ db, t, client, adminKey, publicDir, trustProxy = 'lo
     const evRows = await db(t.events).join(t.players, `${t.events}.player_id`, `${t.players}.id`)
       .where(`${t.events}.class_id`, c.id)
       .select(`${t.events}.id`, `${t.events}.type`, `${t.events}.detail`, `${t.events}.created_at`, `${t.events}.player_id`, `${t.players}.name`, `${t.players}.avatar`)
-      .orderBy(`${t.events}.created_at`, 'desc').limit(25);
+      .orderBy(`${t.events}.created_at`, 'desc').limit(FEED_LENGTH);
     const ids = evRows.map(e => e.id);
     const cheerRows = ids.length ? await db(t.cheers).whereIn('event_id', ids).select('event_id', 'player_id') : [];
     const events = evRows.map(e => {
@@ -219,7 +229,7 @@ export function createApp({ db, t, client, adminKey, publicDir, trustProxy = 'lo
       .where(`${t.events}.player_id`, me).count({ n: '*' }).first();
     res.json({
       name: c.name, goal: Number(c.goal), total: players.reduce((s, p) => s + p.stars, 0), players,
-      mission: await classMission(db, t, c.id, players.length),
+      mission: await classMission(db, t, c.id, players.length, me),
       events, myCheers: Number(myCheers.n)
     });
   });
@@ -254,13 +264,50 @@ export function createApp({ db, t, client, adminKey, publicDir, trustProxy = 'lo
     res.status(204).end();
   });
 
+  /* ---------- Publik klassstatus (widget på t.ex. klassens webbsida) ---------- */
+  // Bara för klasser där läraren slagit på "Visa på klassens webbsida".
+  const publicApi = express.Router();
+  publicApi.use((req, res, next) => {
+    const origin = req.get('origin');
+    if (origin && origins.includes(origin)) { res.set('Access-Control-Allow-Origin', origin); res.set('Vary', 'Origin'); }
+    next();
+  });
+  publicApi.get('/classes/:code', lookupLimit, async (req, res) => {
+    const c = await db(t.classes).where({ code: normalizeCode(req.params.code) }).first();
+    if (!c || !c.public) fail(404, 'Klassen finns inte eller visas inte publikt.');
+    const rows = await db(t.players).leftJoin(t.progress, `${t.players}.id`, `${t.progress}.player_id`)
+      .where(`${t.players}.class_id`, c.id).select(`${t.players}.id`, `${t.players}.name`, `${t.players}.avatar`, `${t.progress}.data`);
+    const parse = d => { try { return d ? JSON.parse(d) : {}; } catch { return {}; } };
+    const total = rows.reduce((s, r) => s + summarize(parse(r.data)).stars, 0);
+    const wanted = String(req.query.name || '').trim().toLowerCase();
+    const row = wanted ? rows.find(r => r.name.toLowerCase() === wanted) : null;
+    let me = null;
+    if (row) {
+      const p = sanitizeProgress(parse(row.data));
+      me = { name: row.name, avatar: row.avatar, ...summarize(p), path: p.path, best: p.best, pet: p.pet, daily: p.daily };
+    }
+    const events = await db(t.events).join(t.players, `${t.events}.player_id`, `${t.players}.id`)
+      .where(`${t.events}.class_id`, c.id)
+      .select(`${t.events}.type`, `${t.events}.detail`, `${t.events}.created_at`, `${t.players}.name`, `${t.players}.avatar`)
+      .orderBy(`${t.events}.created_at`, 'desc').limit(5);
+    res.set('Cache-Control', 'public, max-age=60');
+    res.json({
+      class: { name: c.name, code: c.code, players: rows.length },
+      jar: { total, goal: Number(c.goal) },
+      mission: await classMission(db, t, c.id, rows.length, row ? row.id : null),
+      events: events.map(e => ({ type: e.type, detail: e.detail, at: Number(e.created_at), name: e.name, avatar: e.avatar })),
+      me, nameNotFound: !!wanted && !row
+    });
+  });
+  api.use('/public', publicApi);
+
   /* ---------- Admin (förälder/lärare) ---------- */
   api.get('/admin/classes', admin, async (req, res) => {
     const classes = await db(t.classes).orderBy('name');
     const players = await db(t.players).leftJoin(t.progress, `${t.players}.id`, `${t.progress}.player_id`)
       .select(`${t.players}.*`, `${t.progress}.data`).orderBy(`${t.players}.name`);
     res.json(classes.map(c => ({
-      id: Number(c.id), name: c.name, code: c.code, goal: Number(c.goal),
+      id: Number(c.id), name: c.name, code: c.code, goal: Number(c.goal), public: !!c.public,
       players: players.filter(p => Number(p.class_id) === Number(c.id)).map(p => {
         let data = {};
         try { data = p.data ? JSON.parse(p.data) : {}; } catch { /* ignoreras */ }
@@ -291,6 +338,7 @@ export function createApp({ db, t, client, adminKey, publicDir, trustProxy = 'lo
     const patch = {};
     if (req.body?.name != null) patch.name = cleanName(req.body.name);
     if (req.body?.goal != null) patch.goal = Math.max(10, Math.min(100000, Math.floor(Number(req.body.goal)) || 500));
+    if (req.body?.public != null) patch.public = !!req.body.public;
     if (!Object.keys(patch).length) fail(400, 'Inget att ändra.');
     const n = await db(t.classes).where({ id: Number(req.params.id) }).update(patch);
     if (!n) fail(404, 'Klassen finns inte.');
@@ -332,7 +380,10 @@ export function createApp({ db, t, client, adminKey, publicDir, trustProxy = 'lo
   app.use('/api', api);
   if (publicDir) {
     app.use(express.static(publicDir, {
-      setHeaders(res, file) { if (file.endsWith('.html')) res.set('Cache-Control', 'no-cache'); }
+      setHeaders(res, file) {
+        // HTML, service worker och manifest ska alltid hämtas färskt så att uppdateringar syns direkt
+        if (/\.(html|webmanifest)$|sw\.js$/.test(file)) res.set('Cache-Control', 'no-cache');
+      }
     }));
   }
   return app;

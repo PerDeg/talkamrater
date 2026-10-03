@@ -11,7 +11,9 @@ const app = createApp({
   db, t, client,
   adminKey: env.ADMIN_KEY || '',
   publicDir: env.PUBLIC_DIR || path.resolve(here, '../../public'),
-  trustProxy: env.TRUST_PROXY || 'loopback, linklocal, uniquelocal'
+  trustProxy: env.TRUST_PROXY || 'loopback, linklocal, uniquelocal',
+  // Sajter som får visa klasswidgeten, t.ex. https://klass2.degerfalt.se
+  allowedOrigins: (env.ALLOWED_ORIGINS || '').split(',').map(s => s.trim().replace(/\/$/, '')).filter(Boolean)
 });
 
 const port = Number(env.PORT || 3000);

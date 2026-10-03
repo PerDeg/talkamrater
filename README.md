@@ -39,10 +39,10 @@ Spelet fungerar på två sätt:
 - **Dagens utmaning**: 8 frågor med ett tema per veckodag (Tiokamratmåndag, Minustisdag, Dubbelonsdag …).
   - Frågorna är samma för alla i klassen samma dag.
   - Den ger en svit 🔥 och ett extra klistermärke.
-- **Husdjuret**: ett ägg som kläcks och växer (bebis → liten → stor → jätte → kung 👑) när eleven spelar.
-  - Varje runda ger stjärnfrukter 🍓.
-  - Har eleven inte spelat på några dagar blir husdjuret hungrigt men aldrig ledset på riktigt.
-  - Eleven kan döpa det.
+- **Husdjuret**: ett ägg som kläcks och sakta växer (bebis → liten → stor → jätte → kung 👑).
+  - Varje stjärna ger en stjärnfrukt 🍓. Det tar omkring 150 rundor att nå kung.
+  - Husdjuret har **önskningar**, till exempel *"Lös det här så får jag en glass! Poppa alla bubbelpar som blir 9."* Varje uppfylld önskan ger en godsak och extra tillväxt. Det blir högst tre önskningar per dag.
+  - Har eleven inte spelat på några dagar blir husdjuret hungrigt, men det blir aldrig ledset på riktigt.
 - **Kompisduell**: två spelare på samma skärm.
   - Den som först svarar rätt får poängen, och den som svarar fel låses en kort stund.
   - Spelare 2 kan vändas upp och ner för att sitta mittemot.
@@ -52,6 +52,8 @@ Spelet fungerar på två sätt:
   - Svenska hejarop, konfetti, ljud och röst.
   - Bonus vid flera rätt i rad.
   - Stjärnor, titlar, 30 klistermärken och 13 medaljer.
+
+- **Första gången** väljer man mellan att gå med i sin klass och att skriva sitt namn och spela själv. Inget namn är förvalt.
 
 ## Klassen: inloggning utan lösenord
 
@@ -75,6 +77,34 @@ Klassidan visar:
 Lärarsidan visar för varje elev: stjärnor, steg på vägen, medaljer, **vilka talkamrater som är kluriga** och de senaste rundorna.
 
 **Personuppgifter:** bara förnamn (eller smeknamn), figur och spelresultat sparas. Inga e-postadresser och inga lösenord.
+
+## Klassens status på en annan webbsida (widget)
+
+Klassens status kan visas på t.ex. klassens schema-sida: veckans uppdrag, elevens stjärnor och bidrag, husdjuret och dess önskan, senaste händelserna och en knapp till spelet.
+
+1. På lärarsidan: kryssa i **Visa klassens status på en annan webbsida** för klassen.
+2. Lägg till sajten i `ALLOWED_ORIGINS` på servern, t.ex. `ALLOWED_ORIGINS=https://klass2.degerfalt.se`, och starta om.
+3. Kopiera inbäddningskoden från lärarsidan och klistra in den på sajten:
+
+```html
+<iframe src="https://<spelets-adress>/widget.html?klass=SOL-4821&namn=Edwin"
+        title="Talkamrater" style="width:100%;max-width:520px;height:620px;border:0"></iframe>
+```
+
+Utan `namn=` får besökaren själv skriva klasskod och namn. Valet sparas i webbläsaren. Vill sajten hellre rita själv finns samma data som JSON på `GET /api/public/classes/<kod>?name=<namn>`, med CORS för sajterna i `ALLOWED_ORIGINS`.
+
+Klasskoden plus ett namn räcker för att se en elevs status. Därför är widgeten avstängd tills läraren slår på den.
+
+Knappen i widgeten öppnar spelet med `?klass=<kod>`, så att eleven hamnar direkt på "Gå med i klassen".
+
+## Installera som app (PWA)
+
+Spelet kan installeras på hemskärmen och startar då som en egen app, även utan internet.
+
+- **iPhone/iPad:** öppna spelet i Safari, tryck *Dela* → *Lägg till på hemskärmen*.
+- **Android och dator (Chrome/Edge):** spelet visar en knapp *Installera*. Den finns också i webbläsarens meny.
+
+På iPhone har den installerade appen egen lagring. Den som spelar med klassen loggar därför in en gång till med klasskoden och bildkoden.
 
 ## Driftsätta på Unraid med nginx
 
@@ -188,6 +218,7 @@ Huvudversionen är låst (`postgres:17-alpine`). Så här byter du till en ny:
 | `GET /api/me` · `PATCH /api/me` | Eleven och framstegen · byt figur |
 | `PUT /api/me/progress` | Spara framsteg (slås ihop med det som finns: det bästa från båda) |
 | `POST /api/me/rounds` | Logga en spelad runda |
+| `GET /api/public/classes/:kod?name=` | Publik klassstatus för widgeten (bara om läraren slagit på det) |
 | `GET /api/me/class` | Klassidan: elever, stjärnburk, veckans uppdrag, händelser |
 | `POST /api/me/events` | Ny händelse i flödet `{type, detail}` |
 | `POST /api/events/:id/cheer` | Heja på en klasskompis |

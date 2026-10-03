@@ -22,6 +22,15 @@
     return d <= 0 ? 'idag' : d === 1 ? 'igår' : `${d} dagar sedan`;
   };
   const gameUrl = new URL('./', location.href).href;
+  const widgetUrl = code => new URL(`widget.html?klass=${encodeURIComponent(code)}`, location.href).href;
+  const embedCode = code => `<iframe src="${widgetUrl(code)}&namn=Edwin" title="Talkamrater" style="width:100%;max-width:520px;height:620px;border:0" loading="lazy"></iframe>
+<script>
+  // Valfritt: låter iframen anpassa sin höjd efter innehållet
+  addEventListener('message', e => {
+    if (e.data && e.data.type === 'talkamrater-height')
+      document.querySelectorAll('iframe[title="Talkamrater"]').forEach(f => { if (f.contentWindow === e.source) f.style.height = e.data.height + 'px'; });
+  });
+<\/script>`;
 
   // Två klick för att radera, så att inget försvinner av misstag
   function confirmClick(btn, label, action) {
@@ -59,6 +68,16 @@
         </div>
         <p class="muted">${c.players.length} ${c.players.length === 1 ? 'elev' : 'elever'} · stjärnburken ${stars} av
           <span class="goal-edit"><input type="number" min="10" value="${c.goal}" aria-label="Mål för stjärnburken"><button class="small-btn" data-goal>Spara</button></span></p>
+        <div class="adm-public">
+          <label class="check"><input type="checkbox" data-public ${c.public ? 'checked' : ''}> Visa klassens status på en annan webbsida (widget)</label>
+          <div class="adm-embed" ${c.public ? '' : 'hidden'}>
+            <p class="muted">Klistra in på klassens sida. Byt <b>namn=</b> mot elevens namn, eller ta bort det så får besökaren skriva själv.</p>
+            <pre class="adm-code-block">${esc(embedCode(c.code))}</pre>
+            <button class="small-btn" data-copy-embed>Kopiera kod</button>
+            <a class="small-btn" href="${esc(widgetUrl(c.code))}" target="_blank" rel="noopener">Förhandsgranska</a>
+            <p class="muted">Sajten som bäddar in måste stå i <b>ALLOWED_ORIGINS</b> på servern.</p>
+          </div>
+        </div>
         <div class="tablewrap"><table>
           <thead><tr><th>Elev</th><th>★</th><th>Klister&shy;märken</th><th>Vägen</th><th>Kluriga kamrater</th><th>Senast</th><th></th></tr></thead>
           <tbody></tbody>
@@ -99,6 +118,15 @@
       $('[data-goal]', el).addEventListener('click', async () => {
         await api('PATCH', `admin/classes/${c.id}`, { goal: Number($('.goal-edit input', el).value) });
         load();
+      });
+      $('[data-public]', el).addEventListener('change', async e => {
+        await api('PATCH', `admin/classes/${c.id}`, { public: e.target.checked });
+        load();
+      });
+      const copyEmbed = $('[data-copy-embed]', el);
+      if (copyEmbed) copyEmbed.addEventListener('click', async e => {
+        try { await navigator.clipboard.writeText(embedCode(c.code)); e.target.textContent = 'Kopierat!'; }
+        catch (err) { const r = document.createRange(); r.selectNodeContents($('.adm-code-block', el)); getSelection().removeAllRanges(); getSelection().addRange(r); }
       });
       confirmClick($('[data-del-class]', el), 'Radera klassen och alla elever? Klicka igen', async () => { await api('DELETE', `admin/classes/${c.id}`); load(); });
       wrap.appendChild(el);
