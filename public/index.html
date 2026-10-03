@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Talkamrater</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Nunito:wght@500;700;800&display=swap">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 64 64%22%3E%3Ccircle cx=%2226%22 cy=%2236%22 r=%2220%22 fill=%22%232F6BFF%22/%3E%3Ccircle cx=%2246%22 cy=%2240%22 r=%2215%22 fill=%22%23FF6B3D%22/%3E%3C/svg%3E">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<canvas id="fx" aria-hidden="true"></canvas>
+<div class="app">
+  <header class="topbar">
+    <button class="brand" id="brand" aria-label="Till startsidan">
+      <span class="logo" aria-hidden="true"><span></span><span></span></span>
+      <span class="brand-name">Talkamrater</span>
+    </button>
+    <div class="top-actions">
+      <span class="pill" title="Alla stjärnor du samlat"><span class="star" aria-hidden="true">★</span><span id="totalStars">0</span></span>
+      <button class="pill icon-btn" id="soundBtn" aria-pressed="true" aria-label="Ljud" title="Ljud">🔊</button>
+      <button class="pill icon-btn" id="voiceBtn" aria-pressed="true" aria-label="Röst" title="Röst som hejar">🗣️</button>
+    </div>
+  </header>
+
+  <!-- START -->
+  <section class="screen" id="start">
+    <div class="hero">
+      <div id="heroFace"></div>
+      <div>
+        <h1 id="hello">Hej Edwin!</h1>
+        <p>Vilka tal är kompisar? Ta dig hela vägen till expert!</p>
+        <span class="rank">Din titel <b id="rankName">Talspanare</b></span>
+      </div>
+    </div>
+
+    <div class="panel road-cta">
+      <div class="label">Vägen till expert <small id="roadCount">Steg 0 av 27</small></div>
+      <div class="next" id="roadNext">Nästa: <span>Talet 1</span></div>
+      <div class="meter"><i id="roadMeter"></i></div>
+      <button class="chunky sun" id="openRoad">Fortsätt resan</button>
+    </div>
+
+    <div class="panel tricky-panel" id="trickyPanel" hidden>
+      <p id="trickyText">Några talkamrater har varit kluriga.</p>
+      <button class="chunky coral" id="trickyBtn">Öva kluriga</button>
+    </div>
+
+    <div class="panel">
+      <div class="label">Fri träning <small>★ = dina bästa stjärnor</small></div>
+      <div class="numgrid" id="numgrid"></div>
+      <div class="mixrow">
+        <button class="chunky" id="mix10">Blandat 1–10</button>
+        <button class="chunky coral" id="mix20">Blandat 1–20</button>
+      </div>
+    </div>
+
+    <div class="cardrow">
+      <div class="panel">
+        <div class="label">Klistermärken <small id="stickerCount">0 av 30</small></div>
+        <button class="chunky sun" id="openBook">Titta i boken</button>
+      </div>
+      <div class="panel" id="classCard" hidden>
+        <div class="label">Klassen <small id="classCardSmall"></small></div>
+        <button class="chunky" id="openClass">Se klassen</button>
+      </div>
+      <div class="panel" id="joinCard" hidden>
+        <div class="label">Spela med klassen</div>
+        <p>Spara dina stjärnor och se klasskompisarna.</p>
+        <button class="chunky" id="openJoin">Gå med i klassen</button>
+      </div>
+    </div>
+
+    <div class="foot">
+      <label class="namefield" id="nameField" for="nameInput">Vem spelar? <input id="nameInput" maxlength="16" autocomplete="off"></label>
+      <span class="who" id="whoLine" hidden></span>
+      <button class="textbtn" id="logoutBtn" hidden>Byt spelare</button>
+      <button class="textbtn" id="resetBtn">Nollställ allt</button>
+    </div>
+  </section>
+
+  <!-- VÄGEN TILL EXPERT -->
+  <section class="screen" id="road" hidden>
+    <button class="chunky ghost back" data-home>← Hem</button>
+    <h2 class="mode-title">Vägen till <em>expert</em></h2>
+    <div id="zones"></div>
+  </section>
+
+  <!-- MODE -->
+  <section class="screen" id="mode" hidden>
+    <button class="chunky ghost back">← Tillbaka</button>
+    <h2 class="mode-title">Talkamrater till <em id="modeN">8</em></h2>
+    <div class="modes">
+      <button class="mode-card" id="pickFind">
+        <h3>Hitta kamraten</h3>
+        <span class="demo" id="demoFind"></span>
+        <p id="findInfo">Vilket tal fattas? Titta på pärlorna och välj rätt kompis.</p>
+        <span class="best" id="bestFind"></span>
+      </button>
+      <button class="mode-card" id="pickBubbles">
+        <h3>Bubbelpoppen</h3>
+        <span class="demo" id="demoBubbles"></span>
+        <p id="bubInfo">Poppa två bubblor som tillsammans blir rätt tal.</p>
+        <span class="best" id="bestBubbles"></span>
+      </button>
+    </div>
+    <details class="panel friends">
+      <summary>Titta på alla kamrater först</summary>
+      <div class="pairs" id="pairs"></div>
+    </details>
+  </section>
+
+  <!-- INTRO TILL PROV / UTMANING -->
+  <section class="screen" id="intro" hidden>
+    <button class="chunky ghost back" id="introBack">← Tillbaka</button>
+    <div class="stage intro">
+      <div class="buddy-row">
+        <div class="mascot happy" aria-hidden="true"><div class="eyes"><i></i><i></i></div><div class="mouth"></div></div>
+        <p class="speech" aria-live="polite"></p>
+      </div>
+      <h2 id="introTitle">Prov</h2>
+      <ul id="introList"></ul>
+      <button class="chunky coral" id="introGo">Jag är redo!</button>
+    </div>
+  </section>
+
+  <!-- FIND -->
+  <section class="screen" id="find" hidden>
+    <div class="playhead">
+      <button class="chunky ghost" data-home>← Hem</button>
+      <span class="playlabel" id="findLabel"></span>
+      <span class="streak" id="findStreak">🔥 0</span>
+    </div>
+    <div class="progress" id="findProgress" aria-label="Framsteg"></div>
+    <div class="buddy-row">
+      <div class="mascot" aria-hidden="true"><div class="eyes"><i></i><i></i></div><div class="mouth"></div></div>
+      <p class="speech" aria-live="polite"></p>
+    </div>
+    <div class="stage">
+      <div class="equation" id="equation"></div>
+      <div class="beads" id="beads" aria-hidden="true"></div>
+      <div class="answers" id="answers"></div>
+      <p class="explain" id="findExplain" aria-live="polite"></p>
+    </div>
+  </section>
+
+  <!-- BUBBLES -->
+  <section class="screen" id="bubbles" hidden>
+    <div class="playhead">
+      <button class="chunky ghost" data-home>← Hem</button>
+      <span class="playlabel" id="bubLabel"></span>
+      <span class="streak" id="bubStreak">🔥 0</span>
+    </div>
+    <div class="progress" id="bubProgress" aria-label="Framsteg"></div>
+    <div class="buddy-row">
+      <div class="mascot" aria-hidden="true"><div class="eyes"><i></i><i></i></div><div class="mouth"></div></div>
+      <p class="speech" aria-live="polite"></p>
+    </div>
+    <div class="stage">
+      <div class="bubble-goal">Poppa två som blir <b id="bubN">8</b></div>
+      <div class="pond" id="pond"></div>
+      <div class="found" id="found"></div>
+      <div class="tiprow"><button class="chunky ghost" id="tipBtn">Tips, tack!</button></div>
+      <p class="explain" id="bubExplain" aria-live="polite"></p>
+    </div>
+  </section>
+
+  <!-- CHALLENGE -->
+  <section class="screen" id="challenge" hidden>
+    <div class="playhead">
+      <button class="chunky ghost" data-home>← Hem</button>
+      <span class="scorebox"><b id="chScore">0</b> rätt</span>
+      <span class="streak" id="chStreak">🔥 0</span>
+    </div>
+    <div class="timer"><div class="timebar"><i id="chBar"></i></div><span class="secs" id="chSecs">60</span></div>
+    <div class="stage">
+      <div class="countdown" id="chCount" hidden>3</div>
+      <div id="chPlay">
+        <div class="equation" id="chEquation"></div>
+        <div class="answers" id="chAnswers"></div>
+        <p class="explain" id="chExplain" aria-live="polite"></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- DONE -->
+  <section class="screen done" id="done" hidden>
+    <div class="stage">
+      <h2 id="doneTitle">Hurra!</h2>
+      <div class="bigstars" id="bigStars"><span>★</span><span>★</span><span>★</span></div>
+      <p class="stats" id="doneStats"></p>
+      <div class="unlock" id="unlock" hidden></div>
+      <div class="reward" id="reward">
+        <span class="em" id="rewardEm">🦖</span>
+        <p id="rewardText">Nytt klistermärke!</p>
+      </div>
+      <div class="done-actions">
+        <button class="chunky coral" id="againBtn">Spela igen</button>
+        <button class="chunky" id="otherBtn">Välj nytt tal</button>
+        <button class="chunky sun" id="bookBtn">Klistermärken</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- DIPLOMA -->
+  <section class="screen" id="diploma" hidden>
+    <div class="diploma">
+      <span class="kicker">Diplom</span>
+      <div class="seal" aria-hidden="true">🎓</div>
+      <h2>Talkamratexpert</h2>
+      <p>Det här intygar att</p>
+      <div class="name" id="dipName">Edwin</div>
+      <p>kan alla talkamrater från 1 till 20 och har klarat Expertprovet.</p>
+      <div class="bigstars" aria-hidden="true"><span class="on">★</span><span class="on">★</span><span class="on">★</span></div>
+      <p class="date" id="dipDate"></p>
+    </div>
+    <div class="done-actions no-print" style="margin-top:16px">
+      <button class="chunky coral" data-home>Tillbaka hem</button>
+      <button class="chunky" id="dipRoad">Vägen till expert</button>
+      <button class="chunky sun" id="dipPrint" hidden>Skriv ut diplomet</button>
+    </div>
+  </section>
+
+  <!-- STICKERS -->
+  <section class="screen" id="book" hidden>
+    <button class="chunky ghost back" data-home>← Tillbaka</button>
+    <div class="panel">
+      <div class="label">Medaljer från vägen till expert</div>
+      <div class="medal-row" id="medalRow"></div>
+      <div class="label">Klistermärkesboken <small id="bookCount"></small></div>
+      <div class="book" id="bookGrid"></div>
+    </div>
+  </section>
+
+  <!-- CLASS -->
+  <section class="screen" id="class" hidden>
+    <button class="chunky ghost back" data-home>← Hem</button>
+    <h2 class="mode-title" id="classTitle">Klassen</h2>
+    <div class="panel jar">
+      <div class="label">Klassens stjärnburk <small id="jarGoal"></small></div>
+      <div class="big" id="jarBig"></div>
+      <div class="meter"><i id="jarMeter"></i></div>
+      <p class="stats" id="jarText"></p>
+    </div>
+    <div class="panel">
+      <div class="label">Alla i klassen <small>🏅 = medaljer · 🎓 = expert</small></div>
+      <div class="mates" id="mates"></div>
+    </div>
+    <div class="panel">
+      <div class="label">Din figur</div>
+      <div class="pickrow" id="myAvatar"></div>
+    </div>
+  </section>
+
+  <!-- JOIN -->
+  <section class="screen join" id="join" hidden>
+    <button class="chunky ghost back" id="joinBack">← Tillbaka</button>
+    <div class="panel" id="joinBody"></div>
+  </section>
+</div>
+<script src="game.js"></script>
+</body>
+</html>

@@ -1,0 +1,24 @@
+{
+  "name": "talkamrater-server",
+  "version": "2.0.0",
+  "private": true,
+  "description": "API och webbserver för mattespelet Talkamrater",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "test": "node --test test/*.test.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "express": "^5.2.1",
+    "knex": "^3.3.0",
+    "mysql2": "^3.24.5",
+    "pg": "^8.23.1"
+  },
+  "optionalDependencies": {
+    "better-sqlite3": "^13.0.3"
+  }
+}

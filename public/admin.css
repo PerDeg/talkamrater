@@ -1,0 +1,27 @@
+a.brand { color: inherit; text-decoration: none; }
+.adm-form { display: grid; gap: 10px; }
+.adm-form label { font-weight: 800; }
+.adm-form.inline { grid-template-columns: 2fr 1fr auto; align-items: end; }
+.adm-form.inline > div { display: grid; gap: 6px; min-width: 0; }
+@media (max-width: 560px) { .adm-form.inline { grid-template-columns: 1fr; } }
+.adm-class + .adm-class { margin-top: 16px; }
+.adm-class { margin-top: 16px; }
+.adm-code { font-family: var(--display); font-weight: 800; font-size: 2rem; letter-spacing: 0.06em; background: var(--sun); border-radius: 12px; padding: 0 12px; }
+.adm-head { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.adm-head h2 { font-size: 1.8rem; }
+.adm-share { background: var(--sky-2); border-radius: 14px; padding: 10px 12px; font-weight: 700; margin-bottom: 12px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.adm-share span { min-width: 0; flex: 1 1 16em; }
+.tablewrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 0.95rem; font-variant-numeric: tabular-nums; }
+th, td { text-align: left; padding: 8px 6px; border-bottom: 2px solid var(--sky-2); vertical-align: top; }
+th { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-soft); }
+td .em { font-size: 1.4rem; }
+.small-btn { border: 0; border-radius: 10px; padding: 6px 10px; font-weight: 800; background: var(--sky-2); box-shadow: inset 0 -3px 0 var(--line); white-space: nowrap; }
+.small-btn.danger { background: #FFE0EA; box-shadow: inset 0 -3px 0 #F3A6BF; color: var(--berry); }
+.actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.tricky { color: var(--coral-deep); font-weight: 800; }
+.muted { color: var(--ink-soft); }
+.rounds { margin-top: 6px; font-size: 0.85rem; color: var(--ink-soft); }
+.adm-foot { text-align: center; }
+.goal-edit { display: inline-flex; gap: 6px; align-items: center; font-weight: 800; }
+.goal-edit input { width: 6em; border: 3px solid var(--line); border-radius: 10px; padding: 4px 8px; font: inherit; }
