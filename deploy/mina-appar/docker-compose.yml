@@ -2,32 +2,60 @@
 #  Mina appar – alla egna tjänster i en stack
 #  Ligger på Unraid i /mnt/user/appdata/mina-appar/
 #
-#  Ny app: klona koden till src/<namn>, lägg env i env/<namn>.env
-#  och kopiera blocket för talkamrater nedan.
-#  Uppdatera allt: ./uppdatera.sh
+#  Ny app:
+#    1. git clone <repo> src/<namn>
+#    2. ./ny-databas.sh <namn>        (om appen behöver databas)
+#    3. kopiera blocket för talkamrater nedan och byt namn/port
+#    4. ./uppdatera.sh
 # ---------------------------------------------------------------
 name: mina-appar
 
 services:
+  # Gemensam databas för alla egna appar. En databas + användare per app.
+  # Ingen port mot nätverket: apparna når den som "db:5432" inne i stacken.
+  db:
+    image: postgres:17-alpine          # byt huvudversion bara via dump/restore, se README
+    container_name: mina-appar-db
+    restart: unless-stopped
+    env_file: ./env/db.env
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    shm_size: 128mb
+    labels:
+      net.unraid.docker.icon: "https://raw.githubusercontent.com/docker-library/docs/master/postgres/logo.png"
+      se.mina-appar.owner: "egen"
+    logging: &logging
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    # Vill du nå databasen från t.ex. pgAdmin eller DBeaver på datorn?
+    # Ta bort # nedan (bara på hemmanätet, aldrig port-forwarda den).
+    # ports:
+    #   - "5433:5432"
+
   talkamrater:
     build: ./src/talkamrater
     image: mina-appar/talkamrater:latest
     container_name: talkamrater
     restart: unless-stopped
     env_file: ./env/talkamrater.env
+    depends_on:
+      db:
+        condition: service_healthy
     ports:
       - "3080:3000"
     labels:
       # Visas i Unraids Docker-flik: ikon och "WebUI" i menyn
       net.unraid.docker.webui: "http://[IP]:[PORT:3080]/"
       net.unraid.docker.icon: "http://192.168.1.10:3080/icon.png"   # byt till Unraid-IP:n
-      # Gemensam etikett för alla egna appar, bra för filtrering och mappar
       se.mina-appar.owner: "egen"
-    logging:
-      driver: json-file
-      options:
-        max-size: "10m"
-        max-file: "3"
+    logging: *logging
 
   # nasta-app:
   #   build: ./src/nasta-app
@@ -35,8 +63,12 @@ services:
   #   container_name: nasta-app
   #   restart: unless-stopped
   #   env_file: ./env/nasta-app.env
+  #   depends_on:
+  #     db:
+  #       condition: service_healthy
   #   ports:
   #     - "3081:3000"
   #   labels:
   #     net.unraid.docker.webui: "http://[IP]:[PORT:3081]/"
   #     se.mina-appar.owner: "egen"
+  #   logging: *logging

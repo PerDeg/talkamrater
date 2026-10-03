@@ -78,53 +78,52 @@ Lärarsidan visar för varje elev: stjärnor, steg på vägen, medaljer, **vilka
 
 ## Driftsätta på Unraid med nginx
 
-Spelet körs som en egen container i stacken **mina-appar**, där alla egna appar samlas, skilda från containrar som installerats via Community Apps. Mallen finns i `deploy/mina-appar/`.
+Spelet körs i stacken **mina-appar**, där alla egna appar samlas, skilda från containrar som installerats via Community Apps. I stacken finns också en **gemensam Postgres** för alla egna appar, med en egen databas och en egen användare per app. Mallen finns i `deploy/mina-appar/`.
 
 Så här ser det ut på Unraid:
 
 ```
 /mnt/user/appdata/mina-appar/
-  docker-compose.yml        ← alla egna appar
-  uppdatera.sh              ← hämtar koden, bygger om och startar om
-  env/talkamrater.env       ← hemligheter (ADMIN_KEY, databas)
+  docker-compose.yml        ← databasen + alla egna appar
+  uppdatera.sh              ← backup, hämta kod, bygg om, starta om
+  ny-databas.sh             ← skapar databas + användare för en app
+  backup.sh                 ← säkerhetskopierar alla databaser
+  env/db.env                ← databasens adminlösenord
+  env/talkamrater.env       ← appens inställningar
   src/talkamrater/          ← git clone av det här repot
+  data/postgres/            ← databasfilerna
+  backup/                   ← dagliga backuper (sparas i 14 dagar)
 ```
 
-### 1. Lägg upp stacken
+### Första installationen
 
 ```bash
 mkdir -p /mnt/user/appdata/mina-appar/src
 cd /mnt/user/appdata/mina-appar
 git clone https://github.com/PerDeg/talkamrater.git src/talkamrater
 cp -r src/talkamrater/deploy/mina-appar/. .
-cp env/talkamrater.env.example env/talkamrater.env
-openssl rand -hex 24          # klistra in som ADMIN_KEY
-nano env/talkamrater.env      # databasuppgifter
-nano docker-compose.yml       # byt 192.168.1.10 i ikon-adressen till Unraid-IP:n
-```
 
-### 2. Databasen
+# 1. Databasen
+cp env/db.env.example env/db.env
+sed -i "s/^POSTGRES_PASSWORD=.*/POSTGRES_PASSWORD=$(openssl rand -hex 24)/" env/db.env
+docker compose up -d db
+./ny-databas.sh talkamrater          # skapar databas + användare, fyller i env/talkamrater.env
 
-Servern stöder **PostgreSQL**, **MySQL/MariaDB** och **SQLite**. Tabellerna skapas automatiskt vid första start och får prefixet `tk_`. Skapa en användare och databas med `deploy/sql/skapa-databas.sql`, till exempel:
-
-```bash
-docker exec -it postgresql psql -U postgres -c "CREATE USER talkamrater WITH PASSWORD 'byt-losenord';" -c "CREATE DATABASE talkamrater OWNER talkamrater;"
-```
-
-### 3. Starta
-
-```bash
+# 2. Appen
+sed -i "s/^ADMIN_KEY=.*/ADMIN_KEY=$(openssl rand -hex 24)/" env/talkamrater.env
+grep ADMIN_KEY env/talkamrater.env   # spara nyckeln, den behövs för lärarsidan
+nano docker-compose.yml              # byt 192.168.1.10 i ikon-adressen till Unraid-IP:n
 ./uppdatera.sh
 curl http://localhost:3080/api/health
 ```
 
-Med pluginen **Docker Compose Manager** kan stacken också startas, stoppas och uppdateras från Docker-fliken.
+Databasen har ingen port mot nätverket. Apparna når den som `db:5432` inne i stacken.
 
-### 4. nginx
+### nginx
 
 Peka en proxy-host mot `http://<unraid-ip>:3080`. Konfigurationsexempel finns i `deploy/nginx-talkamrater.conf`.
 
-### 5. Kom igång
+### Kom igång
 
 1. Gå till `https://din-adress/admin.html` och logga in med `ADMIN_KEY`.
 2. Skapa klassen.
@@ -136,7 +135,42 @@ Peka en proxy-host mot `http://<unraid-ip>:3080`. Konfigurationsexempel finns i 
 /mnt/user/appdata/mina-appar/uppdatera.sh
 ```
 
-All data finns i databasen, och nya tabeller läggs till automatiskt.
+Skriptet tar en backup först. Nya tabeller läggs till automatiskt.
+
+### Backup varje natt
+
+Installera pluginen **User Scripts** och lägg till ett skript som körs *Daily*:
+
+```bash
+#!/bin/bash
+/mnt/user/appdata/mina-appar/backup.sh
+```
+
+Så här återställer du en backup:
+
+```bash
+cd /mnt/user/appdata/mina-appar
+zcat backup/postgres-ÅÅÅÅ-MM-DD-TTMM.sql.gz | docker compose exec -T db psql -U postgres
+```
+
+### Ny egen app i samma stack
+
+1. `git clone <repo> src/<namn>`
+2. `./ny-databas.sh <namn>` om appen behöver en databas.
+3. Kopiera det bortkommenterade blocket `nasta-app` i `docker-compose.yml` och byt namn och port.
+4. `./uppdatera.sh`
+
+### Uppgradera Postgres till ny huvudversion
+
+Huvudversionen är låst (`postgres:17-alpine`). Så här byter du till en ny:
+
+1. Kör `./backup.sh`.
+2. `docker compose down`.
+3. Flytta `data/postgres` åt sidan.
+4. Ändra versionen i compose-filen.
+5. `docker compose up -d db`.
+6. Återställ backupen enligt ovan.
+7. `./uppdatera.sh`.
 
 ## API
 

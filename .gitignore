@@ -5,3 +5,5 @@ server/data/
 *.db-shm
 .env
 deploy/mina-appar/env/*.env
+deploy/mina-appar/data/
+deploy/mina-appar/backup/
