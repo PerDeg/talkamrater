@@ -146,6 +146,20 @@ for (const [label, envFor] of targets) {
       assert.ok(wall2.body.mission.goal > 0);
       assert.ok(wall2.body.mission.progress > 0);
 
+      // Lärarens fokus: klassen och eleven
+      assert.equal((await call('PATCH', `/admin/classes/${cls.body.id}`, { focus: 'p7' }, ADMIN)).status, 200);
+      assert.equal((await call('PATCH', `/admin/players/${id}`, { focus: 'x99' }, ADMIN)).status, 400);
+      assert.equal((await call('GET', '/me', null, { authorization: `Bearer ${fresh.body.token}` })).body.player.focus, 'p7');
+      assert.equal((await call('PATCH', `/admin/players/${id}`, { focus: 'm10' }, ADMIN)).body.label, 'minus från 10');
+      assert.equal((await call('GET', '/me', null, { authorization: `Bearer ${fresh.body.token}` })).body.player.focus, 'm10');
+      await call('PUT', '/me/progress', { progress: { skill: { p8: 9, p3: 1 }, tricky: { '8:3': 4 } } }, { authorization: `Bearer ${fresh.body.token}` });
+      const adm2 = await call('GET', '/admin/classes', null, ADMIN);
+      const edw = adm2.body.find(c => c.code === code).players.find(p => p.name === 'Edwin');
+      assert.deepEqual(edw.strong, ['Plus: 8']);
+      assert.ok(edw.practice.includes('3+5=8'));
+      assert.equal(edw.focus, 'm10');
+      assert.ok(edw.training.weekRounds >= 1);
+
       // Publik klassstatus: av tills läraren slår på den
       assert.equal((await call('GET', `/public/classes/${code}?name=Edwin`)).status, 404);
       assert.equal((await call('PATCH', `/admin/classes/${cls.body.id}`, { public: true }, ADMIN)).status, 200);

@@ -528,6 +528,12 @@ details.friends summary { font-family: var(--display); font-weight: 800; font-si
 .install-icon img { border-radius: 12px; display: block; }
 .install-actions { grid-column: 1 / -1; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 
+/* Lärarens fokus och svaga pärlor */
+.ct-focus { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; background: rgba(255,255,255,0.16); border-radius: 14px; padding: 8px 10px; font-weight: 800; }
+.ct-focus .chunky { padding: 8px 14px; font-size: 1rem; }
+.beads.faint .bead { opacity: 0.35; }
+.beads.faint .bead.empty { border-style: dotted; }
+
 /* Effects */
 #fx { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 50; }
 .cheer {

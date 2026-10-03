@@ -125,7 +125,7 @@
       $('me').innerHTML = bits.map(b => `<span>${b}</span>`).join('');
       const p = me.pet;
       $('pet').innerHTML = p.wish
-        ? `<span>${p.icon} ${esc(p.name)} önskar ${p.wish.icon} om du ${esc(p.wish.text)}${p.wish.need > 1 ? ` (${p.wish.have}/${p.wish.need})` : ''}</span>`
+        ? `<span>${p.icon} ${esc(p.name)}: Kan du ${esc(p.wish.text)}? ${p.wish.icon}${p.wish.need > 1 ? ` (${p.wish.have}/${p.wish.need})` : ''}</span>`
         : `<span>${p.icon} ${esc(p.moodText)}</span>`;
     }
     $('feed').hidden = !d.events.length;

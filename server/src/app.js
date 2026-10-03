@@ -3,7 +3,8 @@ import { insertId } from './db.js';
 import { newToken, hashToken, validPin, hashPin, checkPin, safeEqual, newClassCode, normalizeCode, rateLimiter } from './auth.js';
 import { emptyProgress, sanitizeProgress, mergeProgress, summarize } from './progress.js';
 import { classMission, celebrateMission } from './mission.js';
-import { petView, eventText, medalIcons, nudge } from './display.js';
+import { petView, eventText, medalIcons, nudge, validFocus, focusLabel } from './display.js';
+import { weekStart, missionFor } from './mission.js';
 
 // Händelser som kan visas i klassens flöde. Texten byggs i spelet utifrån typ + detalj.
 // Bara större händelser, så att flödet inte svämmar över i en stor klass.
@@ -87,7 +88,7 @@ export function createApp({ db, t, client, adminKey, publicDir, trustProxy = 'lo
     if (!c) fail(404, 'Hittar ingen klass med den koden. Kolla med din lärare.');
     return c;
   }
-  const publicPlayer = (p, c) => ({ id: Number(p.id), name: p.name, avatar: p.avatar, className: c?.name, classCode: c?.code });
+  const publicPlayer = (p, c) => ({ id: Number(p.id), name: p.name, avatar: p.avatar, className: c?.name, classCode: c?.code, focus: p.focus || c?.focus || null });
 
   async function auth(req, res, next) {
     const m = /^Bearer (.+)$/.exec(req.get('authorization') || '');
@@ -277,7 +278,7 @@ export function createApp({ db, t, client, adminKey, publicDir, trustProxy = 'lo
     const c = await db(t.classes).where({ code: normalizeCode(req.params.code) }).first();
     if (!c || !c.public) fail(404, 'Klassen finns inte eller visas inte publikt.');
     const rows = await db(t.players).leftJoin(t.progress, `${t.players}.id`, `${t.progress}.player_id`)
-      .where(`${t.players}.class_id`, c.id).select(`${t.players}.id`, `${t.players}.name`, `${t.players}.avatar`, `${t.progress}.data`);
+      .where(`${t.players}.class_id`, c.id).select(`${t.players}.id`, `${t.players}.name`, `${t.players}.avatar`, `${t.players}.focus`, `${t.progress}.data`);
     const parse = d => { try { return d ? JSON.parse(d) : {}; } catch { return {}; } };
     const total = rows.reduce((s, r) => s + summarize(parse(r.data)).stars, 0);
     const wanted = String(req.query.name || '').trim().toLowerCase();
@@ -292,7 +293,7 @@ export function createApp({ db, t, client, adminKey, publicDir, trustProxy = 'lo
         stars: sum.stars, stickers: sum.stickers, steps: sum.pathDone, medals: sum.medals, medalIcons: medalIcons(p.path),
         experts: sum.experts, dailyStreak: sum.dailyStreak, contribution: mission.mine,
         pet: petView(p.pet),
-        nudge: nudge({ pet: p.pet, daily: p.daily, mission })
+        nudge: nudge({ pet: p.pet, daily: p.daily, mission, focus: row.focus || c.focus, tricky: p.tricky })
       };
     }
     const events = await db(t.events).join(t.players, `${t.events}.player_id`, `${t.players}.id`)
@@ -318,23 +319,62 @@ export function createApp({ db, t, client, adminKey, publicDir, trustProxy = 'lo
   api.use('/public', publicApi);
 
   /* ---------- Admin (förälder/lärare) ---------- */
+  // Lärarsidan: per elev vad den kan, vad den behöver träna, hur mycket den tränat och bidragit
+  const WORLD_NAME = { p: 'Plus', m: 'Minus', d: 'Dubblor' };
+  const pairText = k => {
+    const [, w, n, a] = /^([md]?)(\d+):(\d+)$/.exec(k).map((v, i) => (i > 1 ? Number(v) : v));
+    return w === 'm' ? `${n}−${a}=${n - a}` : w === 'd' ? `${n}+${n}=${2 * n}` : `${a}+${n - a}=${n}`;
+  };
+  const groupLevels = keys => {
+    const by = {};
+    for (const k of keys) (by[k[0]] = by[k[0]] || []).push(Number(k.slice(1)));
+    return Object.entries(by).map(([w, ns]) => `${WORLD_NAME[w]}: ${ns.sort((a, b) => a - b).join(', ')}`);
+  };
   api.get('/admin/classes', admin, async (req, res) => {
     const classes = await db(t.classes).orderBy('name');
     const players = await db(t.players).leftJoin(t.progress, `${t.players}.id`, `${t.progress}.player_id`)
       .select(`${t.players}.*`, `${t.progress}.data`).orderBy(`${t.players}.name`);
-    res.json(classes.map(c => ({
-      id: Number(c.id), name: c.name, code: c.code, goal: Number(c.goal), public: !!c.public,
-      players: players.filter(p => Number(p.class_id) === Number(c.id)).map(p => {
-        let data = {};
-        try { data = p.data ? JSON.parse(p.data) : {}; } catch { /* ignoreras */ }
-        const tricky = Object.entries(sanitizeProgress(data).tricky).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]).slice(0, 5)
-          .map(([k]) => {
-            const [, w, n, a] = /^([md]?)(\d+):(\d+)$/.exec(k).map((v, i) => (i > 1 ? Number(v) : v));
-            return w === 'm' ? `${n}−${a}=${n - a}` : w === 'd' ? `${n}+${n}=${2 * n}` : `${a}+${n - a}=${n}`;
-          });
-        return { id: Number(p.id), name: p.name, avatar: p.avatar, hasPin: !!p.pin_hash, lastSeen: p.last_seen ? Number(p.last_seen) : null, tricky, ...summarize(data) };
-      })
-    })));
+    const start = weekStart();
+    const week = await db(t.rounds).where('created_at', '>=', start).groupBy('player_id')
+      .select('player_id', db.raw('count(*) as n'), db.raw('sum(score) as score'), db.raw('sum(stars) as stars'),
+        db.raw("sum(case when mode = 'bubbles' then total else 0 end) as pairs"));
+    const weekOf = id => week.find(w => Number(w.player_id) === Number(id)) || {};
+    res.json(classes.map(c => {
+      const mine = players.filter(p => Number(p.class_id) === Number(c.id));
+      const m = missionFor(start, mine.length);
+      return {
+        id: Number(c.id), name: c.name, code: c.code, goal: Number(c.goal), public: !!c.public, focus: c.focus || '',
+        mission: { title: m.title(m.goal), unit: m.unit },
+        players: mine.map(p => {
+          let data = {};
+          try { data = p.data ? JSON.parse(p.data) : {}; } catch { /* ignoreras */ }
+          const prog = sanitizeProgress(data);
+          const skill = Object.entries(prog.skill);
+          const w = weekOf(p.id);
+          const contribution = { pairs: w.pairs, answers: w.score, rounds: w.n, stars: w.stars }[m.id];
+          return {
+            id: Number(p.id), name: p.name, avatar: p.avatar, hasPin: !!p.pin_hash,
+            lastSeen: p.last_seen ? Number(p.last_seen) : null, focus: p.focus || '',
+            strong: groupLevels(skill.filter(([, v]) => v >= 7).map(([k]) => k)),
+            practice: [
+              ...Object.entries(prog.tricky).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]).slice(0, 4).map(([k]) => pairText(k)),
+              ...groupLevels(skill.filter(([, v]) => v <= 2).map(([k]) => k))
+            ],
+            training: { rounds: prog.rounds, weekRounds: Number(w.n) || 0, weekAnswers: Number(w.score) || 0 },
+            contribution: Number(contribution) || 0,
+            ...summarize(data)
+          };
+        })
+      };
+    }));
+  });
+
+  api.patch('/admin/players/:id', admin, async (req, res) => {
+    const focus = req.body?.focus ?? '';
+    if (!validFocus(focus)) fail(400, 'Okänt fokus. Använd t.ex. p7, m10 eller d6.');
+    const n = await db(t.players).where({ id: Number(req.params.id) }).update({ focus: focus || null });
+    if (!n) fail(404, 'Spelaren finns inte.');
+    res.json({ ok: true, focus: focus || null, label: focusLabel(focus) });
   });
 
   api.post('/admin/classes', admin, async (req, res) => {
@@ -355,6 +395,10 @@ export function createApp({ db, t, client, adminKey, publicDir, trustProxy = 'lo
     if (req.body?.name != null) patch.name = cleanName(req.body.name);
     if (req.body?.goal != null) patch.goal = Math.max(10, Math.min(100000, Math.floor(Number(req.body.goal)) || 500));
     if (req.body?.public != null) patch.public = !!req.body.public;
+    if (req.body?.focus != null) {
+      if (!validFocus(req.body.focus)) fail(400, 'Okänt fokus. Använd t.ex. p7, m10 eller d6.');
+      patch.focus = req.body.focus || null;
+    }
     if (!Object.keys(patch).length) fail(400, 'Inget att ändra.');
     const n = await db(t.classes).where({ id: Number(req.params.id) }).update(patch);
     if (!n) fail(404, 'Klassen finns inte.');

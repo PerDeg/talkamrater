@@ -29,3 +29,9 @@ td .em { font-size: 1.4rem; }
 .adm-embed { display: grid; gap: 8px; justify-items: start; }
 .adm-embed p { margin: 0; }
 .adm-code-block { margin: 0; width: 100%; overflow-x: auto; background: var(--ink); color: #E6ECFF; border-radius: 10px; padding: 10px; font-size: 0.78rem; white-space: pre; }
+.adm-focus { display: grid; gap: 6px; background: #FFF6DA; border-radius: 14px; padding: 10px 12px; margin-bottom: 12px; }
+.adm-focus select, td select { font: inherit; font-weight: 700; border: 2px solid var(--line); border-radius: 10px; padding: 4px 8px; background: var(--card); color: var(--ink); max-width: 100%; }
+td select.saved { border-color: var(--leaf); }
+.good { color: var(--leaf); font-weight: 800; }
+.small { font-size: 0.8rem; font-weight: 700; }
+.app { max-width: 1180px; }

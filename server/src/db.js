@@ -157,6 +157,17 @@ function migrations(t, client) {
     async down(knex) {
       await knex.schema.alterTable(t.classes, tb => { tb.dropColumn('public'); });
     }
+  }, {
+    // Läraren kan sätta ett fokustal för hela klassen eller för en elev, t.ex. "p7"
+    name: '004_focus',
+    async up(knex) {
+      await knex.schema.alterTable(t.classes, tb => { tb.string('focus', 8).nullable(); });
+      await knex.schema.alterTable(t.players, tb => { tb.string('focus', 8).nullable(); });
+    },
+    async down(knex) {
+      await knex.schema.alterTable(t.players, tb => { tb.dropColumn('focus'); });
+      await knex.schema.alterTable(t.classes, tb => { tb.dropColumn('focus'); });
+    }
   }];
 }
 

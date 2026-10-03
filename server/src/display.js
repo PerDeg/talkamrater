@@ -10,7 +10,8 @@ const TREATS = {
 const WISH_TEXT = {
   answers: w => `svara rätt på ${w.need} frågor`, minus: w => `svara rätt på ${w.need} minusfrågor`, dubbel: w => `svara rätt på ${w.need} dubbelfrågor`,
   bubbles: w => `poppa alla bubbelpar som blir ${w.n}`, number: w => `klara talet ${w.n} med minst två stjärnor`,
-  streak: () => 'få 5 rätt i rad', stars3: () => 'få tre stjärnor på en runda', daily: () => 'klara dagens utmaning'
+  streak: () => 'få 5 rätt i rad', stars3: () => 'få tre stjärnor på en runda', daily: () => 'klara dagens utmaning',
+  focus: () => 'träna veckans fokustal'
 };
 export const MEDALS = {
   't-z1': ['🏅', 'Kompisbyns medalj'], 't-z2': ['🌳', 'Skogsmedaljen'], 't-z3': ['🐠', 'Sjömedaljen'], 't-z4': ['⛰️', 'Toppmedaljen'], expert: ['🎓', 'Expertmössan'],
@@ -36,7 +37,7 @@ export function petView(pet, today = dayNumber()) {
   let mood, moodText;
   if (stage === 0) { mood = 'ägg'; moodText = 'Ägget väntar på att kläckas.'; }
   else if (daysAway == null || daysAway >= 2) { mood = 'hungrig'; moodText = `${name} är hungrig och längtar efter att spela.`; }
-  else if (pet.wishDay === today && pet.wishCount >= 3) { mood = 'överlycklig'; moodText = `${name} har fått allt den önskat sig idag.`; }
+  else if (pet.wishDay === today && pet.wishCount >= 1) { mood = 'överlycklig'; moodText = `${name} fick sin önskan idag.`; }
   else { mood = 'glad'; moodText = `${name} mår bra.`; }
   const w = pet.wish;
   const wish = stage > 0 && w && w.day === today && WISH_TEXT[w.type]
@@ -59,14 +60,42 @@ export function eventText(e) {
 
 // En enda försiktig mening från husdjuret, för en liten pratbubbla på andra
 // sajter. Det viktigaste vinner: hunger, önskan, dagens utmaning, klassens uppdrag.
-export function nudge({ pet, daily, mission, today = dayNumber() }) {
+// Lärarens fokus, t.ex. "p7" → "talkamraterna till 7"
+export function focusLabel(f) {
+  const m = /^([pmd])(\d{1,2})$/.exec(f || '');
+  if (!m) return null;
+  const n = Number(m[2]);
+  return m[1] === 'p' ? `talkamraterna till ${n}` : m[1] === 'm' ? `minus från ${n}` : `dubblorna upp till ${n}`;
+}
+export const validFocus = f => f === null || f === '' || (/^[pm](\d{1,2})$/.test(f) && +f.slice(1) >= 1 && +f.slice(1) <= 20) || (/^d(\d{1,2})$/.test(f) && +f.slice(1) >= 1 && +f.slice(1) <= 10);
+
+function trickyTip(tricky) {
+  const top = Object.entries(tricky || {}).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1])[0];
+  if (!top) return null;
+  const [, w, n, a] = /^([md]?)(\d+):(\d+)$/.exec(top[0]).map((v, i) => (i > 1 ? Number(v) : v));
+  if (w === 'd') return `Kom ihåg: ${n} + ${n} = ${2 * n} 🧠`;
+  if (w === 'm') return `Kom ihåg: ${n} − ${a} = ${n - a} 🧠`;
+  return `Kom ihåg: ${a} och ${n - a} är kompisar till ${n} 🧠`;
+}
+
+// En enda försiktig mening från husdjuret, för en liten pratbubbla på andra sajter.
+// Hunger och en önskan går först. Annars växlar bubblan (varannan timme) mellan
+// lugnare saker: lärarens fokus, dagens utmaning, klassens uppdrag, ett minnestips.
+export function nudge({ pet, daily, mission, focus, tricky, today = dayNumber(), now = new Date() }) {
   const p = petView(pet, today);
-  const doneToday = daily && daily.day === today;
   if (p.stage === 0) return { kind: 'egg', text: 'Ägget väntar på dig. Spela en runda så kläcks det! 🥚' };
-  if (p.mood === 'hungrig') return { kind: 'hungry', text: `Jag är hungrig! Spelar vi en runda? 🍓` };
+  if (p.mood === 'hungrig') return { kind: 'hungry', text: 'Jag är hungrig! Spelar vi en runda? 🍓' };
   if (p.wish) return { kind: 'wish', text: `Kan du ${p.wish.text}? Då får jag ${p.wish.treat} ${p.wish.icon}` };
-  if (!doneToday) return { kind: 'daily', text: daily && daily.streak > 1 && daily.day === today - 1 ? `Dagens utmaning väntar! Håll sviten på ${daily.streak} dagar 🔥` : 'Dagens utmaning väntar på dig! 🔥' };
-  if (mission && mission.progress < mission.goal) return { kind: 'mission', text: `Klassen har ${mission.progress} av ${mission.goal} ${mission.unit}. Hjälper du till? 🤝` };
-  if (mission && mission.progress >= mission.goal) return { kind: 'done', text: 'Klassen klarade veckans uppdrag! 🎉' };
-  return { kind: 'happy', text: `${p.name} mår toppen idag 💜` };
+  const options = [];
+  const fl = focusLabel(focus);
+  if (fl) options.push({ kind: 'focus', text: `Den här veckan tränar vi ${fl} ✏️` });
+  if (!(daily && daily.day === today)) {
+    options.push({ kind: 'daily', text: daily && daily.streak > 1 && daily.day === today - 1 ? `Dagens utmaning väntar! Håll sviten på ${daily.streak} dagar 🔥` : 'Dagens utmaning väntar på dig! 🔥' });
+  }
+  if (mission && mission.progress < mission.goal) options.push({ kind: 'mission', text: `Klassen har ${mission.progress} av ${mission.goal} ${mission.unit}. Hjälper du till? 🤝` });
+  if (mission && mission.progress >= mission.goal) options.push({ kind: 'done', text: 'Klassen klarade veckans uppdrag! 🎉' });
+  const tip = trickyTip(tricky);
+  if (tip) options.push({ kind: 'tip', text: tip });
+  if (!options.length) return { kind: 'happy', text: `${p.name} mår toppen idag 💜` };
+  return options[(today * 12 + Math.floor(now.getHours() / 2)) % options.length];
 }

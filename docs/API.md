@@ -116,9 +116,9 @@ GET https://talkamrater.degerfalt.se/api/public/classes/{klasskod}?name={namn}&e
 | `stage`, `stageName`, `icon` | Stadium 0–5: Ägg 🥚, Bebis 🐣, Liten 🐾, Stor 💜, Jätte ✨, Kung 👑 |
 | `xp`, `nextAt` | Stjärnfrukter och hur många som krävs för nästa stadium (`null` för kung) |
 | `mood`, `moodText` | `ägg`, `glad`, `hungrig` eller `överlycklig`, plus en färdig mening |
-| `wish` | Dagens önskan, eller `null`. `text` passar efter "Plutt önskar … om du …". `have`/`need` visar hur långt eleven kommit. |
+| `wish` | Dagens önskan, eller `null`. `text` passar efter "Kan du …?". `have`/`need` visar hur långt eleven kommit. |
 
-**`me.nudge`**: det viktigaste husdjuret vill säga just nu, som en färdig mening (`text`) och en typ (`kind`). Servern väljer i den här ordningen:
+**`me.nudge`**: det viktigaste husdjuret vill säga just nu, som en färdig mening (`text`) och en typ (`kind`). Ägg, hunger och en önskan går först. Husdjuret har högst en önskan om dagen, och inte alla dagar. Annars växlar bubblan varannan timme mellan lärarens fokus, dagens utmaning, klassens uppdrag och ett minnestips.
 
 | `kind` | Exempel på `text` |
 |---|---|
@@ -126,7 +126,9 @@ GET https://talkamrater.degerfalt.se/api/public/classes/{klasskod}?name={namn}&e
 | `hungry` | Jag är hungrig! Spelar vi en runda? 🍓 |
 | `wish` | Kan du poppa alla bubbelpar som blir 9? Då får jag en glass 🍦 |
 | `daily` | Dagens utmaning väntar! Håll sviten på 3 dagar 🔥 |
+| `focus` | Den här veckan tränar vi talkamraterna till 7 ✏️ |
 | `mission` | Klassen har 15 av 130 bubbelpar. Hjälper du till? 🤝 |
+| `tip` | Kom ihåg: 3 och 5 är kompisar till 8 🧠 |
 | `done` | Klassen klarade veckans uppdrag! 🎉 |
 | `happy` | Plutt mår toppen idag 💜 |
 

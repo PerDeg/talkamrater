@@ -95,9 +95,9 @@
     set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} },
     del(k) { try { localStorage.removeItem(k); } catch (e) {} }
   };
-  const FIELDS = ['best', 'total', 'rounds', 'stickers', 'path', 'records', 'tricky', 'pet', 'daily'];
+  const FIELDS = ['best', 'total', 'rounds', 'stickers', 'path', 'records', 'tricky', 'skill', 'pet', 'daily'];
   const freshProgress = () => ({
-    best: {}, total: 0, rounds: 0, stickers: [], path: {}, records: {}, tricky: {},
+    best: {}, total: 0, rounds: 0, stickers: [], path: {}, records: {}, tricky: {}, skill: {},
     pet: { xp: 0, last: 0, born: 0, name: '' }, daily: { day: 0, streak: 0, best: 0, count: 0 }
   });
   const progressOf = s => Object.fromEntries(FIELDS.map(k => [k, s[k]]));
@@ -523,7 +523,8 @@
   // från önskningar. Det ska ta många rundor att nå kung.
   const PET_STAGES = [[0, 'Ägg'], [10, 'Bebis'], [40, 'Liten'], [100, 'Stor'], [200, 'Jätte'], [400, 'Kung']];
   const PET_ICONS = ['🥚', '🐣', '🐾', '💜', '✨', '👑'];
-  const WISH_XP = 5, WISHES_PER_DAY = 3;
+  // Högst en önskan per dag, och inte alla dagar, så att det inte blir tjat
+  const WISH_XP = 5, WISHES_PER_DAY = 1;
   const petStage = xp => PET_STAGES.reduce((s, [min], i) => (xp >= min ? i : s), 0);
   const petName = () => save.pet.name || 'Plutt';
 
@@ -539,12 +540,16 @@
     number: { make: () => ({ n: rnd(5, 18) }), text: w => `Klara talet ${w.n} med minst två stjärnor`, go: w => inWorld('plus', () => startFindLevel('plus', w.n))() },
     streak: { make: () => ({}), text: () => 'Få 5 rätt i rad', go: () => inWorld('plus', () => startMix(1))() },
     stars3: { make: () => ({}), text: () => 'Få tre stjärnor på en runda', go: () => inWorld('plus', () => startMix(0))() },
-    daily: { make: () => ({}), ok: () => !dailyDone(), text: () => 'Klara dagens utmaning', go: () => startDaily() }
+    daily: { make: () => ({}), ok: () => !dailyDone(), text: () => 'Klara dagens utmaning', go: () => startDaily() },
+    focus: { make: () => ({ n: focusN() }), ok: () => !!teacherFocus(), text: w => `Träna ${focusText(teacherFocus())} en gång`,
+      go: () => startFocus() }
   };
   const treatOf = w => TREATS.find(t => t[0] === (w && w.treat)) || TREATS[0];
+  const wishDay = () => { const d = today(); return (d * 7 + (save.pet.born || 0)) % 3 !== 0; }; // två dagar av tre
   function newWish() {
     const types = Object.keys(WISH_TYPES).filter(t => !WISH_TYPES[t].ok || WISH_TYPES[t].ok());
-    const type = pick(types);
+    // Har läraren satt ett fokus blir det ofta önskan
+    const type = teacherFocus() && Math.random() < 0.5 ? 'focus' : pick(types);
     return { type, need: 1, have: 0, n: 0, ...WISH_TYPES[type].make(), treat: pick(TREATS)[0], day: today() };
   }
   function currentWish() {
@@ -552,7 +557,7 @@
     if (petStage(p.xp) === 0) return null;
     if (p.wishDay !== today()) { p.wishDay = today(); p.wishCount = 0; p.wish = null; }
     if (p.wish && !WISH_TYPES[p.wish.type]) p.wish = null;
-    if (!p.wish && p.wishCount < WISHES_PER_DAY) { p.wish = newWish(); persist(); }
+    if (!p.wish && p.wishCount < WISHES_PER_DAY && wishDay()) { p.wish = newWish(); persist(); }
     return p.wish;
   }
   let wishNote = null;
@@ -569,6 +574,7 @@
       case 'number': hit = ev.kind === 'round' && ev.game === 'find' && ev.kindOf === 'train' && ev.world === 'plus' && ev.n === w.n && ev.stars >= 2; break;
       case 'stars3': hit = ev.kind === 'round' && ev.stars === 3; break;
       case 'daily': hit = ev.kind === 'round' && ev.daily; break;
+      case 'focus': hit = ev.kind === 'round' && ev.focus; break;
     }
     if (!hit) return;
     w.have = Math.min(w.need, w.have + 1);
@@ -589,9 +595,9 @@
     }
     const days = p.last ? today() - p.last : 99;
     if (days >= 2) return { cls: 'mood-hungry', text: days <= 3 ? `${petName()} är hungrig! Spela en runda för att mata.` : `${petName()} har längtat efter dig! En runda så blir allt bra igen.` };
-    if (p.wishDay === today() && p.wishCount >= WISHES_PER_DAY) return { cls: 'mood-happy', text: `${petName()} har fått allt den önskat sig idag och är överlycklig! 💜` };
-    if (p.wishDay === today() && p.wishCount > 0) return { cls: 'mood-happy', text: `${petName()} är glad! Tack för ${p.wishCount === 1 ? 'godsaken' : 'godsakerna'}.` };
-    return { cls: days <= 0 ? 'mood-happy' : 'mood-ok', text: days <= 0 ? `${petName()} är mätt men har en önskan …` : `${petName()} undrar om ni ska spela idag.` };
+    if (p.wishDay === today() && p.wishCount >= WISHES_PER_DAY) return { cls: 'mood-happy', text: `${petName()} fick sin önskan idag och är överlycklig! 💜` };
+    if (p.wish) return { cls: days <= 0 ? 'mood-happy' : 'mood-ok', text: days <= 0 ? `${petName()} är mätt men har en önskan …` : `${petName()} har en önskan idag.` };
+    return { cls: days <= 0 ? 'mood-happy' : 'mood-ok', text: days <= 0 ? pick([`${petName()} är mätt och glad!`, `${petName()} gillar att räkna med dig!`]) : `${petName()} undrar om ni ska spela idag.` };
   }
   function petHTML(stage, moodCls) {
     if (stage === 0) return `<div class="pet egg ${moodCls}" aria-hidden="true"><i class="spot s1"></i><i class="spot s2"></i><i class="spot s3"></i></div>`;
@@ -631,6 +637,7 @@
       $('#wishBtn').textContent = `Hjälp ${petName()}!`;
     }
   }
+  $('#ctFocusBtn').addEventListener('click', () => startFocus());
   $('#wishBtn').addEventListener('click', () => { const w = save.pet.wish; if (w && WISH_TYPES[w.type]) WISH_TYPES[w.type].go(w); });
   $('#petBtn').addEventListener('click', () => {
     const el = $('#petView .pet'); if (!el) return;
@@ -709,18 +716,39 @@
     else { q.form = rnd(0, 2); q.ans = q.form === 0 ? 2 * q.n : q.n; q.max = q.form === 0 ? Math.max(12, 2 * q.n + 3) : Math.max(6, q.n + 3); }
     return q;
   }
+  // Alla kamrater till n, men de lätta paren (med 0 och 1) bara en gång.
+  // De svårare paren kommer i båda ordningarna, t.ex. 3+5 och 5+3.
+  const easyPair = (n, a) => Math.min(a, n - a) <= 1;
   function allQs(w, n) {
     if (w === 'dubbel') {
       let qs = range(1, n).map(L => ({ w, n: L, a: L }));
       while (qs.length < 4) qs = qs.concat(range(1, n).map(L => ({ w, n: L, a: L })));
       return shuffle(qs);
     }
-    return shuffle(range(0, n).map(a => ({ w, n, a })));
+    const qs = [];
+    for (let a = 0; a <= Math.floor(n / 2); a++) {
+      const b = n - a;
+      qs.push({ w, n, a: Math.random() < 0.5 ? a : b });
+      if (a !== b && !easyPair(n, a)) qs.push({ w, n, a: qs[qs.length - 1].a === a ? b : a });
+    }
+    return spreadOut(shuffle(qs));
+  }
+  // Undvik samma par två gånger i rad
+  function spreadOut(qs) {
+    for (let i = 1; i < qs.length; i++) {
+      if (Math.min(qs[i].a, qs[i].n - qs[i].a) === Math.min(qs[i - 1].a, qs[i - 1].n - qs[i - 1].a) && qs[i].n === qs[i - 1].n) {
+        const j = qs.findIndex((q, k) => k > i && (q.n !== qs[i].n || Math.min(q.a, q.n - q.a) !== Math.min(qs[i].a, qs[i].n - qs[i].a)));
+        if (j > 0) [qs[i], qs[j]] = [qs[j], qs[i]];
+      }
+    }
+    return qs;
   }
   function rndQ(w, lo, hi) {
-    const n = rnd(Math.max(1, lo), hi);
+    // Större tal oftare än små, så att det inte blir mest x+1
+    const span = hi - Math.max(1, lo);
+    const n = Math.max(1, lo) + Math.floor(Math.sqrt(Math.random()) * (span + 1));
     if (w === 'dubbel') return { w, n, a: n };
-    const a = n >= 2 && Math.random() < 0.85 ? rnd(1, n - 1) : rnd(0, n);
+    const a = n >= 4 && Math.random() < 0.85 ? rnd(2, n - 2) : rnd(0, n);
     return { w, n, a };
   }
   function randQs(w, count, lo, hi) {
@@ -745,6 +773,16 @@
     const n = +m[2], a = +m[3];
     return { w, n, a: w === 'dubbel' ? n : Math.random() < 0.5 ? a : n - a };
   }
+  // Färdighet per tal och värld (0–10). Styr om pärlorna visas.
+  const skillKey = q => q.w[0] + q.n;
+  const skillOf = q => save.skill[skillKey(q)] || 0;
+  function markSkill(q, correctFirstTry) {
+    const k = skillKey(q);
+    save.skill[k] = Math.max(0, Math.min(10, (save.skill[k] || 0) + (correctFirstTry ? 1 : -2)));
+  }
+  // full = pärlor med tomma ringar, faint = svaga pärlor, none = inga pärlor
+  const beadMode = q => (skillOf(q) >= 7 ? 'none' : skillOf(q) >= 4 ? 'faint' : 'full');
+
   function markTricky(q, wrong) {
     const k = trickyKey(q);
     if (wrong) save.tricky[k] = Math.min(9, (save.tricky[k] || 0) + 2);
@@ -791,6 +829,11 @@
     if (q.form === 0) return { rows: [rep('ka', L), rep('kb', L)], number: hint ? 'all' : '' };
     if (filled || hint) return { rows: [rep('ka', L), rep('kb', L)], number: '' };
     return { rows: [rep('ka', 2 * L)], number: '' };
+  }
+  function showBeads(q, filled, hint) {
+    $('#beads').hidden = q.mode === 'none';
+    $('#beads').classList.toggle('faint', q.mode === 'faint');
+    if (q.mode !== 'none') renderBeads(q, filled, hint);
   }
   function renderBeads(q, filled, hint) {
     const { rows, number } = beadRows(q, filled, hint);
@@ -1041,6 +1084,20 @@
     $('#voiceBtn').setAttribute('aria-pressed', String(prefs.voice));
   }
 
+  // Lärarens fokus, t.ex. "p7" = talkamraterna till 7
+  const teacherFocus = () => {
+    const f = net.player && net.player.focus;
+    return /^[pmd]\d{1,2}$/.test(f || '') ? f : null;
+  };
+  const focusN = () => { const f = teacherFocus(); return f ? +f.slice(1) : 0; };
+  const focusWorld = f => ({ p: 'plus', m: 'minus', d: 'dubbel' })[f[0]];
+  const focusText = f => (f[0] === 'p' ? `talkamraterna till ${f.slice(1)}` : f[0] === 'm' ? `minus från ${f.slice(1)}` : `dubblorna upp till ${f.slice(1)}`);
+  function startFocus() {
+    const f = teacherFocus(); if (!f) return;
+    roadContext = false;
+    startFindLevel(focusWorld(f), +f.slice(1), true);
+  }
+
   // Klassen överst på startsidan: veckans uppdrag, ditt bidrag och senaste händelsen
   function renderClassTop() {
     const box = $('#classTop');
@@ -1048,6 +1105,9 @@
     box.hidden = false;
     const ci = net.classInfo;
     $('#ctName').textContent = net.player.className || 'Klassen';
+    const f = teacherFocus();
+    $('#ctFocus').hidden = !f;
+    if (f) $('#ctFocusText').textContent = `Veckans fokus: ${focusText(f)}`;
     const fresh = ci ? ci.myCheers - (prefs.seenCheers[net.player.id] || 0) : 0;
     $('#cheerBadge').hidden = fresh <= 0;
     $('#cheerBadge').textContent = fresh > 0 ? `👏 ${fresh} ${fresh === 1 ? 'nytt hejarop' : 'nya hejarop'}` : '';
@@ -1110,13 +1170,17 @@
   }
 
   /* ================= Spel: Hitta kamraten / prov ================= */
-  function startFindLevel(w, n) {
+  function startFindLevel(w, n, isFocus) {
     const Wd = WORLDS[w];
-    startFind({ kind: 'train', world: w, n, level: `${Wd.prefix}${n}`, mode: 'find', label: Wd.level(n), qs: allQs(w, n), beads: true, retry: true });
+    startFind({ kind: 'train', world: w, n, focus: !!isFocus || teacherFocus() === `${w[0]}${n}`, level: `${Wd.prefix}${n}`, mode: 'find',
+      label: isFocus ? `Fokus: ${Wd.level(n)}` : Wd.level(n), qs: allQs(w, n), beads: true, retry: true });
   }
   function startMix(i) {
     const w = W(), m = w.mixes[i];
-    startFind({ kind: 'mix', world: w.id, level: m.key, mixIndex: i, mode: 'find', label: m.label, qs: randQs(w.id, 12, m.lo, m.hi), beads: true, retry: true });
+    const qs = randQs(w.id, 12, m.lo, m.hi);
+    const f = teacherFocus();
+    if (f && focusWorld(f) === w.id) for (let k = 0; k < qs.length; k += 3) qs[k] = rndQ(w.id, +f.slice(1), +f.slice(1));
+    startFind({ kind: 'mix', world: w.id, level: m.key, mixIndex: i, mode: 'find', label: m.label, qs, beads: true, retry: true });
   }
   function startTricky() {
     const qs = questionsTricky();
@@ -1129,7 +1193,7 @@
 
   function startFind(cfg) {
     stopGame();
-    G = { ...cfg, game: 'find', idx: 0, mistakes: 0, score: 0, streak: 0, bestStreak: 0, firstTry: 0, missed: [], marks: [] };
+    G = { ...cfg, game: 'find', idx: 0, mistakes: 0, score: 0, streak: 0, bestStreak: 0, firstTry: 0, missed: [], marks: [], skillStart: { ...save.skill } };
     show('find');
     $('#findLabel').textContent = cfg.label;
     $('#findProgress').classList.toggle('many', cfg.qs.length > 12);
@@ -1156,9 +1220,10 @@
     G.cur = q; G.tries = 0; G.locked = false;
     renderProgress($('#findProgress'), G.idx, G.qs.length, G.idx, G.marks);
     $('#equation').innerHTML = equationHTML(q, false);
-    $('#beads').hidden = !G.beads;
-    if (G.beads) renderBeads(q, false, false);
-    $('#findExplain').textContent = G.beads ? '' : `Fråga ${G.idx + 1} av ${G.qs.length}`;
+    q.mode = G.beads ? beadMode(q) : 'none';
+    showBeads(q, false, false);
+    $('#findExplain').textContent = !G.beads ? `Fråga ${G.idx + 1} av ${G.qs.length}`
+      : q.mode === 'none' ? 'Inga pärlor här, du kan det här! 💪' : '';
     renderAnswers($('#answers'), q, answerFind);
     if (!G.retry) { if (G.idx === 0) talk('Lycka till! Tänk efter, ett svar per fråga.'); }
     else talk(promptFor(q, G.idx === 0));
@@ -1172,8 +1237,8 @@
       btn.classList.add('right');
       $$('#answers .ans').forEach(x => { x.disabled = true; });
       $('#equation').innerHTML = equationHTML(q, true);
-      if (G.beads) renderBeads(q, true, false);
-      if (G.tries === 0) { G.firstTry++; G.score++; G.marks[G.idx] = true; markTricky(q, false); }
+      showBeads(q, true, false);
+      if (G.tries === 0) { G.firstTry++; G.score++; G.marks[G.idx] = true; markTricky(q, false); markSkill(q, true); }
       else G.marks[G.idx] = false;
       G.streak++; G.bestStreak = Math.max(G.bestStreak, G.streak);
       setStreak($('#findStreak'), G.streak);
@@ -1187,7 +1252,7 @@
     }
     btn.classList.add('wrong'); btn.disabled = true;
     G.mistakes++; G.streak = 0;
-    if (G.tries === 0) { markTricky(q, true); G.missed.push(q); }
+    if (G.tries === 0) { markTricky(q, true); markSkill(q, false); G.missed.push(q); }
     G.tries++;
     setStreak($('#findStreak'), 0);
     sfx.wrong();
@@ -1204,6 +1269,8 @@
       return;
     }
     $('#findExplain').textContent = explainWrong(q, v);
+    // Svårt? Då kommer pärlorna tillbaka som hjälp
+    if (G.beads && q.mode !== 'full') { q.mode = 'full'; showBeads(q, false, false); }
     if (G.tries >= 2 && G.beads) {
       renderBeads(q, false, true);
       talk(q.w === 'dubbel' ? 'Titta, jag har delat pärlorna i två lika stora grupper!' : 'Räkna de tomma ringarna, jag har numrerat dem åt dig!', 'oops');
@@ -1401,7 +1468,7 @@
     if (v === q.ans) {
       btn.classList.add('right');
       G.score++; G.streak++; G.bestStreak = Math.max(G.bestStreak, G.streak);
-      markTricky(q, false);
+      markTricky(q, false); markSkill(q, true);
       $('#chScore').textContent = G.score;
       wishProgress({ kind: 'answer', w: q.w, streak: G.streak });
       setStreak($('#chStreak'), G.streak);
@@ -1412,7 +1479,7 @@
     } else {
       btn.classList.add('wrong');
       G.mistakes++; G.streak = 0;
-      markTricky(q, true);
+      markTricky(q, true); markSkill(q, false);
       setStreak($('#chStreak'), 0);
       sfx.wrong();
       $$('#chAnswers .ans').forEach(x => { if (+x.dataset.v === q.ans) x.classList.add('correct-was'); });
@@ -1582,7 +1649,7 @@
     // Mata husdjuret: en stjärnfrukt per stjärna
     const food = r.stars;
     let grew = feedPet(food);
-    wishProgress({ kind: 'round', game: g.game, world: wid, n: g.n, stars: r.stars, daily: !!daily, kindOf: g.kind });
+    wishProgress({ kind: 'round', game: g.game, world: wid, n: g.n, stars: r.stars, daily: !!daily, kindOf: g.kind, focus: !!g.focus });
     if (wishNote && wishNote.grew) grew = wishNote.grew;
 
     persist();
@@ -1619,6 +1686,14 @@
     if (daily) notes.push(`🔥 Dagens utmaning klar! <b>${daily} ${daily === 1 ? 'dag' : 'dagar'} i rad</b>`);
     if (afterDone > beforeDone && next && g.kind !== 'daily') notes.push(`Ett steg till på vägen till expert! Nästa: <b>${esc(next.name)}</b>`);
     if (r.newRecord) notes.push('Nytt rekord!');
+    if (g.skillStart) {
+      const label = k => (k[0] === 'p' ? `talkamraterna till ${k.slice(1)}` : k[0] === 'm' ? `minus från ${k.slice(1)}` : `dubblorna till ${k.slice(1)}`);
+      for (const [k, v] of Object.entries(save.skill)) {
+        const was = g.skillStart[k] || 0;
+        if (was < 7 && v >= 7) notes.push(`💪 Pärlorna för ${label(k)} har försvunnit. Du kan dem!`);
+        else if (was >= 4 && v < 4) notes.push(`Pärlorna för ${label(k)} är tillbaka som hjälp ett tag.`);
+      }
+    }
     if (wishNote) notes.push(`${wishNote.t[1]} ${esc(petName())} fick ${wishNote.t[2]}! Önskan uppfylld.`);
     wishNote = null;
     if (grew) notes.push(`🍓 ${esc(petName())} <b>växte och blev ${PET_STAGES[grew][1].toLowerCase()}!</b>`);

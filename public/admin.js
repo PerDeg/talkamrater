@@ -22,6 +22,11 @@
     return d <= 0 ? 'idag' : d === 1 ? 'igår' : `${d} dagar sedan`;
   };
   const gameUrl = new URL('./', location.href).href;
+  // Fokusval: inget, plus 1–20, minus 1–20, dubblor 1–10
+  const focusOptions = (sel, noneLabel) => `<option value="">${noneLabel}</option>`
+    + [['p', 'Talkamrater till', 20], ['m', 'Minus från', 20], ['d', 'Dubblor upp till', 10]].map(([k, label, max]) =>
+      `<optgroup label="${label.split(' ')[0]}">${Array.from({ length: max }, (_, i) => i + 1)
+        .map(n => `<option value="${k}${n}" ${sel === k + n ? 'selected' : ''}>${label} ${n}</option>`).join('')}</optgroup>`).join('');
   const widgetUrl = code => new URL(`widget.html?klass=${encodeURIComponent(code)}`, location.href).href;
   const embedCode = code => `<!-- Plutt säger en mening från Talkamrater. Syns bara när eleven finns i klassen. -->
 <iframe src="${widgetUrl(code)}&namn=Edwin" title="Talkamrater" style="width:100%;max-width:420px;height:0;border:0;color-scheme:normal" loading="lazy"></iframe>
@@ -78,8 +83,14 @@
             <p class="muted">Sajten som bäddar in måste stå i <b>ALLOWED_ORIGINS</b> på servern.</p>
           </div>
         </div>
+        <div class="adm-focus">
+          <label for="cf-${c.id}"><b>Veckans fokus för hela klassen</b></label>
+          <select id="cf-${c.id}" data-class-focus>${focusOptions(c.focus, 'Inget fokus')}</select>
+          <span class="muted">Visas överst i spelet och kommer oftare i blandade rundor. En elev kan få ett eget fokus nedan.</span>
+        </div>
+        <p class="muted">Veckans uppdrag: <b>${esc(c.mission.title)}</b></p>
         <div class="tablewrap"><table>
-          <thead><tr><th>Elev</th><th>★</th><th>Klister&shy;märken</th><th>Vägen</th><th>Kluriga kamrater</th><th>Senast</th><th></th></tr></thead>
+          <thead><tr><th>Elev</th><th>Kan bra</th><th>Behöver träna</th><th>Tränat</th><th>Bidrag i veckan</th><th>Eget fokus</th><th></th></tr></thead>
           <tbody></tbody>
         </table></div>
         <p class="actions" style="margin-top:12px"><button class="small-btn danger" data-del-class>Radera klassen</button></p>`;
@@ -88,23 +99,20 @@
       for (const p of c.players) {
         const tr = document.createElement('tr');
         tr.innerHTML = `
-          <td><span class="em">${esc(p.avatar)}</span> <b>${esc(p.name)}</b>${p.hasPin ? '' : ' <span class="muted">(väljer ny kod)</span>'}<div class="rounds" hidden></div></td>
-          <td>${p.stars}</td>
-          <td>${p.stickers}</td>
-          <td>${p.pathDone} steg ${'🏅'.repeat(p.medals)}${(p.experts || []).map(w => ({ plus: '🎓', minus: '🧙', dubbel: '👯' })[w] || '').join('')}${p.dailyStreak > 1 ? ` 🔥${p.dailyStreak}` : ''}</td>
-          <td class="tricky">${p.tricky.length ? esc(p.tricky.join(', ')) : '<span class="muted">–</span>'}</td>
-          <td>${ago(p.lastSeen)}</td>
+          <td><span class="em">${esc(p.avatar)}</span> <b>${esc(p.name)}</b>${p.hasPin ? '' : ' <span class="muted">(väljer ny kod)</span>'}
+            <div class="muted small">★ ${p.stars} · ${p.medals} medaljer${(p.experts || []).length ? ' · expert' : ''} · senast ${ago(p.lastSeen)}</div></td>
+          <td class="good">${p.strong.length ? p.strong.map(esc).join('<br>') : '<span class="muted">Inget säkert än</span>'}</td>
+          <td class="tricky">${p.practice.length ? p.practice.map(esc).join('<br>') : '<span class="muted">–</span>'}</td>
+          <td>${p.training.weekRounds} rundor, ${p.training.weekAnswers} rätt i veckan<div class="muted small">${p.training.rounds} rundor totalt</div></td>
+          <td>${p.contribution} ${esc(c.mission.unit)}</td>
+          <td><select data-focus aria-label="Eget fokus för ${esc(p.name)}">${focusOptions(p.focus, c.focus ? 'Klassens fokus' : 'Inget')}</select></td>
           <td><div class="actions">
-            <button class="small-btn" data-rounds>Rundor</button>
             <button class="small-btn" data-reset>Ny bildkod</button>
             <button class="small-btn danger" data-del>Ta bort</button>
           </div></td>`;
-        $('[data-rounds]', tr).addEventListener('click', async () => {
-          const box = $('.rounds', tr);
-          if (!box.hidden) { box.hidden = true; return; }
-          const rows = await api('GET', `admin/players/${p.id}/rounds`);
-          box.innerHTML = rows.length ? rows.slice(0, 12).map(r => `${new Date(r.at).toLocaleDateString('sv-SE')} · ${esc(r.level)} ${esc(r.mode)} · ${r.score}/${r.total} · ${'★'.repeat(r.stars)}`).join('<br>') : 'Inga rundor än.';
-          box.hidden = false;
+        $('[data-focus]', tr).addEventListener('change', async e => {
+          await api('PATCH', `admin/players/${p.id}`, { focus: e.target.value });
+          e.target.classList.add('saved'); setTimeout(() => e.target.classList.remove('saved'), 1200);
         });
         confirmClick($('[data-reset]', tr), 'Säker? Klicka igen', async () => { await api('POST', `admin/players/${p.id}/reset-pin`); load(); });
         confirmClick($('[data-del]', tr), 'Radera allt?', async () => { await api('DELETE', `admin/players/${p.id}`); load(); });
@@ -117,6 +125,10 @@
       });
       $('[data-goal]', el).addEventListener('click', async () => {
         await api('PATCH', `admin/classes/${c.id}`, { goal: Number($('.goal-edit input', el).value) });
+        load();
+      });
+      $('[data-class-focus]', el).addEventListener('change', async e => {
+        await api('PATCH', `admin/classes/${c.id}`, { focus: e.target.value });
         load();
       });
       $('[data-public]', el).addEventListener('change', async e => {
