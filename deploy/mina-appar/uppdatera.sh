@@ -17,4 +17,12 @@ fi
 docker compose build --pull
 docker compose up -d --remove-orphans
 docker image prune -f >/dev/null
+
+# Vänta tills apparna svarar (första starten skapar tabeller i databasen)
+echo -n "Väntar på att apparna ska bli friska"
+for i in $(seq 1 60); do
+  if ! docker compose ps --format '{{.Health}}' | grep -qE 'starting|unhealthy'; then break; fi
+  echo -n "."; sleep 2
+done
+echo
 docker compose ps
