@@ -103,16 +103,21 @@ cd /mnt/user/appdata/mina-appar
 git clone https://github.com/PerDeg/talkamrater.git src/talkamrater
 cp -r src/talkamrater/deploy/mina-appar/. .
 
-# 1. Databasen
+# 1. Lösenord och nycklar (slumpas fram)
 cp env/db.env.example env/db.env
+cp env/talkamrater.env.example env/talkamrater.env
 sed -i "s/^POSTGRES_PASSWORD=.*/POSTGRES_PASSWORD=$(openssl rand -hex 24)/" env/db.env
-docker compose up -d db
-./ny-databas.sh talkamrater          # skapar databas + användare, fyller i env/talkamrater.env
-
-# 2. Appen
 sed -i "s/^ADMIN_KEY=.*/ADMIN_KEY=$(openssl rand -hex 24)/" env/talkamrater.env
 grep ADMIN_KEY env/talkamrater.env   # spara nyckeln, den behövs för lärarsidan
-nano docker-compose.yml              # byt 192.168.1.10 i ikon-adressen till Unraid-IP:n
+
+# 2. Databasen för spelet (startar Postgres och fyller i env/talkamrater.env)
+./ny-databas.sh talkamrater
+```
+
+Byt sedan `192.168.1.10` i ikon-adressen till din Unraid-IP med `nano docker-compose.yml`. Gör det som ett eget steg, inte i samma inklistring som kommandona ovan och nedan.
+
+```bash
+# 3. Bygg och starta
 ./uppdatera.sh
 curl http://localhost:3080/api/health
 ```
