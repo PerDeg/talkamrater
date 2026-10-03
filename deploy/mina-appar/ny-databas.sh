@@ -18,8 +18,21 @@ ENV_FILE="env/$APP.env"
 [ -f "$ENV_FILE" ] || { [ -f "$ENV_FILE.example" ] && cp "$ENV_FILE.example" "$ENV_FILE" || touch "$ENV_FILE"; }
 chmod 600 "$ENV_FILE"
 
-docker compose up -d --wait db >/dev/null 2>&1 || true
-PSQL=${PSQL:-docker compose exec -T db psql -U postgres -v ON_ERROR_STOP=1 -qtA}
+if [ -z "${PSQL:-}" ]; then
+  # Starta databasen och vänta tills den svarar (första starten tar längre tid)
+  docker compose up -d db
+  echo -n "Väntar på databasen"
+  for i in $(seq 1 90); do
+    if docker compose exec -T db pg_isready -U postgres -q 2>/dev/null; then echo " klar!"; break; fi
+    echo -n "."; sleep 1
+    if [ "$i" = 90 ]; then
+      echo; echo "Databasen svarar inte. Senaste loggraderna:" >&2
+      docker compose logs --tail=30 db >&2
+      exit 1
+    fi
+  done
+  PSQL="docker compose exec -T db psql -U postgres -v ON_ERROR_STOP=1 -qtA"
+fi
 
 if [ "$($PSQL -c "SELECT 1 FROM pg_roles WHERE rolname = '$APP'")" = "1" ]; then
   echo "Databasen för $APP finns redan. Inget ändrat."
