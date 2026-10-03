@@ -13,6 +13,8 @@ const app = createApp({
   publicDir: env.PUBLIC_DIR || path.resolve(here, '../../public'),
   trustProxy: env.TRUST_PROXY || 'loopback, linklocal, uniquelocal',
   // Sajter som får visa klasswidgeten, t.ex. https://klass2.degerfalt.se
+  // Spelets publika adress, används i länkar från widgeten (t.ex. https://talkamrater.degerfalt.se/)
+  publicUrl: env.PUBLIC_URL || '',
   allowedOrigins: (env.ALLOWED_ORIGINS || '').split(',').map(s => s.trim().replace(/\/$/, '')).filter(Boolean)
 });
 

@@ -3,6 +3,7 @@ import { insertId } from './db.js';
 import { newToken, hashToken, validPin, hashPin, checkPin, safeEqual, newClassCode, normalizeCode, rateLimiter } from './auth.js';
 import { emptyProgress, sanitizeProgress, mergeProgress, summarize } from './progress.js';
 import { classMission, celebrateMission } from './mission.js';
+import { petView, eventText, medalIcons } from './display.js';
 
 // Händelser som kan visas i klassens flöde. Texten byggs i spelet utifrån typ + detalj.
 // Bara större händelser, så att flödet inte svämmar över i en stor klass.
@@ -23,7 +24,7 @@ class HttpError extends Error {
 const fail = (status, message) => { throw new HttpError(status, message); };
 const cleanName = n => String(n || '').replace(/[\u0000-\u001f<>]/g, '').replace(/\s+/g, ' ').trim().slice(0, 24);
 
-export function createApp({ db, t, client, adminKey, publicDir, trustProxy = 'loopback, linklocal, uniquelocal', allowedOrigins = [] }) {
+export function createApp({ db, t, client, adminKey, publicDir, trustProxy = 'loopback, linklocal, uniquelocal', allowedOrigins = [], publicUrl = '' }) {
   const app = express();
   app.disable('x-powered-by');
   app.set('trust proxy', trustProxy);
@@ -281,22 +282,36 @@ export function createApp({ db, t, client, adminKey, publicDir, trustProxy = 'lo
     const total = rows.reduce((s, r) => s + summarize(parse(r.data)).stars, 0);
     const wanted = String(req.query.name || '').trim().toLowerCase();
     const row = wanted ? rows.find(r => r.name.toLowerCase() === wanted) : null;
+    const mission = await classMission(db, t, c.id, rows.length, row ? row.id : null);
     let me = null;
     if (row) {
       const p = sanitizeProgress(parse(row.data));
-      me = { name: row.name, avatar: row.avatar, ...summarize(p), path: p.path, best: p.best, pet: p.pet, daily: p.daily };
+      const sum = summarize(p);
+      me = {
+        name: row.name, avatar: row.avatar,
+        stars: sum.stars, stickers: sum.stickers, steps: sum.pathDone, medals: sum.medals, medalIcons: medalIcons(p.path),
+        experts: sum.experts, dailyStreak: sum.dailyStreak, contribution: mission.mine,
+        pet: petView(p.pet)
+      };
     }
     const events = await db(t.events).join(t.players, `${t.events}.player_id`, `${t.players}.id`)
       .where(`${t.events}.class_id`, c.id)
       .select(`${t.events}.type`, `${t.events}.detail`, `${t.events}.created_at`, `${t.players}.name`, `${t.players}.avatar`)
-      .orderBy(`${t.events}.created_at`, 'desc').limit(5);
+      .orderBy(`${t.events}.created_at`, 'desc').limit(Math.min(10, Math.max(0, Number(req.query.events ?? 5) || 0)));
+    const base = publicUrl || `${req.protocol}://${req.get('host')}/`;
     res.set('Cache-Control', 'public, max-age=60');
     res.json({
       class: { name: c.name, code: c.code, players: rows.length },
+      mission: {
+        title: mission.title, unit: mission.unit, goal: mission.goal, progress: mission.progress,
+        percent: Math.min(100, Math.round(100 * mission.progress / mission.goal)),
+        done: mission.progress >= mission.goal, endsAt: mission.endsAt
+      },
       jar: { total, goal: Number(c.goal) },
-      mission: await classMission(db, t, c.id, rows.length, row ? row.id : null),
-      events: events.map(e => ({ type: e.type, detail: e.detail, at: Number(e.created_at), name: e.name, avatar: e.avatar })),
-      me, nameNotFound: !!wanted && !row
+      me,
+      nameNotFound: !!wanted && !row,
+      events: events.map(e => ({ type: e.type, at: Number(e.created_at), name: e.name, avatar: e.avatar, text: eventText(e) })),
+      playUrl: `${base}?klass=${encodeURIComponent(c.code)}`
     });
   });
   api.use('/public', publicApi);

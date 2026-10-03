@@ -23,7 +23,7 @@
   };
   const gameUrl = new URL('./', location.href).href;
   const widgetUrl = code => new URL(`widget.html?klass=${encodeURIComponent(code)}`, location.href).href;
-  const embedCode = code => `<iframe src="${widgetUrl(code)}&namn=Edwin" title="Talkamrater" style="width:100%;max-width:520px;height:620px;border:0" loading="lazy"></iframe>
+  const embedCode = code => `<iframe src="${widgetUrl(code)}&namn=Edwin" title="Talkamrater" style="width:100%;max-width:440px;height:150px;border:0" loading="lazy"></iframe>
 <script>
   // Valfritt: låter iframen anpassa sin höjd efter innehållet
   addEventListener('message', e => {

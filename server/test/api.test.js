@@ -152,6 +152,9 @@ for (const [label, envFor] of targets) {
       const pub = await call('GET', `/public/classes/${code}?name=edwin`);
       assert.equal(pub.status, 200);
       assert.equal(pub.body.me.name, 'Edwin');
+      assert.equal(pub.body.me.pet.stageName, 'Ägg');
+      assert.ok(pub.body.playUrl.endsWith(`?klass=${code}`));
+      assert.equal(typeof pub.body.mission.percent, 'number');
       assert.equal(pub.body.class.players, 2);
       assert.ok(pub.body.mission.goal > 0);
       assert.equal((await call('GET', `/public/classes/${code}?name=Okänd`)).body.nameNotFound, true);

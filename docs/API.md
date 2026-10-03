@@ -1,0 +1,195 @@
+# Talkamrater – publikt API för klassens status
+
+Det här API:t låter en annan webbsida, till exempel klassens schema på `klass2.degerfalt.se`, visa hur det går för klassen och för en elev i Talkamrater. Alla texter kommer färdiga från servern, så sidan behöver inte känna till spelets regler. Den hämtar bara och visar.
+
+## Förutsättningar (görs en gång)
+
+1. **Slå på klassen.** På lärarsidan (`/admin.html`): kryssa i *Visa klassens status på en annan webbsida*. Utan det svarar API:t `404` för klassen.
+2. **Tillåt sajten.** I `env/talkamrater.env` på servern, och kör sedan `./uppdatera.sh`:
+   ```env
+   ALLOWED_ORIGINS=https://klass2.degerfalt.se
+   PUBLIC_URL=https://talkamrater.degerfalt.se/
+   ```
+   - `ALLOWED_ORIGINS` (kommaseparerad) styr både **CORS**, för `fetch` från sajten, och vilka sajter som får visa widgeten i en **iframe**.
+   - `PUBLIC_URL` är spelets publika adress. Den används i `playUrl`.
+
+> **Obs:** Sidan som anropar API:t måste ligga på en egen domän, som `klass2.degerfalt.se`. En sida som körs som artefakt i claude.ai får inte anropa andra servrar eller visa iframes från dem.
+
+## Anrop
+
+```
+GET https://talkamrater.degerfalt.se/api/public/classes/{klasskod}?name={namn}&events={antal}
+```
+
+| Parameter | Var | Krävs | Beskrivning |
+|---|---|---|---|
+| `klasskod` | sökväg | ja | Klassens kod, t.ex. `SOL-4821`. Skiftläge och bindestreck spelar ingen roll (`sol4821` fungerar). |
+| `name` | query | nej | Elevens namn precis som i spelet (skiftläge spelar ingen roll). Ger fältet `me`. |
+| `events` | query | nej | Antal senaste händelser, 0–10. Standard 5. |
+
+- Inga inloggningsuppgifter behövs.
+- Svaret får cachas i 60 sekunder (`Cache-Control: public, max-age=60`).
+- Begränsning: 30 anrop per minut och IP-adress.
+- Hämta högst var femte minut, mer behövs inte.
+
+## Svar
+
+```json
+{
+  "class": { "name": "Klass 2", "code": "SOL-4821", "players": 24 },
+  "mission": {
+    "title": "Poppa 130 bubbelpar tillsammans",
+    "unit": "bubbelpar",
+    "goal": 130,
+    "progress": 15,
+    "percent": 12,
+    "done": false,
+    "endsAt": 1791158400000
+  },
+  "jar": { "total": 342, "goal": 400 },
+  "me": {
+    "name": "Edwin",
+    "avatar": "🐰",
+    "stars": 42,
+    "stickers": 3,
+    "steps": 3,
+    "medals": 1,
+    "medalIcons": "🏅",
+    "experts": [],
+    "dailyStreak": 3,
+    "contribution": 15,
+    "pet": {
+      "name": "Plutt",
+      "xp": 55,
+      "stage": 2,
+      "stageName": "Liten",
+      "icon": "🐾",
+      "nextAt": 100,
+      "mood": "glad",
+      "moodText": "Plutt mår bra.",
+      "wish": { "icon": "🍦", "treat": "en glass", "text": "poppa alla bubbelpar som blir 9", "have": 0, "need": 1 }
+    }
+  },
+  "nameNotFound": false,
+  "events": [
+    { "type": "daily", "at": 1791058821241, "name": "Edwin", "avatar": "🐰", "text": "Edwin har gjort dagens utmaning 7 dagar i rad 🔥" },
+    { "type": "medal", "at": 1791058821231, "name": "Alva", "avatar": "🦄", "text": "Alva vann Kompisbyns medalj 🏅" }
+  ],
+  "playUrl": "https://talkamrater.degerfalt.se/?klass=SOL-4821"
+}
+```
+
+### Fälten
+
+**`class`**: klassens namn, kod och antal elever som gått med.
+
+**`mission`**: veckans gemensamma uppdrag. Det byts måndag 00:00 (serverns tidszon).
+| Fält | Typ | Betydelse |
+|---|---|---|
+| `title` | text | Färdig rubrik, t.ex. "Poppa 130 bubbelpar tillsammans" |
+| `unit` | text | Enheten: `bubbelpar`, `rätta svar`, `rundor` eller `stjärnor` |
+| `goal`, `progress` | tal | Mål och hur långt klassen kommit |
+| `percent` | tal 0–100 | Färdigräknat för en förloppsindikator |
+| `done` | bool | `true` när målet är nått |
+| `endsAt` | ms sedan 1970 | När veckan tar slut (för "3 dagar kvar") |
+
+**`jar`**: klassens stjärnburk: alla elevers stjärnor (`total`) mot lärarens mål (`goal`).
+
+**`me`**: bara med när `name` matchar en elev. Annars `null`, och då är `nameNotFound` `true` om ett namn skickades.
+| Fält | Betydelse |
+|---|---|
+| `name`, `avatar` | Elevens namn och figur (emoji) |
+| `stars`, `stickers` | Insamlade stjärnor och antal olika klistermärken (av 30) |
+| `steps` | Klarade steg på vägarna till expert (alla världar) |
+| `medals`, `medalIcons` | Antal medaljer och medaljerna som emojis |
+| `experts` | Världar där eleven är expert: `plus`, `minus`, `dubbel` |
+| `dailyStreak` | Dagens utmaning så många dagar i rad |
+| `contribution` | Elevens bidrag till veckans uppdrag (samma enhet som `mission.unit`) |
+| `pet` | Husdjuret, se nedan |
+
+**`me.pet`**: elevens husdjur.
+| Fält | Betydelse |
+|---|---|
+| `name` | Husdjurets namn (standard "Plutt") |
+| `stage`, `stageName`, `icon` | Stadium 0–5: Ägg 🥚, Bebis 🐣, Liten 🐾, Stor 💜, Jätte ✨, Kung 👑 |
+| `xp`, `nextAt` | Stjärnfrukter och hur många som krävs för nästa stadium (`null` för kung) |
+| `mood`, `moodText` | `ägg`, `glad`, `hungrig` eller `överlycklig`, plus en färdig mening |
+| `wish` | Dagens önskan, eller `null`. `text` passar efter "Plutt önskar … om du …". `have`/`need` visar hur långt eleven kommit. |
+
+**`events`**: klassens senaste stora händelser, nyast först. Använd `text` direkt. `type` är `medal`, `expert`, `daily`, `book`, `pet` eller `mission`, och kan användas för egna ikoner. `at` är en tidpunkt i ms.
+
+**`playUrl`**: länk till spelet. Den öppnar *Gå med i klassen* med koden ifylld.
+
+### Fel
+
+| Status | När |
+|---|---|
+| `404` | Klassen finns inte, eller läraren har inte slagit på publik visning |
+| `429` | För många anrop. Vänta en minut. |
+
+Felsvar har formen `{ "error": "Läsbar förklaring på svenska" }`.
+
+## Exempel: hämta och visa (vanilla JS)
+
+```html
+<div id="talkamrater"></div>
+<script>
+  const API = 'https://talkamrater.degerfalt.se/api/public/classes/';
+  async function visaTalkamrater(kod, namn) {
+    const r = await fetch(`${API}${encodeURIComponent(kod)}?name=${encodeURIComponent(namn)}&events=2`);
+    if (!r.ok) return;
+    const d = await r.json();
+    const m = d.mission, me = d.me;
+    document.getElementById('talkamrater').innerHTML = `
+      <a href="${d.playUrl}">Talkamrater</a>
+      <p>${m.title}: ${m.progress}/${m.goal}</p>
+      <progress max="100" value="${m.percent}"></progress>
+      ${me ? `<p>${me.avatar} ${me.name} ★ ${me.stars} · bidrag ${me.contribution} ${m.unit}</p>
+              <p>${me.pet.icon} ${me.pet.wish ? `${me.pet.name} önskar ${me.pet.wish.icon} om du ${me.pet.wish.text}` : me.pet.moodText}</p>` : ''}`;
+  }
+  visaTalkamrater('SOL-4821', 'Edwin');
+  setInterval(() => visaTalkamrater('SOL-4821', 'Edwin'), 5 * 60 * 1000);
+</script>
+```
+
+Escapa texterna om de sätts med `innerHTML` på en sida där andra kan skriva namn. Servern tillåter inte `<` eller `>` i namn, men det skadar inte.
+
+## Alternativ: färdig widget i en iframe
+
+Vill du slippa koda kan du använda den färdiga, kompakta widgeten:
+
+```html
+<iframe src="https://talkamrater.degerfalt.se/widget.html?klass=SOL-4821&namn=Edwin&tema=auto"
+        title="Talkamrater" style="width:100%;max-width:440px;height:150px;border:0"></iframe>
+<script>
+  // Anpassar iframens höjd efter innehållet
+  addEventListener('message', e => {
+    if (e.data && e.data.type === 'talkamrater-height')
+      document.querySelectorAll('iframe[title="Talkamrater"]').forEach(f => { if (f.contentWindow === e.source) f.style.height = e.data.height + 'px'; });
+  });
+</script>
+```
+
+Widgetens utseende styrs med parametrar i länken:
+
+| Parameter | Exempel | Betydelse |
+|---|---|---|
+| `klass` | `SOL-4821` | Klasskod. Utan den visas ett litet formulär. |
+| `namn` | `Edwin` | Visar elevens rad och husdjur |
+| `tema` | `ljus`, `mork`, `auto` | Färgläge (standard `auto` = följer enheten) |
+| `accent` | `2f6bff` | Accentfärg (hex utan #) |
+| `bakgrund` | `ffffff` / `transparent` | Bakgrund |
+| `text` | `1d2433` | Textfärg |
+| `rund` | `12` | Hörnradie i px |
+| `kant` | `0` | Ta bort ramen |
+| `flode` | `3` | Visa de 0–5 senaste händelserna |
+
+## Integritet
+
+Klasskod plus förnamn räcker för att se en elevs status. Därför är funktionen avstängd tills läraren slår på den per klass. Endast förnamn, figur och spelresultat visas, aldrig något annat.
+
+## Be Claude bygga in det i schemat
+
+Klistra in det här i konversationen om klassens schema:
+
+> Lägg till en kompakt ruta för Talkamrater i schemat. Hämta `GET https://talkamrater.degerfalt.se/api/public/classes/<KLASSKOD>?name=<NAMN>&events=2` (CORS är öppet för klass2.degerfalt.se) och visa: veckans uppdrag (`mission.title`, `mission.progress`/`mission.goal`, förloppsindikator med `mission.percent`), elevens rad (`me.avatar`, `me.name`, `me.stars`, `me.contribution` + `mission.unit`) och husdjurets önskan (`me.pet.icon`, `me.pet.wish.text`, annars `me.pet.moodText`). Länka "Spela →" till `playUrl`. Följ schemats befintliga färger och typsnitt. Uppdatera var femte minut, och dölj rutan tyst om anropet misslyckas. Hela API-beskrivningen finns i docs/API.md i repot PerDeg/talkamrater.

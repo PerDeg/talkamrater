@@ -78,24 +78,16 @@ Lärarsidan visar för varje elev: stjärnor, steg på vägen, medaljer, **vilka
 
 **Personuppgifter:** bara förnamn (eller smeknamn), figur och spelresultat sparas. Inga e-postadresser och inga lösenord.
 
-## Klassens status på en annan webbsida (widget)
+## Klassens status på en annan webbsida
 
-Klassens status kan visas på t.ex. klassens schema-sida: veckans uppdrag, elevens stjärnor och bidrag, husdjuret och dess önskan, senaste händelserna och en knapp till spelet.
+Klassens status kan visas på t.ex. klassens schema: veckans uppdrag, elevens stjärnor och bidrag, husdjurets önskan och en länk till spelet. Det finns två sätt:
 
-1. På lärarsidan: kryssa i **Visa klassens status på en annan webbsida** för klassen.
-2. Lägg till sajten i `ALLOWED_ORIGINS` på servern, t.ex. `ALLOWED_ORIGINS=https://klass2.degerfalt.se`, och starta om.
-3. Kopiera inbäddningskoden från lärarsidan och klistra in den på sajten:
+- **Eget utseende:** hämta JSON från `GET /api/public/classes/<kod>?name=<namn>`. Alla texter kommer färdiga.
+- **Färdig kompakt widget:** en iframe mot `widget.html?klass=<kod>&namn=<namn>`. Färger, tema och ram styrs med parametrar.
 
-```html
-<iframe src="https://<spelets-adress>/widget.html?klass=SOL-4821&namn=Edwin"
-        title="Talkamrater" style="width:100%;max-width:520px;height:620px;border:0"></iframe>
-```
+Båda kräver två saker: att läraren slagit på *Visa klassens status på en annan webbsida* för klassen, och att sajten står i `ALLOWED_ORIGINS`.
 
-Utan `namn=` får besökaren själv skriva klasskod och namn. Valet sparas i webbläsaren. Vill sajten hellre rita själv finns samma data som JSON på `GET /api/public/classes/<kod>?name=<namn>`, med CORS för sajterna i `ALLOWED_ORIGINS`.
-
-Klasskoden plus ett namn räcker för att se en elevs status. Därför är widgeten avstängd tills läraren slår på den.
-
-Knappen i widgeten öppnar spelet med `?klass=<kod>`, så att eleven hamnar direkt på "Gå med i klassen".
+**Fullständig beskrivning med fält, exempel och parametrar finns i [docs/API.md](docs/API.md).**
 
 ## Installera som app (PWA)
 

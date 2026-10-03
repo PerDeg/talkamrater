@@ -3,69 +3,31 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Talkamrater – klassens status</title>
+<title>Talkamrater</title>
 <meta name="robots" content="noindex">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Nunito:wght@500;700;800&display=swap">
-<link rel="stylesheet" href="style.css">
 <link rel="stylesheet" href="widget.css">
 </head>
-<body class="widget">
-<main class="w-wrap" id="w">
-  <div class="w-loading" id="wLoading">Hämtar klassen …</div>
-
-  <form class="panel w-form" id="wForm" hidden>
-    <div class="label">Talkamrater</div>
-    <p>Skriv klasskoden och ditt namn för att se hur det går.</p>
-    <label for="wCode">Klasskod</label>
-    <input class="textfield" id="wCode" autocomplete="off" autocapitalize="characters" placeholder="SOL-4821" required>
-    <label for="wName">Ditt namn i spelet</label>
-    <input class="textfield" id="wName" autocomplete="off" placeholder="Edwin">
-    <p class="error" id="wErr"></p>
-    <button class="chunky coral" type="submit">Visa</button>
+<body>
+<div class="tk" id="tk" aria-live="polite">
+  <form class="tk-form" id="form" hidden>
+    <input id="code" placeholder="Klasskod" aria-label="Klasskod" autocomplete="off" autocapitalize="characters" required>
+    <input id="name" placeholder="Namn" aria-label="Namn i spelet" autocomplete="off">
+    <button type="submit">Visa</button>
+    <p class="tk-err" id="err"></p>
   </form>
-
-  <div id="wContent" hidden>
-    <header class="w-head">
-      <span class="logo" aria-hidden="true"><span></span><span></span></span>
-      <div><b id="wClass">Klassen</b><small id="wPlayers"></small></div>
-      <button class="textbtn" id="wChange" type="button">Byt</button>
-    </header>
-
-    <section class="panel w-mission" id="wMission">
-      <span class="kicker">Veckans uppdrag</span>
-      <div class="w-title" id="wMissionTitle"></div>
-      <div class="meter"><i id="wMissionMeter"></i></div>
-      <div class="w-row"><b id="wMissionProgress"></b><span id="wMissionDays"></span></div>
-    </section>
-
-    <section class="panel w-me" id="wMe" hidden>
-      <div class="w-me-head">
-        <span class="w-avatar" id="wAvatar"></span>
-        <div><b id="wName2"></b><small id="wStats"></small></div>
-      </div>
-      <p class="w-help" id="wHelp"></p>
-      <div class="w-pet">
-        <div class="petstage" id="wPet"></div>
-        <div class="w-pet-info">
-          <b id="wPetName"></b>
-          <p id="wPetMood"></p>
-          <p class="w-wish" id="wWish" hidden></p>
-        </div>
-      </div>
-    </section>
-    <p class="w-note" id="wNotFound" hidden></p>
-
-    <section class="panel w-feed" id="wFeedBox" hidden>
-      <span class="kicker">Senast i klassen</span>
-      <ul id="wFeed"></ul>
-    </section>
-
-    <div class="w-jar" id="wJar"></div>
-    <a class="chunky coral w-play" id="wPlay" href="./" target="_blank" rel="noopener">Spela Talkamrater</a>
+  <div id="view" hidden>
+    <div class="tk-head">
+      <span class="tk-brand">Talkamrater · <span id="cls"></span></span>
+      <a id="play" class="tk-play" target="_blank" rel="noopener">Spela →</a>
+    </div>
+    <div class="tk-row tk-mission"><span id="mTitle"></span><b id="mNum"></b></div>
+    <div class="tk-bar" role="progressbar" aria-label="Veckans uppdrag"><i id="mBar"></i></div>
+    <div class="tk-row tk-me" id="me" hidden></div>
+    <div class="tk-row tk-pet" id="pet" hidden></div>
+    <p class="tk-muted" id="miss" hidden></p>
+    <ul class="tk-feed" id="feed" hidden></ul>
   </div>
-</main>
+</div>
 <script src="widget.js"></script>
 </body>
 </html>
