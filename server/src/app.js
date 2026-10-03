@@ -2,6 +2,12 @@ import express from 'express';
 import { insertId } from './db.js';
 import { newToken, hashToken, validPin, hashPin, checkPin, safeEqual, newClassCode, normalizeCode, rateLimiter } from './auth.js';
 import { emptyProgress, sanitizeProgress, mergeProgress, summarize } from './progress.js';
+import { classMission } from './mission.js';
+
+// Händelser som kan visas i klassens flöde. Texten byggs i spelet utifrån typ + detalj.
+const EVENT_TYPES = ['medal', 'expert', 'title', 'daily', 'book', 'pet', 'record'];
+const EVENT_DETAIL = /^[\p{L}\p{N} :_-]{0,32}$/u;
+const EVENTS_PER_DAY = 25;
 
 const AVATARS = ['🦊', '🐼', '🐸', '🦁', '🐯', '🐨', '🐵', '🐰', '🐶', '🐱', '🦄', '🐲'];
 const MAX_PLAYERS_PER_CLASS = 60;
@@ -194,7 +200,53 @@ export function createApp({ db, t, client, adminKey, publicDir, trustProxy = 'lo
       try { data = r.data ? JSON.parse(r.data) : {}; } catch { /* ignoreras */ }
       return { id: Number(r.id), name: r.name, avatar: r.avatar, me: Number(r.id) === Number(req.player.id), ...summarize(data) };
     });
-    res.json({ name: c.name, goal: Number(c.goal), total: players.reduce((s, p) => s + p.stars, 0), players });
+    const me = Number(req.player.id);
+    const evRows = await db(t.events).join(t.players, `${t.events}.player_id`, `${t.players}.id`)
+      .where(`${t.events}.class_id`, c.id)
+      .select(`${t.events}.id`, `${t.events}.type`, `${t.events}.detail`, `${t.events}.created_at`, `${t.events}.player_id`, `${t.players}.name`, `${t.players}.avatar`)
+      .orderBy(`${t.events}.created_at`, 'desc').limit(25);
+    const ids = evRows.map(e => e.id);
+    const cheerRows = ids.length ? await db(t.cheers).whereIn('event_id', ids).select('event_id', 'player_id') : [];
+    const events = evRows.map(e => {
+      const cs = cheerRows.filter(x => Number(x.event_id) === Number(e.id));
+      return {
+        id: Number(e.id), type: e.type, detail: e.detail, at: Number(e.created_at),
+        name: e.name, avatar: e.avatar, mine: Number(e.player_id) === me,
+        cheers: cs.length, cheered: cs.some(x => Number(x.player_id) === me)
+      };
+    });
+    const myCheers = await db(t.cheers).join(t.events, `${t.cheers}.event_id`, `${t.events}.id`)
+      .where(`${t.events}.player_id`, me).count({ n: '*' }).first();
+    res.json({
+      name: c.name, goal: Number(c.goal), total: players.reduce((s, p) => s + p.stars, 0), players,
+      mission: await classMission(db, t, c.id, players.length),
+      events, myCheers: Number(myCheers.n)
+    });
+  });
+
+  api.post('/me/events', auth, async (req, res) => {
+    const type = String(req.body?.type || '');
+    const detail = String(req.body?.detail ?? '').trim().slice(0, 32);
+    if (!EVENT_TYPES.includes(type) || !EVENT_DETAIL.test(detail)) fail(400, 'Okänd händelse');
+    const dup = await db(t.events).where({ player_id: req.player.id, type, detail }).first();
+    if (dup) return res.json({ id: Number(dup.id), duplicate: true });
+    const today = await db(t.events).where({ player_id: req.player.id }).andWhere('created_at', '>', Date.now() - 86400000).count({ n: '*' }).first();
+    if (Number(today.n) >= EVENTS_PER_DAY) return res.status(429).json({ error: 'För många händelser idag' });
+    const id = await insertId(db, client, t.events, { class_id: req.player.class_id, player_id: req.player.id, type, detail, created_at: Date.now() });
+    res.status(201).json({ id });
+  });
+
+  api.post('/events/:id/cheer', auth, async (req, res) => {
+    const ev = await db(t.events).where({ id: Number(req.params.id) || 0 }).first();
+    if (!ev || Number(ev.class_id) !== Number(req.player.class_id)) fail(404, 'Händelsen finns inte');
+    if (Number(ev.player_id) === Number(req.player.id)) fail(400, 'Du kan inte heja på dig själv, men bra försök!');
+    const had = await db(t.cheers).where({ event_id: ev.id, player_id: req.player.id }).first();
+    if (!had) {
+      try { await db(t.cheers).insert({ event_id: ev.id, player_id: req.player.id, created_at: Date.now() }); }
+      catch { /* dubbelklick – raden finns redan */ }
+    }
+    const n = await db(t.cheers).where({ event_id: ev.id }).count({ n: '*' }).first();
+    res.json({ cheers: Number(n.n) });
   });
 
   api.post('/logout', auth, async (req, res) => {
@@ -213,7 +265,10 @@ export function createApp({ db, t, client, adminKey, publicDir, trustProxy = 'lo
         let data = {};
         try { data = p.data ? JSON.parse(p.data) : {}; } catch { /* ignoreras */ }
         const tricky = Object.entries(sanitizeProgress(data).tricky).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]).slice(0, 5)
-          .map(([k]) => { const [n, a] = k.split(':').map(Number); return `${a}+${n - a}=${n}`; });
+          .map(([k]) => {
+            const [, w, n, a] = /^([md]?)(\d+):(\d+)$/.exec(k).map((v, i) => (i > 1 ? Number(v) : v));
+            return w === 'm' ? `${n}−${a}=${n - a}` : w === 'd' ? `${n}+${n}=${2 * n}` : `${a}+${n - a}=${n}`;
+          });
         return { id: Number(p.id), name: p.name, avatar: p.avatar, hasPin: !!p.pin_hash, lastSeen: p.last_seen ? Number(p.last_seen) : null, tricky, ...summarize(data) };
       })
     })));

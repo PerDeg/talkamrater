@@ -20,20 +20,38 @@ Spelet fungerar på två sätt:
 
 ## Spelet
 
-- **Fri träning**: välj ett tal 1–20.
-  - *Hitta kamraten* går igenom **alla** kamrater till talet, från 0 + n till n + 0 (talet 8 ger 9 frågor). Pärlorna hjälper till.
-  - *Bubbelpoppen* har **alla** par som blir talet. Stora tal kommer i flera vågor.
-  - *Blandat 1–10 / 1–20*.
-- **Vägen till expert**: fyra områden (Kompisbyn 1–5, Tiokamratskogen 6–10, Bubbelsjön 11–15, Tjugotoppen 16–20).
-  - Varje tal-steg är klart med minst ★★ i *Hitta kamraten*.
-  - Varje område avslutas med ett **prov** utan pärlor, med ett svar per fråga och en medalj när man klarar det.
-  - Två **utmaningar på tid** (60 sekunder).
-  - Sist kommer **Expertprovet** (20 frågor, 18 rätt behövs) som ger ett **diplom**.
-- **Kluriga kamrater**: spelet minns vilka par som varit svåra och låter eleven öva extra på dem. De försvinner när eleven svarar rätt.
+**Tre världar**, var och en med fri träning, en egen väg till expert, egna medaljer och ett eget diplom:
+
+| Värld | Vad | Väg till expert |
+|---|---|---|
+| **Plus** (talkamrater) | `6 + ? = 8` | Kompisbyn, Tiokamratskogen, Bubbelsjön, Tjugotoppen → Expertprovet 🎓 |
+| **Minus** | `8 − 6 = ?`, `8 − ? = 2` | Svampbyn, Igelkottsskogen, Grottsjön, Isberget → Minusprovet 🧙 |
+| **Dubblor** | `6 + 6 = ?`, `? + ? = 12`, hälften av 12 | Dubbeldalen, Spegelslottet → Dubbelprovet 👯 |
+
+- **Fri träning** går igenom **alla** kamrater på nivån, t.ex. talet 8 ger 0 + 8 … 8 + 0. Pärlorna hjälper till.
+  - Minus visar borttagna pärlor med kryss, och fel svar förklaras med plus ("Kolla med plus: 5 + 2 = 7, inte 8").
+  - *Bubbelpoppen* (plus) har alla par, och stora tal kommer i flera vågor.
+- **Vägen till expert**:
+  - Ett tal-steg är klart med minst ★★.
+  - Varje område avslutas med ett **prov** utan pärlor, med ett svar per fråga och en medalj för den som klarar det.
+  - Längs vägen finns **utmaningar på tid** (60 s).
+  - Sist kommer slutprovet med **diplom**.
+- **Dagens utmaning**: 8 frågor med ett tema per veckodag (Tiokamratmåndag, Minustisdag, Dubbelonsdag …).
+  - Frågorna är samma för alla i klassen samma dag.
+  - Den ger en svit 🔥 och ett extra klistermärke.
+- **Husdjuret**: ett ägg som kläcks och växer (bebis → liten → stor → jätte → kung 👑) när eleven spelar.
+  - Varje runda ger stjärnfrukter 🍓.
+  - Har eleven inte spelat på några dagar blir husdjuret hungrigt men aldrig ledset på riktigt.
+  - Eleven kan döpa det.
+- **Kompisduell**: två spelare på samma skärm.
+  - Den som först svarar rätt får poängen, och den som svarar fel låses en kort stund.
+  - Spelare 2 kan vändas upp och ner för att sitta mittemot.
+  - Man väljer talkamrater, tiokamrater, minus eller dubblor, först till 5/7/10.
+- **Kluriga kamrater**: spelet minns svåra uppgifter i alla världar och låter eleven öva extra på dem.
 - **Belöningar**:
-  - Svenska hejarop, konfetti, ljud och en röst som hejar.
+  - Svenska hejarop, konfetti, ljud och röst.
   - Bonus vid flera rätt i rad.
-  - Stjärnor, 30 klistermärken, 5 medaljer och titlar.
+  - Stjärnor, titlar, 30 klistermärken och 13 medaljer.
 
 ## Klassen: inloggning utan lösenord
 
@@ -48,7 +66,11 @@ Det här skyddar mot fusk:
 - Anrop begränsas per IP-adress.
 - Bildkoder och inloggningar sparas bara som hash.
 
-Klassidan visar **klassens stjärnburk**, ett gemensamt mål som alla fyller tillsammans, och varje elevs stjärnor, klistermärken och medaljer. Listan är sorterad på namn, inte som en topplista.
+Klassidan visar:
+
+- **Veckans uppdrag**: ett gemensamt mål som byts varje måndag, t.ex. "Poppa 130 bubbelpar tillsammans". Målet anpassas efter klassens storlek.
+- **Händer i klassen**: ett flöde med medaljer, nya experter, titlar, sviter, husdjur som växer och rekord. Kompisarna kan **heja** 👏, och den som får hejarop ser det nästa gång spelet öppnas. Bara fasta händelsetyper finns, inga fritexter.
+- **Klassens stjärnburk**, ett gemensamt mål som alla fyller tillsammans, och varje elevs stjärnor, klistermärken och medaljer. Listan är sorterad på namn, inte som en topplista.
 
 Lärarsidan visar för varje elev: stjärnor, steg på vägen, medaljer, **vilka talkamrater som är kluriga** och de senaste rundorna.
 
@@ -68,6 +90,8 @@ DB_CLIENT=postgres          # eller mysql / mariadb / sqlite
 DATABASE_URL=postgres://talkamrater:losenord@192.168.1.10:5432/talkamrater
 DB_TABLE_PREFIX=tk_
 ```
+
+Sätt gärna `TZ=Europe/Stockholm`, så att veckans uppdrag byts vid midnatt svensk tid.
 
 ### 2. Containern
 
@@ -101,7 +125,9 @@ Se `deploy/nginx-talkamrater.conf`. Där finns två alternativ: en egen subdomä
 | `GET /api/me` · `PATCH /api/me` | Eleven och framstegen · byt figur |
 | `PUT /api/me/progress` | Spara framsteg (slås ihop med det som finns: det bästa från båda) |
 | `POST /api/me/rounds` | Logga en spelad runda |
-| `GET /api/me/class` | Klassidan |
+| `GET /api/me/class` | Klassidan: elever, stjärnburk, veckans uppdrag, händelser |
+| `POST /api/me/events` | Ny händelse i flödet `{type, detail}` |
+| `POST /api/events/:id/cheer` | Heja på en klasskompis |
 | `POST /api/logout` | Logga ut |
 | `/api/admin/...` | Klasser, elever, ny bildkod, radera (kräver headern `X-Admin-Key`) |
 

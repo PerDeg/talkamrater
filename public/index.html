@@ -36,8 +36,33 @@
       </div>
     </div>
 
+    <div class="panel daily" id="dailyCard">
+      <div class="daily-top">
+        <div>
+          <span class="kicker">Dagens utmaning</span>
+          <h2 id="dailyTitle">Tiokamratmåndag</h2>
+        </div>
+        <span class="flame" id="dailyStreak">Starta en ny svit!</span>
+      </div>
+      <p id="dailyText"></p>
+      <button class="chunky coral" id="dailyBtn">Kör!</button>
+    </div>
+
+    <div class="panel petpanel">
+      <button class="petstage" id="petBtn" aria-label="Klappa husdjuret"><span id="petView"></span></button>
+      <div class="petinfo">
+        <div class="label"><span class="petname"><span id="petName">Plutt</span></span> <small id="petStageName">Ägg</small></div>
+        <p id="petMood"></p>
+        <div class="meter"><i id="petMeter"></i></div>
+        <small class="petnext" id="petNext"></small>
+        <button class="textbtn" id="petRename">Byt namn</button>
+      </div>
+    </div>
+
+    <div class="worldtabs" id="worldTabs" role="group" aria-label="Välj värld"></div>
+
     <div class="panel road-cta">
-      <div class="label">Vägen till expert <small id="roadCount">Steg 0 av 27</small></div>
+      <div class="label"><span id="roadLabel">Vägen till expert</span> <small id="roadCount">Steg 0 av 27</small></div>
       <div class="next" id="roadNext">Nästa: <span>Talet 1</span></div>
       <div class="meter"><i id="roadMeter"></i></div>
       <button class="chunky sun" id="openRoad">Fortsätt resan</button>
@@ -49,21 +74,29 @@
     </div>
 
     <div class="panel">
-      <div class="label">Fri träning <small>★ = dina bästa stjärnor</small></div>
+      <div class="label"><span id="freeTitle">Fri träning</span> <small>★ = dina bästa stjärnor</small></div>
       <div class="numgrid" id="numgrid"></div>
       <div class="mixrow">
-        <button class="chunky" id="mix10">Blandat 1–10</button>
-        <button class="chunky coral" id="mix20">Blandat 1–20</button>
+        <button class="chunky" id="mixA">Blandat 1–10</button>
+        <button class="chunky coral" id="mixB">Blandat 1–20</button>
       </div>
     </div>
 
     <div class="cardrow">
       <div class="panel">
+        <div class="label">Kompisduell</div>
+        <p>Två spelare på samma skärm. Vem hittar svaret först?</p>
+        <button class="chunky coral" id="openDuel">Utmana en kompis</button>
+      </div>
+      <div class="panel">
         <div class="label">Klistermärken <small id="stickerCount">0 av 30</small></div>
+        <p>Samla alla 30 och medaljerna från vägen.</p>
         <button class="chunky sun" id="openBook">Titta i boken</button>
       </div>
       <div class="panel" id="classCard" hidden>
         <div class="label">Klassen <small id="classCardSmall"></small></div>
+        <p id="classCardText">Se kompisarna och klassens stjärnburk.</p>
+        <span class="badge" id="cheerBadge" hidden></span>
         <button class="chunky" id="openClass">Se klassen</button>
       </div>
       <div class="panel" id="joinCard" hidden>
@@ -84,7 +117,8 @@
   <!-- VÄGEN TILL EXPERT -->
   <section class="screen" id="road" hidden>
     <button class="chunky ghost back" data-home>← Hem</button>
-    <h2 class="mode-title">Vägen till <em>expert</em></h2>
+    <h2 class="mode-title" id="roadTitle">Vägen till <em>expert</em></h2>
+    <div class="worldtabs" id="roadTabs" role="group" aria-label="Välj värld"></div>
     <div id="zones"></div>
   </section>
 
@@ -185,6 +219,58 @@
     </div>
   </section>
 
+  <!-- DUEL -->
+  <section class="screen" id="duel" hidden>
+    <div id="duelSetup">
+      <button class="chunky ghost back" data-home>← Hem</button>
+      <h2 class="mode-title">Kompis<em>duell</em></h2>
+      <div class="panel formstack">
+        <div class="duel-names">
+          <label for="duelP1">Spelare 1 (nere)<input class="textfield" id="duelP1" maxlength="14" autocomplete="off"></label>
+          <label for="duelP2">Spelare 2 (uppe)<input class="textfield" id="duelP2" maxlength="14" autocomplete="off"></label>
+        </div>
+        <span class="lead">Vad ska ni tävla i?</span>
+        <div class="chips" id="duelModes"></div>
+        <span class="lead">Först till</span>
+        <div class="chips" id="duelTargets">
+          <button class="chip" data-t="5">5</button><button class="chip" data-t="7">7</button><button class="chip" data-t="10">10</button>
+        </div>
+        <label class="check" for="duelFlip"><input type="checkbox" id="duelFlip"> Vänd spelare 2 upp och ner (bra när ni sitter mittemot varandra)</label>
+        <button class="chunky coral" id="duelGo">Starta duellen!</button>
+      </div>
+    </div>
+    <div class="duelplay" id="duelPlay" hidden>
+      <div class="half" id="half1">
+        <div class="dhead"><span class="dname"></span><b class="dscore">0</b></div>
+        <div class="equation deq"></div>
+        <div class="answers dans"></div>
+        <p class="dmsg"></p>
+      </div>
+      <div class="duel-mid">
+        <button class="chunky ghost" id="duelQuit">Avsluta</button>
+        <span id="duelTarget">Först till 7</span>
+      </div>
+      <div class="half" id="half0">
+        <div class="dhead"><span class="dname"></span><b class="dscore">0</b></div>
+        <div class="equation deq"></div>
+        <div class="answers dans"></div>
+        <p class="dmsg"></p>
+      </div>
+      <div class="duelwin" id="duelWin" hidden>
+        <div class="stage">
+          <div class="seal" aria-hidden="true">🏆</div>
+          <h2 id="duelWinText"></h2>
+          <div class="winscore" id="duelWinScore"></div>
+          <p class="stats" id="duelWinSub"></p>
+          <div class="done-actions two">
+            <button class="chunky coral" id="duelAgain">Revansch!</button>
+            <button class="chunky ghost" id="duelSetupBtn">Ändra</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <!-- DONE -->
   <section class="screen done" id="done" hidden>
     <div class="stage">
@@ -198,7 +284,7 @@
       </div>
       <div class="done-actions">
         <button class="chunky coral" id="againBtn">Spela igen</button>
-        <button class="chunky" id="otherBtn">Välj nytt tal</button>
+        <button class="chunky" id="otherBtn">Till start</button>
         <button class="chunky sun" id="bookBtn">Klistermärken</button>
       </div>
     </div>
@@ -208,15 +294,15 @@
   <section class="screen" id="diploma" hidden>
     <div class="diploma">
       <span class="kicker">Diplom</span>
-      <div class="seal" aria-hidden="true">🎓</div>
-      <h2>Talkamratexpert</h2>
+      <div class="seal" aria-hidden="true" id="dipSeal">🎓</div>
+      <h2 id="dipTitle">Talkamratexpert</h2>
       <p>Det här intygar att</p>
       <div class="name" id="dipName">Edwin</div>
-      <p>kan alla talkamrater från 1 till 20 och har klarat Expertprovet.</p>
+      <p id="dipText">kan alla talkamrater från 1 till 20 och har klarat Expertprovet.</p>
       <div class="bigstars" aria-hidden="true"><span class="on">★</span><span class="on">★</span><span class="on">★</span></div>
       <p class="date" id="dipDate"></p>
     </div>
-    <div class="done-actions no-print" style="margin-top:16px">
+    <div class="done-actions no-print spaced">
       <button class="chunky coral" data-home>Tillbaka hem</button>
       <button class="chunky" id="dipRoad">Vägen till expert</button>
       <button class="chunky sun" id="dipPrint" hidden>Skriv ut diplomet</button>
@@ -238,6 +324,17 @@
   <section class="screen" id="class" hidden>
     <button class="chunky ghost back" data-home>← Hem</button>
     <h2 class="mode-title" id="classTitle">Klassen</h2>
+    <p class="cheer-news" id="cheerNews" hidden></p>
+    <div class="panel mission">
+      <div class="label">Veckans uppdrag <small>Alla hjälps åt</small></div>
+      <div class="mission-title" id="missionTitle"></div>
+      <div class="meter"><i id="missionMeter"></i></div>
+      <p class="stats" id="missionText"></p>
+    </div>
+    <div class="panel">
+      <div class="label">Händer i klassen <small>Heja på varandra!</small></div>
+      <div class="feed" id="feed"></div>
+    </div>
     <div class="panel jar">
       <div class="label">Klassens stjärnburk <small id="jarGoal"></small></div>
       <div class="big" id="jarBig"></div>
@@ -245,7 +342,7 @@
       <p class="stats" id="jarText"></p>
     </div>
     <div class="panel">
-      <div class="label">Alla i klassen <small>🏅 = medaljer · 🎓 = expert</small></div>
+      <div class="label">Alla i klassen <small>🏅 medaljer · 🎓🧙👯 expert</small></div>
       <div class="mates" id="mates"></div>
     </div>
     <div class="panel">

@@ -13,13 +13,22 @@ const intMap = (obj, max, keyRe = KEY, maxKeys = 400) => {
   for (const [k, v] of Object.entries(obj).slice(0, maxKeys)) if (keyRe.test(k)) out[k] = int(v, 0, max);
   return out;
 };
+const obj = v => (v && typeof v === 'object' && !Array.isArray(v) ? v : {});
+const cleanText = (v, max) => String(v ?? '').replace(/[\u0000-\u001f<>]/g, '').trim().slice(0, max);
+
+export const EXPERT_KEYS = { plus: 'expert', minus: 'mexpert', dubbel: 'dexpert' };
 
 export function emptyProgress() {
-  return { best: {}, total: 0, rounds: 0, stickers: [], path: {}, records: {}, tricky: {} };
+  return {
+    best: {}, total: 0, rounds: 0, stickers: [], path: {}, records: {}, tricky: {},
+    pet: { xp: 0, last: 0, born: 0, name: '' },
+    daily: { day: 0, streak: 0, best: 0, count: 0 }
+  };
 }
 
 export function sanitizeProgress(p) {
-  const src = p && typeof p === 'object' ? p : {};
+  const src = obj(p);
+  const pet = obj(src.pet), daily = obj(src.daily);
   return {
     best: intMap(src.best, 3),
     total: int(src.total, 0, 1e7),
@@ -29,7 +38,10 @@ export function sanitizeProgress(p) {
       : [],
     path: intMap(src.path, 1000),
     records: intMap(src.records, 10000),
-    tricky: intMap(src.tricky, 99, /^\d{1,2}:\d{1,2}$/)
+    // Kluriga kamrater: "8:3" (plus), "m8:3" (minus), "d6:6" (dubblor)
+    tricky: intMap(src.tricky, 99, /^[md]?\d{1,2}:\d{1,2}$/),
+    pet: { xp: int(pet.xp, 0, 1e6), last: int(pet.last, 0, 1e6), born: int(pet.born, 0, 1e6), name: cleanText(pet.name, 16) },
+    daily: { day: int(daily.day, 0, 1e6), streak: int(daily.streak, 0, 1e5), best: int(daily.best, 0, 1e5), count: int(daily.count, 0, 1e6) }
   };
 }
 
@@ -47,6 +59,8 @@ export function mergeProgress(stored, incoming) {
   for (const s of new Set([...a.stickers, ...b.stickers])) {
     for (let i = 0; i < Math.max(ca[s] || 0, cb[s] || 0); i++) stickers.push(s);
   }
+  // Dagens utmaning: den senaste dagen vinner, längsta svit vid samma dag
+  const newer = b.daily.day > a.daily.day || (b.daily.day === a.daily.day && b.daily.streak >= a.daily.streak) ? b.daily : a.daily;
   return {
     best: maxMap(a.best, b.best),
     total: Math.max(a.total, b.total),
@@ -55,7 +69,14 @@ export function mergeProgress(stored, incoming) {
     path: maxMap(a.path, b.path),
     records: maxMap(a.records, b.records),
     // Kluriga kamrater ska kunna bli färre, så den senaste versionen vinner
-    tricky: b.tricky
+    tricky: b.tricky,
+    pet: {
+      xp: Math.max(a.pet.xp, b.pet.xp),
+      last: Math.max(a.pet.last, b.pet.last),
+      born: Math.min(...[a.pet.born, b.pet.born].filter(Boolean), 1e6) % 1e6,
+      name: b.pet.name || a.pet.name
+    },
+    daily: { ...newer, best: Math.max(a.daily.best, b.daily.best, newer.streak), count: Math.max(a.daily.count, b.daily.count) }
   };
 }
 
@@ -65,7 +86,10 @@ export function summarize(p) {
     stars: s.total,
     stickers: new Set(s.stickers).size,
     pathDone: Object.values(s.path).filter(v => v > 0).length,
-    medals: ['t-z1', 't-z2', 't-z3', 't-z4'].filter(k => s.path[k] > 0).length,
-    expert: (s.path.expert || 0) > 0
+    medals: Object.entries(s.path).filter(([k, v]) => k.startsWith('t-') && v > 0).length,
+    expert: (s.path.expert || 0) > 0,
+    experts: Object.entries(EXPERT_KEYS).filter(([, k]) => (s.path[k] || 0) > 0).map(([w]) => w),
+    petXp: s.pet.xp,
+    dailyStreak: s.daily.streak
   };
 }

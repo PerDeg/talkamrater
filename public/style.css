@@ -11,6 +11,7 @@
   --sun: #FFC83D;
   --leaf: #1FA866;
   --berry: #E23D7A;
+  --grape: #7A5CFF;
   --card: #FFFFFF;
   --line: #9CCBEA;
   --shadow: rgba(27, 37, 71, 0.18);
@@ -243,12 +244,11 @@ details.friends summary { font-family: var(--display); font-weight: 800; font-si
 .slot .x { font-size: 0.7rem; background: var(--berry); color: var(--card); border-radius: 999px; padding: 0 6px; }
 
 /* Hemskärmens kort */
-.cardrow { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px; }
+.cardrow { display: grid; gap: 12px; margin-top: 16px; }
 .cardrow .panel { margin: 0; display: grid; gap: 10px; align-content: space-between; }
 .cardrow .panel + .panel { margin-top: 0; }
 .cardrow .chunky { width: 100%; }
 .cardrow p { margin: 0; color: var(--ink-soft); font-weight: 700; font-size: 0.95rem; }
-@media (max-width: 420px) { .cardrow { grid-template-columns: 1fr; } }
 .wide { width: 100%; }
 .road-cta { background: var(--ink); color: var(--card); display: grid; gap: 12px; }
 .road-cta .label small { color: #B9C3E0; }
@@ -347,7 +347,8 @@ details.friends summary { font-family: var(--display); font-weight: 800; font-si
 .mate.me { background: #FFF1C9; outline: 3px solid var(--sun); }
 .mate .em { font-size: 2rem; grid-row: span 2; }
 .mate b { font-family: var(--display); font-size: 1.1rem; overflow-wrap: anywhere; line-height: 1.1; }
-.mate small { font-weight: 800; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.mate > * { min-width: 0; }
+.mate small { overflow-wrap: anywhere; font-size: 0.8rem; font-weight: 800; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
 .mate .medals { grid-column: 1 / -1; font-size: 1.1rem; min-height: 1.3em; letter-spacing: 2px; }
 
 /* Diplom */
@@ -367,6 +368,123 @@ details.friends summary { font-family: var(--display); font-weight: 800; font-si
 .medal-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-bottom: 14px; }
 .medal-row .slot { background: #FFF1C9; }
 .medal-row .slot.missing { background: transparent; }
+
+/* Världsflikar */
+.worldtabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; background: var(--card); border-radius: 18px; padding: 6px; box-shadow: 0 4px 0 var(--shadow); margin-block: 16px; }
+.worldtabs button { border: 0; border-radius: 13px; padding: 10px 6px; background: transparent; font-family: var(--display); font-weight: 800; font-size: 1.15rem; color: var(--ink-soft); }
+.worldtabs button[aria-pressed="true"] { background: var(--ink); color: var(--sun); }
+#road .worldtabs { margin-top: 0; }
+
+/* Dagens utmaning */
+.daily { background: linear-gradient(135deg, var(--coral), var(--berry)); color: var(--card); display: grid; gap: 10px; }
+.daily-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; flex-wrap: wrap; }
+.daily .kicker { font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; font-size: 0.78rem; opacity: 0.9; }
+.daily h2 { font-size: clamp(1.6rem, 7vw, 2.1rem); font-weight: 800; }
+.daily p { margin: 0; font-weight: 700; }
+.daily .flame { background: rgba(0,0,0,0.22); border-radius: 999px; padding: 4px 12px; font-weight: 800; white-space: nowrap; }
+.daily .chunky.coral { background: var(--sun); color: var(--ink); box-shadow: 0 5px 0 #D99A00; }
+.daily.is-done { background: linear-gradient(135deg, var(--leaf), #138A52); }
+.daily.is-done .chunky.coral { background: rgba(255,255,255,0.2); color: var(--card); box-shadow: 0 5px 0 rgba(0,0,0,0.2); }
+
+/* Husdjuret */
+.petpanel { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 14px; align-items: center; }
+.petstage { width: 112px; height: 112px; border: 0; border-radius: 26px; background: radial-gradient(circle at 50% 85%, #E3DAFF 0 38%, var(--sky-2) 39%); display: grid; place-items: end center; padding: 0 0 12px; }
+.petinfo { display: grid; gap: 6px; min-width: 0; }
+.petinfo .label { margin: 0; }
+.petinfo p { margin: 0; font-weight: 700; color: var(--ink-soft); }
+.petinfo .meter { background: var(--sky-2); height: 12px; }
+.petinfo .meter i { background: linear-gradient(90deg, var(--grape), var(--berry)); }
+.petnext { font-weight: 700; color: var(--ink-soft); }
+.petinfo .textbtn { justify-self: start; padding: 0; font-size: 0.9rem; }
+.pet-name-input { font: inherit; font-family: var(--display); font-weight: 800; width: 8em; border: 3px solid var(--line); border-radius: 10px; padding: 0 6px; }
+.pet { --s: 1; position: relative; width: calc(46px * var(--s)); height: calc(42px * var(--s)); border-radius: 50% 50% 42% 42%; background: var(--grape); box-shadow: inset -6px -6px 0 rgba(0,0,0,0.14); animation: petbob 2.4s ease-in-out infinite; }
+.pet.stage-2 { --s: 1.2; } .pet.stage-3 { --s: 1.4; } .pet.stage-4 { --s: 1.55; } .pet.stage-5 { --s: 1.7; }
+.pet i { position: absolute; display: block; }
+.pet .belly { left: 22%; right: 22%; bottom: 8%; height: 40%; border-radius: 50%; background: #CBBDFF; }
+.pet .eye { top: 26%; width: 18%; height: 22%; background: var(--card); border-radius: 50%; }
+.pet .eye::after { content: ""; position: absolute; width: 50%; height: 55%; left: 30%; top: 30%; background: var(--ink); border-radius: 50%; }
+.pet .e1 { left: 22%; } .pet .e2 { right: 22%; }
+.pet .mouth { left: 40%; width: 20%; top: 54%; height: 12%; border-radius: 0 0 10px 10px; background: var(--ink); }
+.pet .cheek { top: 48%; width: 14%; height: 9%; border-radius: 50%; background: #FF9EC0; }
+.pet .c1 { left: 9%; } .pet .c2 { right: 9%; }
+.pet .horn { top: -14%; width: 0; height: 0; border-left: calc(5px * var(--s)) solid transparent; border-right: calc(5px * var(--s)) solid transparent; border-bottom: calc(10px * var(--s)) solid var(--sun); }
+.pet .h1 { left: 22%; } .pet .h2 { right: 22%; }
+.pet .wing { top: 22%; width: 30%; height: 40%; background: #E3DAFF; border-radius: 50% 10% 50% 50%; z-index: -1; }
+.pet .w1 { left: -18%; transform: rotate(-20deg); } .pet .w2 { right: -18%; transform: scaleX(-1) rotate(-20deg); }
+.pet .crown { position: absolute; top: -48%; left: 50%; transform: translateX(-50%); font-size: calc(18px * var(--s)); line-height: 1; }
+.pet.mood-hungry { filter: saturate(0.6); animation: petsad 3s ease-in-out infinite; }
+.pet.mood-hungry .mouth { height: 5%; border-radius: 4px; top: 60%; }
+.pet.mood-hungry .eye { height: 14%; top: 32%; }
+.pet.egg { width: 50px; height: 62px; border-radius: 50% 50% 46% 46% / 60% 60% 40% 40%; background: #FFF6E0; box-shadow: inset -6px -6px 0 rgba(0,0,0,0.08); animation: wobble 2.2s ease-in-out infinite; }
+.pet.egg .spot { width: 12px; height: 10px; border-radius: 50%; background: var(--grape); opacity: 0.7; }
+.pet.egg .s1 { left: 10px; top: 14px; } .pet.egg .s2 { right: 9px; top: 26px; width: 9px; height: 8px; } .pet.egg .s3 { left: 18px; bottom: 12px; width: 14px; }
+.pet.jump { animation: petjump 0.6s ease; }
+@keyframes petbob { 0%, 100% { transform: translateY(0) scaleY(1); } 50% { transform: translateY(-4px) scaleY(1.03); } }
+@keyframes petsad { 0%, 100% { transform: rotate(-3deg); } 50% { transform: rotate(3deg); } }
+@keyframes wobble { 0%, 70%, 100% { transform: rotate(0); } 78% { transform: rotate(-9deg); } 86% { transform: rotate(8deg); } 94% { transform: rotate(-4deg); } }
+@keyframes petjump { 0%, 100% { transform: translateY(0); } 40% { transform: translateY(-26px) scale(1.08, 0.94); } 70% { transform: translateY(0) scale(1.1, 0.9); } }
+
+/* Frisk-träningens rutnät */
+.num .pre { font-size: 0.55em; margin-right: 1px; vertical-align: 0.3em; color: var(--ink-soft); }
+.equation .word { font-family: var(--body); font-size: 0.42em; font-weight: 800; color: var(--ink-soft); align-self: center; }
+.bead.gone { background: #E6EAF1; position: relative; }
+.bead.gone::before, .bead.gone::after { content: ""; position: absolute; left: 15%; right: 15%; top: 50%; height: 3px; margin-top: -1.5px; background: #9AA4BB; border-radius: 2px; transform: rotate(45deg); }
+.bead.gone::after { transform: rotate(-45deg); }
+
+/* Kort på startsidan */
+.cardrow { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+.badge { justify-self: start; background: var(--berry); color: var(--card); border-radius: 999px; padding: 2px 10px; font-weight: 800; font-size: 0.9rem; animation: bump 0.6s ease 2; }
+
+/* Val-chips */
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { border: 0; border-radius: 999px; padding: 8px 14px; font-weight: 800; background: var(--sky-2); box-shadow: inset 0 -3px 0 var(--line); }
+.chip[aria-pressed="true"] { background: var(--ink); color: var(--sun); box-shadow: none; }
+.check { display: flex; gap: 10px; align-items: flex-start; font-weight: 700; color: var(--ink-soft); }
+.check input { width: 22px; height: 22px; flex: none; margin-top: 2px; }
+.duel-names { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.duel-names label { display: grid; gap: 6px; font-weight: 800; min-width: 0; }
+@media (max-width: 420px) { .duel-names { grid-template-columns: 1fr; } }
+
+/* Kompisduell */
+.duel-mode .topbar { display: none; }
+.duelplay { position: relative; display: grid; grid-template-rows: 1fr auto 1fr; gap: 8px; min-height: calc(100dvh - 24px); }
+.half { background: var(--card); border-radius: 24px; padding: 12px; display: grid; align-content: center; gap: 10px; box-shadow: 0 5px 0 var(--shadow); transition: background 0.2s; }
+#half1 { background: #FFF1EA; }
+.duelplay.flip #half1 { transform: rotate(180deg); }
+.half .dhead { display: flex; justify-content: space-between; align-items: center; font-family: var(--display); font-weight: 800; font-size: 1.3rem; }
+.half .dscore { background: var(--ink); color: var(--sun); border-radius: 12px; min-width: 2em; text-align: center; padding: 0 8px; font-size: 1.6rem; font-variant-numeric: tabular-nums; }
+.half .equation { font-size: clamp(2rem, 9vw, 3.2rem); margin: 0; }
+.half .ans { min-height: 64px; font-size: 2.1rem; }
+.half .dmsg { margin: 0; min-height: 1.4em; text-align: center; font-weight: 800; color: var(--ink-soft); }
+.half.won { background: #D9F7E7 !important; }
+.half.locked .ans { opacity: 0.4; }
+.duel-mid { display: flex; justify-content: space-between; align-items: center; gap: 10px; font-family: var(--display); font-weight: 800; }
+.duel-mid .chunky { padding: 6px 14px; font-size: 1rem; }
+.duelwin { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(27, 37, 71, 0.55); border-radius: 24px; padding: 16px; z-index: 5; }
+.duelwin .stage { display: grid; gap: 8px; justify-items: center; width: min(100%, 420px); }
+.duelwin h2 { font-size: clamp(2rem, 9vw, 3rem); font-weight: 800; color: var(--coral); }
+.winscore { font-family: var(--display); font-weight: 800; font-size: 2.6rem; font-variant-numeric: tabular-nums; }
+.done-actions.two { grid-template-columns: 1fr 1fr; width: 100%; }
+.done-actions.spaced { margin-top: 16px; }
+
+/* Klassen: uppdrag och flöde */
+.cheer-news { background: var(--berry); color: var(--card); font-weight: 800; border-radius: 16px; padding: 10px 14px; margin: 0 0 14px; animation: bump 0.6s ease 2; }
+.mission { background: var(--grape); color: var(--card); }
+.mission .label small, .mission .stats { color: #E6DFFF; }
+.mission .meter { background: rgba(255,255,255,0.2); }
+.mission .meter i { background: linear-gradient(90deg, var(--sun), #FFE58A); }
+.mission-title { font-family: var(--display); font-weight: 800; font-size: 1.5rem; line-height: 1.15; margin-bottom: 10px; }
+.mission .stats { margin: 8px 0 0; }
+.panel.mission + .panel, .panel + .panel.mission { margin-top: 16px; }
+.feed { display: grid; gap: 8px; }
+.event { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: center; background: var(--sky-2); border-radius: 16px; padding: 8px 10px; }
+.event.mine { background: #FFF1C9; }
+.event .em { font-size: 1.8rem; }
+.event p { margin: 0; font-weight: 700; overflow-wrap: anywhere; }
+.event small { color: var(--ink-soft); font-weight: 700; }
+.heja { border: 0; border-radius: 999px; padding: 6px 12px; font-weight: 800; background: var(--sun); box-shadow: inset 0 -3px 0 #D99A00; white-space: nowrap; }
+.heja:disabled { background: transparent; box-shadow: none; cursor: default; }
+.error.center { text-align: center; }
 
 /* Effects */
 #fx { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 50; }

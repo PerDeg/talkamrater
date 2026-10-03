@@ -56,7 +56,9 @@ export const tableNames = prefix => ({
   players: `${prefix}players`,
   sessions: `${prefix}sessions`,
   progress: `${prefix}progress`,
-  rounds: `${prefix}rounds`
+  rounds: `${prefix}rounds`,
+  events: `${prefix}events`,
+  cheers: `${prefix}cheers`
 });
 
 // Migrationerna ligger i koden så att de fungerar likadant i alla databaser.
@@ -118,6 +120,33 @@ function migrations(t, client) {
     },
     async down(knex) {
       for (const name of [t.rounds, t.progress, t.sessions, t.players, t.classes]) await knex.schema.dropTableIfExists(name);
+    }
+  }, {
+    // Klassens händelseflöde ("Alva blev expert!") och hejarop på händelserna
+    name: '002_events',
+    async up(knex) {
+      await knex.schema.createTable(t.events, tb => {
+        cs(tb);
+        tb.increments('id').primary();
+        tb.integer('class_id').unsigned().notNullable().references('id').inTable(t.classes).onDelete('CASCADE');
+        tb.integer('player_id').unsigned().notNullable().references('id').inTable(t.players).onDelete('CASCADE');
+        tb.string('type', 16).notNullable();
+        tb.string('detail', 40).notNullable().defaultTo('');
+        tb.bigInteger('created_at').notNullable();
+        tb.index(['class_id', 'created_at']);
+        tb.index(['player_id']);
+      });
+      await knex.schema.createTable(t.cheers, tb => {
+        cs(tb);
+        tb.integer('event_id').unsigned().notNullable().references('id').inTable(t.events).onDelete('CASCADE');
+        tb.integer('player_id').unsigned().notNullable().references('id').inTable(t.players).onDelete('CASCADE');
+        tb.bigInteger('created_at').notNullable();
+        tb.primary(['event_id', 'player_id']);
+      });
+    },
+    async down(knex) {
+      await knex.schema.dropTableIfExists(t.cheers);
+      await knex.schema.dropTableIfExists(t.events);
     }
   }];
 }

@@ -72,7 +72,7 @@
           <td><span class="em">${esc(p.avatar)}</span> <b>${esc(p.name)}</b>${p.hasPin ? '' : ' <span class="muted">(väljer ny kod)</span>'}<div class="rounds" hidden></div></td>
           <td>${p.stars}</td>
           <td>${p.stickers}</td>
-          <td>${p.pathDone} steg ${'🏅'.repeat(p.medals)}${p.expert ? '🎓' : ''}</td>
+          <td>${p.pathDone} steg ${'🏅'.repeat(p.medals)}${(p.experts || []).map(w => ({ plus: '🎓', minus: '🧙', dubbel: '👯' })[w] || '').join('')}${p.dailyStreak > 1 ? ` 🔥${p.dailyStreak}` : ''}</td>
           <td class="tricky">${p.tricky.length ? esc(p.tricky.join(', ')) : '<span class="muted">–</span>'}</td>
           <td>${ago(p.lastSeen)}</td>
           <td><div class="actions">
