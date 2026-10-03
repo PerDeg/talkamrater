@@ -153,6 +153,7 @@ for (const [label, envFor] of targets) {
       assert.equal(pub.status, 200);
       assert.equal(pub.body.me.name, 'Edwin');
       assert.equal(pub.body.me.pet.stageName, 'Ägg');
+      assert.equal(pub.body.me.nudge.kind, 'egg');
       assert.ok(pub.body.playUrl.endsWith(`?klass=${code}`));
       assert.equal(typeof pub.body.mission.percent, 'number');
       assert.equal(pub.body.class.players, 2);

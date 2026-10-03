@@ -83,7 +83,7 @@ Lärarsidan visar för varje elev: stjärnor, steg på vägen, medaljer, **vilka
 Klassens status kan visas på t.ex. klassens schema: veckans uppdrag, elevens stjärnor och bidrag, husdjurets önskan och en länk till spelet. Det finns två sätt:
 
 - **Eget utseende:** hämta JSON från `GET /api/public/classes/<kod>?name=<namn>`. Alla texter kommer färdiga.
-- **Färdig kompakt widget:** en iframe mot `widget.html?klass=<kod>&namn=<namn>`. Färger, tema och ram styrs med parametrar.
+- **Färdig widget:** en iframe mot `widget.html?klass=<kod>&namn=<namn>`. Plutt säger en mening i en liten pratbubbla och syns bara när eleven finns. Med `stil=kort` blir det ett kompakt kort. Färger och tema styrs med parametrar.
 
 Båda kräver två saker: att läraren slagit på *Visa klassens status på en annan webbsida* för klassen, och att sajten står i `ALLOWED_ORIGINS`.
 

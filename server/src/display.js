@@ -56,3 +56,17 @@ export function eventText(e) {
     default: return `${e.name} gjorde något bra`;
   }
 }
+
+// En enda försiktig mening från husdjuret, för en liten pratbubbla på andra
+// sajter. Det viktigaste vinner: hunger, önskan, dagens utmaning, klassens uppdrag.
+export function nudge({ pet, daily, mission, today = dayNumber() }) {
+  const p = petView(pet, today);
+  const doneToday = daily && daily.day === today;
+  if (p.stage === 0) return { kind: 'egg', text: 'Ägget väntar på dig. Spela en runda så kläcks det! 🥚' };
+  if (p.mood === 'hungrig') return { kind: 'hungry', text: `Jag är hungrig! Spelar vi en runda? 🍓` };
+  if (p.wish) return { kind: 'wish', text: `Kan du ${p.wish.text}? Då får jag ${p.wish.treat} ${p.wish.icon}` };
+  if (!doneToday) return { kind: 'daily', text: daily && daily.streak > 1 && daily.day === today - 1 ? `Dagens utmaning väntar! Håll sviten på ${daily.streak} dagar 🔥` : 'Dagens utmaning väntar på dig! 🔥' };
+  if (mission && mission.progress < mission.goal) return { kind: 'mission', text: `Klassen har ${mission.progress} av ${mission.goal} ${mission.unit}. Hjälper du till? 🤝` };
+  if (mission && mission.progress >= mission.goal) return { kind: 'done', text: 'Klassen klarade veckans uppdrag! 🎉' };
+  return { kind: 'happy', text: `${p.name} mår toppen idag 💜` };
+}

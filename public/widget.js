@@ -1,8 +1,14 @@
-// Kompakt widget för t.ex. klassens schema. All text kommer färdig från API:t.
+// Widget för t.ex. klassens schema. All text kommer färdig från API:t.
+//
+// Två stilar:
+//   stil=bubbla (standard)  Plutt säger en mening i en liten pratbubbla.
+//                           Visar ingenting alls om eleven inte hittas.
+//   stil=kort               Ett kompakt kort med uppdrag, elev och husdjur.
 //
 // Parametrar i länken (alla valfria):
-//   klass=SOL-4821     klasskod (annars visas ett litet formulär)
-//   namn=Edwin         visar elevens rad och husdjur
+//   klass=SOL-4821     klasskod (kortet visar annars ett litet formulär)
+//   namn=Edwin         eleven (krävs för bubblan)
+//   sida=hoger         bubbla: Plutt till höger om texten
 //   tema=ljus|mork|auto   färgläge (standard auto)
 //   accent=2f6bff      accentfärg (hex utan #)
 //   bakgrund=ffffff    bakgrund (hex) eller "transparent"
@@ -26,6 +32,9 @@
   else if (hex(q.get('bakgrund'))) root.style.setProperty('--bg', hex(q.get('bakgrund')));
   if (/^\d{1,2}$/.test(q.get('rund') || '')) root.style.setProperty('--radius', q.get('rund') + 'px');
   const feedCount = Math.min(5, Math.max(0, Number(q.get('flode')) || 0));
+  const bubble = q.get('stil') !== 'kort';
+  if (q.get('sida') === 'hoger') root.dataset.sida = 'hoger';
+  if (hex(q.get('husdjur'))) root.style.setProperty('--pet', hex(q.get('husdjur')));
 
   let saved = {};
   try { saved = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch (e) {}
@@ -33,7 +42,39 @@
   const name = () => (q.get('namn') || saved.name || '').trim();
 
   // Låt sidan som bäddar in anpassa höjden
-  const tell = () => { try { parent.postMessage({ type: 'talkamrater-height', height: Math.ceil(document.getElementById('tk').getBoundingClientRect().height) + 2 }, '*'); } catch (e) {} };
+  const tell = () => {
+    const el = bubble ? $('tb') : $('tk');
+    const h = el.hidden ? 0 : Math.ceil(el.getBoundingClientRect().height) + 4;
+    try { parent.postMessage({ type: 'talkamrater-height', height: h }, '*'); } catch (e) {}
+  };
+
+  // Plutt som liten SVG: ägg, eller en lila figur som blir större och får krona
+  function petSvg(p) {
+    if (!p || p.stage === 0) {
+      return '<svg viewBox="0 0 34 34"><ellipse cx="17" cy="19" rx="11" ry="13.5" fill="#FFF6E0" stroke="#E8DCC0"/><circle cx="13" cy="15" r="2.4" fill="var(--pet)" opacity=".7"/><circle cx="21" cy="21" r="2" fill="var(--pet)" opacity=".7"/><circle cx="14" cy="26" r="1.6" fill="var(--pet)" opacity=".7"/></svg>';
+    }
+    const hungry = p.mood === 'hungrig';
+    const mouth = hungry ? '<rect x="14" y="22" width="6" height="1.8" rx=".9" fill="#1d2433"/>' : '<path d="M13.5 21.5q3.5 3.5 7 0" stroke="#1d2433" stroke-width="1.8" fill="none" stroke-linecap="round"/>';
+    const horns = p.stage >= 3 ? '<path d="M10 9l2-5 2.5 4.5M20.5 8.5L22 4l2 5" fill="#FFC83D"/>' : '';
+    const crown = p.stage >= 5 ? '<path d="M11 6l2.5 3 3.5-4 3.5 4 2.5-3-1 6h-10z" fill="#FFC83D" stroke="#D99A00" stroke-width=".6"/>' : '';
+    return `<svg viewBox="0 0 34 34">${horns}${crown}<path d="M4 21c0-8 5.8-13 13-13s13 5 13 13c0 6-5.8 10-13 10S4 27 4 21z" fill="var(--pet)"/>
+      <ellipse cx="17" cy="25" rx="7" ry="4.5" fill="#fff" opacity=".35"/>
+      <circle cx="12.5" cy="17" r="2.6" fill="#fff"/><circle cx="21.5" cy="17" r="2.6" fill="#fff"/>
+      <circle cx="13" cy="${hungry ? 18 : 17.5}" r="1.3" fill="#1d2433"/><circle cx="22" cy="${hungry ? 18 : 17.5}" r="1.3" fill="#1d2433"/>${mouth}
+      ${p.stage >= 2 ? '<circle cx="9" cy="21" r="1.6" fill="#ff9ec0" opacity=".8"/><circle cx="25" cy="21" r="1.6" fill="#ff9ec0" opacity=".8"/>' : ''}</svg>`;
+  }
+
+  function renderBubble(d) {
+    const me = d && d.me;
+    if (!me || !me.nudge) { $('tb').hidden = true; tell(); return; }
+    $('tb').hidden = false;
+    $('tb').href = d.playUrl;
+    $('tbPet').innerHTML = petSvg(me.pet);
+    $('tbText').textContent = me.nudge.text;
+    $('tb').title = `${me.pet.name} i Talkamrater: ${me.nudge.text}`;
+    $('tb').setAttribute('aria-label', `${me.pet.name} säger: ${me.nudge.text}. Öppnar Talkamrater.`);
+    tell();
+  }
   new ResizeObserver(tell).observe(document.body);
 
   function showForm(msg) {
@@ -43,6 +84,16 @@
   }
 
   async function load() {
+    if (bubble) {
+      // Bubblan stör aldrig: saknas klass, namn eller svar visas ingenting
+      if (!code() || !name()) return renderBubble(null);
+      try {
+        const r = await fetch(`api/public/classes/${encodeURIComponent(code())}?events=0&name=${encodeURIComponent(name())}`, { cache: 'no-store' });
+        renderBubble(r.ok ? await r.json() : null);
+      } catch (e) { renderBubble(null); }
+      return;
+    }
+    $('tk').hidden = false;
     if (!code()) return showForm();
     const url = `api/public/classes/${encodeURIComponent(code())}?events=${feedCount}${name() ? `&name=${encodeURIComponent(name())}` : ''}`;
     try {

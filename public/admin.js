@@ -23,9 +23,9 @@
   };
   const gameUrl = new URL('./', location.href).href;
   const widgetUrl = code => new URL(`widget.html?klass=${encodeURIComponent(code)}`, location.href).href;
-  const embedCode = code => `<iframe src="${widgetUrl(code)}&namn=Edwin" title="Talkamrater" style="width:100%;max-width:440px;height:150px;border:0" loading="lazy"></iframe>
+  const embedCode = code => `<!-- Plutt säger en mening från Talkamrater. Syns bara när eleven finns i klassen. -->
+<iframe src="${widgetUrl(code)}&namn=Edwin" title="Talkamrater" style="width:100%;max-width:420px;height:0;border:0;color-scheme:normal" loading="lazy"></iframe>
 <script>
-  // Valfritt: låter iframen anpassa sin höjd efter innehållet
   addEventListener('message', e => {
     if (e.data && e.data.type === 'talkamrater-height')
       document.querySelectorAll('iframe[title="Talkamrater"]').forEach(f => { if (f.contentWindow === e.source) f.style.height = e.data.height + 'px'; });
@@ -71,7 +71,7 @@
         <div class="adm-public">
           <label class="check"><input type="checkbox" data-public ${c.public ? 'checked' : ''}> Visa klassens status på en annan webbsida (widget)</label>
           <div class="adm-embed" ${c.public ? '' : 'hidden'}>
-            <p class="muted">Klistra in på klassens sida. Byt <b>namn=</b> mot elevens namn, eller ta bort det så får besökaren skriva själv.</p>
+            <p class="muted">Klistra in på klassens sida. Byt <b>namn=</b> mot elevens namn. Rutan syns bara när eleven finns i klassen. Mer om färger och stilar i docs/API.md.</p>
             <pre class="adm-code-block">${esc(embedCode(c.code))}</pre>
             <button class="small-btn" data-copy-embed>Kopiera kod</button>
             <a class="small-btn" href="${esc(widgetUrl(c.code))}" target="_blank" rel="noopener">Förhandsgranska</a>

@@ -68,7 +68,8 @@ GET https://talkamrater.degerfalt.se/api/public/classes/{klasskod}?name={namn}&e
       "mood": "glad",
       "moodText": "Plutt mår bra.",
       "wish": { "icon": "🍦", "treat": "en glass", "text": "poppa alla bubbelpar som blir 9", "have": 0, "need": 1 }
-    }
+    },
+    "nudge": { "kind": "wish", "text": "Kan du poppa alla bubbelpar som blir 9? Då får jag en glass 🍦" }
   },
   "nameNotFound": false,
   "events": [
@@ -106,6 +107,7 @@ GET https://talkamrater.degerfalt.se/api/public/classes/{klasskod}?name={namn}&e
 | `dailyStreak` | Dagens utmaning så många dagar i rad |
 | `contribution` | Elevens bidrag till veckans uppdrag (samma enhet som `mission.unit`) |
 | `pet` | Husdjuret, se nedan |
+| `nudge` | **En enda mening från husdjuret** för en liten pratbubbla, se nedan |
 
 **`me.pet`**: elevens husdjur.
 | Fält | Betydelse |
@@ -115,6 +117,18 @@ GET https://talkamrater.degerfalt.se/api/public/classes/{klasskod}?name={namn}&e
 | `xp`, `nextAt` | Stjärnfrukter och hur många som krävs för nästa stadium (`null` för kung) |
 | `mood`, `moodText` | `ägg`, `glad`, `hungrig` eller `överlycklig`, plus en färdig mening |
 | `wish` | Dagens önskan, eller `null`. `text` passar efter "Plutt önskar … om du …". `have`/`need` visar hur långt eleven kommit. |
+
+**`me.nudge`**: det viktigaste husdjuret vill säga just nu, som en färdig mening (`text`) och en typ (`kind`). Servern väljer i den här ordningen:
+
+| `kind` | Exempel på `text` |
+|---|---|
+| `egg` | Ägget väntar på dig. Spela en runda så kläcks det! 🥚 |
+| `hungry` | Jag är hungrig! Spelar vi en runda? 🍓 |
+| `wish` | Kan du poppa alla bubbelpar som blir 9? Då får jag en glass 🍦 |
+| `daily` | Dagens utmaning väntar! Håll sviten på 3 dagar 🔥 |
+| `mission` | Klassen har 15 av 130 bubbelpar. Hjälper du till? 🤝 |
+| `done` | Klassen klarade veckans uppdrag! 🎉 |
+| `happy` | Plutt mår toppen idag 💜 |
 
 **`events`**: klassens senaste stora händelser, nyast först. Använd `text` direkt. `type` är `medal`, `expert`, `daily`, `book`, `pet` eller `mission`, och kan användas för egna ikoner. `at` är en tidpunkt i ms.
 
@@ -154,15 +168,17 @@ Felsvar har formen `{ "error": "Läsbar förklaring på svenska" }`.
 
 Escapa texterna om de sätts med `innerHTML` på en sida där andra kan skriva namn. Servern tillåter inte `<` eller `>` i namn, men det skadar inte.
 
-## Alternativ: färdig widget i en iframe
+## Färdig widget i en iframe
 
-Vill du slippa koda kan du använda den färdiga, kompakta widgeten:
+### Pratbubblan (standard, rekommenderas för schemat)
+
+Plutt, elevens husdjur, säger en mening (`me.nudge`) i en liten pratbubbla, och ett klick öppnar spelet. Den är ungefär 40 px hög och tar ingen plats från schemat. **Om eleven inte finns, eller något går fel, visas ingenting alls**, och iframen får höjden 0.
 
 ```html
-<iframe src="https://talkamrater.degerfalt.se/widget.html?klass=SOL-4821&namn=Edwin&tema=auto"
-        title="Talkamrater" style="width:100%;max-width:440px;height:150px;border:0"></iframe>
+<iframe src="https://talkamrater.degerfalt.se/widget.html?klass=SOL-4821&namn=Edwin"
+        title="Talkamrater" style="width:100%;max-width:420px;height:0;border:0;color-scheme:normal"></iframe>
 <script>
-  // Anpassar iframens höjd efter innehållet
+  // Visar iframen först när Plutt har något att säga, och i rätt höjd
   addEventListener('message', e => {
     if (e.data && e.data.type === 'talkamrater-height')
       document.querySelectorAll('iframe[title="Talkamrater"]').forEach(f => { if (f.contentWindow === e.source) f.style.height = e.data.height + 'px'; });
@@ -170,19 +186,28 @@ Vill du slippa koda kan du använda den färdiga, kompakta widgeten:
 </script>
 ```
 
-Widgetens utseende styrs med parametrar i länken:
+Placera den gärna i schemats sidhuvud, till höger om rubriken, med `sida=hoger`.
+
+### Kortet (`stil=kort`)
+
+Ett kompakt kort med veckans uppdrag, elevens rad, husdjurets önskan och eventuellt de senaste händelserna. Utan `klass` visas ett litet formulär.
+
+### Parametrar
 
 | Parameter | Exempel | Betydelse |
 |---|---|---|
-| `klass` | `SOL-4821` | Klasskod. Utan den visas ett litet formulär. |
-| `namn` | `Edwin` | Visar elevens rad och husdjur |
+| `klass` | `SOL-4821` | Klasskod |
+| `namn` | `Edwin` | Eleven (krävs för bubblan) |
+| `stil` | `bubbla` / `kort` | Bubbla är standard |
+| `sida` | `hoger` | Bubbla: Plutt till höger om texten |
 | `tema` | `ljus`, `mork`, `auto` | Färgläge (standard `auto` = följer enheten) |
-| `accent` | `2f6bff` | Accentfärg (hex utan #) |
-| `bakgrund` | `ffffff` / `transparent` | Bakgrund |
+| `accent` | `2f6bff` | Accentfärg (hex utan #). Bubblans ram vid hovring, kortets länk och stapel. |
+| `husdjur` | `7a5cff` | Plutts färg |
+| `bakgrund` | `ffffff` / `transparent` | Bubblans/kortets bakgrund |
 | `text` | `1d2433` | Textfärg |
 | `rund` | `12` | Hörnradie i px |
 | `kant` | `0` | Ta bort ramen |
-| `flode` | `3` | Visa de 0–5 senaste händelserna |
+| `flode` | `3` | Kort: visa de 0–5 senaste händelserna |
 
 ## Integritet
 
@@ -192,4 +217,6 @@ Klasskod plus förnamn räcker för att se en elevs status. Därför är funktio
 
 Klistra in det här i konversationen om klassens schema:
 
-> Lägg till en kompakt ruta för Talkamrater i schemat. Hämta `GET https://talkamrater.degerfalt.se/api/public/classes/<KLASSKOD>?name=<NAMN>&events=2` (CORS är öppet för klass2.degerfalt.se) och visa: veckans uppdrag (`mission.title`, `mission.progress`/`mission.goal`, förloppsindikator med `mission.percent`), elevens rad (`me.avatar`, `me.name`, `me.stars`, `me.contribution` + `mission.unit`) och husdjurets önskan (`me.pet.icon`, `me.pet.wish.text`, annars `me.pet.moodText`). Länka "Spela →" till `playUrl`. Följ schemats befintliga färger och typsnitt. Uppdatera var femte minut, och dölj rutan tyst om anropet misslyckas. Hela API-beskrivningen finns i docs/API.md i repot PerDeg/talkamrater.
+> Lägg till en diskret pratbubbla från Talkamrater i schemats sidhuvud. Hämta `GET https://talkamrater.degerfalt.se/api/public/classes/<KLASSKOD>?name=<NAMN>&events=0` (CORS är öppet för klass2.degerfalt.se). Om svaret har `me.nudge`: visa en liten figur (`me.pet.icon`, eller Talkamraters logga) och en pratbubbla med `me.nudge.text`, och gör hela bubblan till en länk till `playUrl`. Om `me` saknas eller anropet misslyckas: visa ingenting. Bubblan ska följa schemats färger och typsnitt, vara en rad hög och inte ta fokus från schemat. Hämta om var femte minut. Hela API-beskrivningen finns i docs/API.md i repot PerDeg/talkamrater.
+>
+> Alternativt kan schemat bädda in den färdiga bubblan: `<iframe src="https://talkamrater.degerfalt.se/widget.html?klass=<KLASSKOD>&namn=<NAMN>&sida=hoger">` med höjdskriptet från docs/API.md.

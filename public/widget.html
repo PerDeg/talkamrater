@@ -8,7 +8,11 @@
 <link rel="stylesheet" href="widget.css">
 </head>
 <body>
-<div class="tk" id="tk" aria-live="polite">
+<a class="tb" id="tb" target="_blank" rel="noopener" hidden>
+  <span class="tb-pet" id="tbPet" aria-hidden="true"></span>
+  <span class="tb-bubble" id="tbText"></span>
+</a>
+<div class="tk" id="tk" aria-live="polite" hidden>
   <form class="tk-form" id="form" hidden>
     <input id="code" placeholder="Klasskod" aria-label="Klasskod" autocomplete="off" autocapitalize="characters" required>
     <input id="name" placeholder="Namn" aria-label="Namn i spelet" autocomplete="off">

@@ -1,11 +1,11 @@
 /* Kompakt widget. Färger och form styrs från länken, se widget.js. */
 :root {
   --bg: #ffffff; --fg: #1d2433; --muted: #6b7385; --line: #e6e8ee; --track: #eef0f4;
-  --accent: #2f6bff; --radius: 12px; color-scheme: light;
+  --accent: #2f6bff; --radius: 12px; --pet: #7a5cff;
 }
-:root[data-tema="mork"] { --bg: #171b24; --fg: #eef1f7; --muted: #9aa3b5; --line: #2a3140; --track: #262c38; color-scheme: dark; }
+:root[data-tema="mork"] { --bg: #171b24; --fg: #eef1f7; --muted: #9aa3b5; --line: #2a3140; --track: #262c38; }
 @media (prefers-color-scheme: dark) {
-  :root[data-tema="auto"] { --bg: #171b24; --fg: #eef1f7; --muted: #9aa3b5; --line: #2a3140; --track: #262c38; color-scheme: dark; }
+  :root[data-tema="auto"] { --bg: #171b24; --fg: #eef1f7; --muted: #9aa3b5; --line: #2a3140; --track: #262c38; }
 }
 [hidden] { display: none !important; }
 * { box-sizing: border-box; }
@@ -33,3 +33,18 @@ body { font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 .tk-form button { font: inherit; font-weight: 600; color: #fff; background: var(--accent); border: 0; border-radius: 8px; padding: 6px 12px; cursor: pointer; }
 .tk-err { flex-basis: 100%; margin: 0; color: #c2304f; font-size: 13px; }
 .tk-err:empty { display: none; }
+
+/* ---------- Bubbla (standard): Plutt säger en mening ---------- */
+.tb { display: inline-flex; align-items: center; gap: 8px; max-width: 100%; color: var(--fg); text-decoration: none; padding: 2px; animation: tb-in .5s ease both; }
+:root[data-sida="hoger"] .tb { flex-direction: row-reverse; float: right; }
+.tb-pet { flex: none; width: 34px; height: 34px; display: block; transition: transform .2s ease; }
+.tb-pet svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.tb:hover .tb-pet, .tb:focus-visible .tb-pet { transform: translateY(-2px) rotate(-4deg); }
+.tb-bubble { position: relative; min-width: 0; background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius); padding: 5px 10px; font-size: 13px; line-height: 1.3; box-shadow: 0 1px 2px rgba(0,0,0,.05); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tb-bubble::before { content: ""; position: absolute; left: -5px; top: 50%; width: 8px; height: 8px; margin-top: -4px; background: var(--bg); border-left: 1px solid var(--line); border-bottom: 1px solid var(--line); transform: rotate(45deg); }
+:root[data-sida="hoger"] .tb-bubble::before { left: auto; right: -5px; transform: rotate(-135deg); }
+.tb:hover .tb-bubble { border-color: var(--accent); }
+.tb:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: var(--radius); }
+:root[data-kant="0"] .tb-bubble { border-color: transparent; }
+@keyframes tb-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .tb, .tb-pet { animation: none; transition: none; } }

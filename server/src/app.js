@@ -3,7 +3,7 @@ import { insertId } from './db.js';
 import { newToken, hashToken, validPin, hashPin, checkPin, safeEqual, newClassCode, normalizeCode, rateLimiter } from './auth.js';
 import { emptyProgress, sanitizeProgress, mergeProgress, summarize } from './progress.js';
 import { classMission, celebrateMission } from './mission.js';
-import { petView, eventText, medalIcons } from './display.js';
+import { petView, eventText, medalIcons, nudge } from './display.js';
 
 // Händelser som kan visas i klassens flöde. Texten byggs i spelet utifrån typ + detalj.
 // Bara större händelser, så att flödet inte svämmar över i en stor klass.
@@ -291,7 +291,8 @@ export function createApp({ db, t, client, adminKey, publicDir, trustProxy = 'lo
         name: row.name, avatar: row.avatar,
         stars: sum.stars, stickers: sum.stickers, steps: sum.pathDone, medals: sum.medals, medalIcons: medalIcons(p.path),
         experts: sum.experts, dailyStreak: sum.dailyStreak, contribution: mission.mine,
-        pet: petView(p.pet)
+        pet: petView(p.pet),
+        nudge: nudge({ pet: p.pet, daily: p.daily, mission })
       };
     }
     const events = await db(t.events).join(t.players, `${t.events}.player_id`, `${t.players}.id`)
