@@ -37,6 +37,18 @@
   });
 <\/script>`;
 
+  // Kunskapsväggen: hur många elever som kan varje tal (pärlorna har försvunnit)
+  const WALL = [['p', 'Plus', 20], ['m', 'Minus', 20], ['d', 'Dubblor', 10]];
+  const wallHTML = c => {
+    const n = c.players.length || 1;
+    const rows = WALL.filter(([k]) => Object.keys(c.wall).some(x => x[0] === k)).map(([k, label, max]) =>
+      `<div class="adm-wall-row"><b>${label}</b>${Array.from({ length: max }, (_, i) => i + 1).map(t => {
+        const v = c.wall[k + t] || 0;
+        return `<span style="--share:${(v / n).toFixed(2)}" title="${label} ${t}: ${v} av ${c.players.length} kan">${t}<sup>${v}</sup></span>`;
+      }).join('')}</div>`).join('');
+    return `<div class="adm-wall"><p class="muted"><b>Kunskapsväggen</b> – hur många som kan talet (siffran upptill). Ljusa rutor = mest att träna på tillsammans.</p>${rows || '<p class="muted">Ingen kan något tal helt säkert än.</p>'}</div>`;
+  };
+
   // Två klick för att radera, så att inget försvinner av misstag
   function confirmClick(btn, label, action) {
     btn.addEventListener('click', async () => {
@@ -88,7 +100,10 @@
           <select id="cf-${c.id}" data-class-focus>${focusOptions(c.focus, 'Inget fokus')}</select>
           <span class="muted">Visas överst i spelet och kommer oftare i blandade rundor. En elev kan få ett eget fokus nedan.</span>
         </div>
-        <p class="muted">Veckans uppdrag: <b>${esc(c.mission.title)}</b></p>
+        <p class="muted">Veckans uppdrag: <b>${esc(c.mission.title)}</b>
+          · Alla med: <b>${c.everyone.contributed} av ${c.everyone.players}</b> har spelat den här veckan${c.everyone.allIn ? ' 🌟' : ''}
+          · ${esc(c.pet.icon)} ${esc(c.pet.moodText)}</p>
+        ${wallHTML(c)}
         <div class="tablewrap"><table>
           <thead><tr><th>Elev</th><th>Kan bra</th><th>Behöver träna</th><th>Tränat</th><th>Bidrag i veckan</th><th>Eget fokus</th><th></th></tr></thead>
           <tbody></tbody>

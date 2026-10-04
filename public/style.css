@@ -552,6 +552,51 @@ details.friends summary { font-family: var(--display); font-weight: 800; font-si
   100% { transform: translate(-50%, -110%) scale(1); opacity: 0; }
 }
 
+/* Steg på vägen: Lära, Öva, Kunna */
+.step { display: grid; gap: 12px; }
+.step h2 { font-size: clamp(2rem, 8vw, 2.8rem); font-weight: 800; text-align: center; }
+.step > .stats { text-align: center; margin: 0; }
+.moments { display: grid; gap: 10px; }
+.moment { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px; text-align: left; border: 0; border-radius: 20px; padding: 12px 14px; background: var(--card); box-shadow: 0 5px 0 var(--shadow); }
+.moment .mi { width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center; font-size: 1.5rem; background: var(--sky-2); font-family: var(--display); font-weight: 800; }
+.moment .mt b { display: block; font-family: var(--display); font-size: 1.25rem; line-height: 1.1; }
+.moment .mt small { display: block; font-weight: 700; color: var(--ink-soft); }
+.moment .ms { color: var(--line); font-size: 1.1rem; white-space: nowrap; }
+.moment .ms .on { color: var(--sun); -webkit-text-stroke: 0.6px #D99A00; }
+.moment.open:not(.done) { outline: 4px solid var(--sun); }
+.moment.open:not(.done) .mi { background: var(--sun); animation: ring 1.6s ease infinite; }
+.moment.done .mi { background: var(--leaf); color: var(--card); }
+.moment:disabled { opacity: 0.55; cursor: default; }
+.stop .txt .dots { letter-spacing: 0.08em; color: var(--leaf); }
+.recall-btn { position: relative; z-index: 2; margin-top: 8px; border: 0; border-radius: 999px; padding: 8px 14px; font-weight: 800; background: #FFF1C9; box-shadow: inset 0 -3px 0 #F2C55C; }
+.recall-note { color: var(--grape); font-weight: 800; }
+.medal.shine, .slot.shine .em { filter: drop-shadow(0 0 6px #FFD84D) drop-shadow(0 0 2px #fff); animation: shine 2.4s ease-in-out infinite; }
+@keyframes shine { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.08) rotate(-4deg); } }
+
+/* Klassen: alla med, klassplutten och kunskapsväggen */
+.ct-all { margin: 0; font-weight: 800; color: #F1ECFF; }
+.allin { margin: 8px 0 0; background: #FFF6DA; color: var(--ink); border-radius: 12px; padding: 8px 10px; font-weight: 700; }
+.cp-row { display: grid; grid-template-columns: 90px minmax(0, 1fr); gap: 12px; align-items: center; }
+.cp-view { display: grid; place-items: center; min-height: 90px; }
+.cp-text { display: grid; gap: 6px; min-width: 0; }
+.cp-text b { font-family: var(--display); font-size: 1.25rem; }
+.cp-text p { margin: 0; font-weight: 700; }
+.cp-text small { color: var(--ink-soft); font-weight: 700; }
+.wall .worldtabs { margin-block: 8px 12px; box-shadow: none; background: var(--sky-2); }
+.wallgrid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+.wtile { border-radius: 14px; padding: 6px 4px; text-align: center; display: grid; gap: 0; color: var(--ink);
+  background: color-mix(in srgb, var(--leaf) calc(var(--share) * 85%), var(--sky-2)); }
+.wtile b { font-family: var(--display); font-size: 1.3rem; line-height: 1.1; }
+.wtile small { font-weight: 800; font-size: 0.8rem; }
+.wtile.mine { box-shadow: inset 0 0 0 3px var(--sun); }
+.wtile.mine small::after { content: " ⭐"; }
+
+/* Spela två: duell eller lagkamp */
+.seg { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.seg .chip { padding: 12px; font-size: 1.05rem; }
+.half.waiting { background: var(--sky-2); }
+.half.waiting .dmsg { color: var(--grape); font-size: 1.2rem; }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition: none !important; }
   .cheer { animation: none; transform: translate(-50%, -50%); opacity: 1; }

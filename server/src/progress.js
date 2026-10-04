@@ -29,7 +29,7 @@ export const EXPERT_KEYS = { plus: 'expert', minus: 'mexpert', dubbel: 'dexpert'
 
 export function emptyProgress() {
   return {
-    best: {}, total: 0, rounds: 0, stickers: [], path: {}, records: {}, tricky: {}, skill: {},
+    best: {}, total: 0, rounds: 0, stickers: [], path: {}, records: {}, tricky: {}, skill: {}, dates: {},
     pet: { xp: 0, last: 0, born: 0, name: '', wish: null, wishDay: 0, wishCount: 0, treats: 0 },
     daily: { day: 0, streak: 0, best: 0, count: 0 }
   };
@@ -49,8 +49,11 @@ export function sanitizeProgress(p) {
     records: intMap(src.records, 10000),
     // Kluriga kamrater: "8:3" (plus), "m8:3" (minus), "d6:6" (dubblor)
     tricky: intMap(src.tricky, 99, /^[md]?\d{1,2}:\d{1,2}$/),
-    // Hur säker eleven är per tal och värld (0–10), t.ex. "p8", "m12", "d6". Styr pärlorna.
-    skill: intMap(src.skill, 10, /^[pmd]\d{1,2}$/),
+    // Hur säker eleven är per tal och värld (0–10), t.ex. "p8", "m12", "d6", och
+    // totalt ("g"). Styr pärlorna.
+    skill: intMap(src.skill, 10, /^([pmd]\d{1,2}|g)$/),
+    // Dagnummer då något hände på vägen, t.ex. när ett prov klarades (för Kom ihåg-provet)
+    dates: intMap(src.dates, 1e6),
     pet: {
       xp: int(pet.xp, 0, 1e6), last: int(pet.last, 0, 1e6), born: int(pet.born, 0, 1e6), name: cleanText(pet.name, 16),
       wish: sanitizeWish(pet.wish),
@@ -87,6 +90,7 @@ export function mergeProgress(stored, incoming) {
     tricky: b.tricky,
     // Färdighet kan också sjunka, så den senaste versionen vinner
     skill: Object.keys(b.skill).length ? b.skill : a.skill,
+    dates: maxMap(a.dates, b.dates),
     pet: {
       xp: Math.max(a.pet.xp, b.pet.xp),
       last: Math.max(a.pet.last, b.pet.last),

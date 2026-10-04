@@ -7,6 +7,7 @@ import { openDatabase } from '../src/db.js';
 import { createApp } from '../src/app.js';
 import { mergeProgress, sanitizeProgress, summarize } from '../src/progress.js';
 import { weekStart, missionFor } from '../src/mission.js';
+import { classPetView, nudge } from '../src/display.js';
 
 test('mergeProgress tar det bästa från båda', () => {
   const a = { best: { '8:find': 2 }, total: 10, stickers: ['🦖', '🦖', '🐼'], path: { n1: 1 }, tricky: { '8:3': 2 } };
@@ -35,6 +36,30 @@ test('veckans uppdrag börjar på måndag och skalar med klassen', () => {
   assert.equal(ws.getDay(), 1);
   assert.equal(ws.getDate(), 28);
   assert.ok(missionFor(ws.getTime(), 25).goal > missionFor(ws.getTime(), 2).goal);
+});
+
+test('global färdighet och datum sparas och slås ihop', () => {
+  const m = mergeProgress({ skill: { g: 8 }, dates: { 't-z1': 20000 } }, { skill: { g: 5, p3: 2 }, dates: { 't-z1': 19990, 't-z2': 20010 } });
+  assert.deepEqual(m.skill, { g: 5, p3: 2 });
+  assert.deepEqual(m.dates, { 't-z1': 20000, 't-z2': 20010 });
+});
+
+test('klassens husdjur växer per elev och humöret följer hur många som spelat', () => {
+  assert.equal(classPetView({ rounds: 0, players: 20, recent: 0 }).stage, 0);
+  const p = classPetView({ rounds: 130, players: 20, recent: 12 });
+  assert.equal(p.stage, 2);
+  assert.equal(p.mood, 'överlycklig');
+  assert.equal(p.nextAt, 300);
+  assert.equal(classPetView({ rounds: 130, players: 20, recent: 1 }).mood, 'längtar');
+});
+
+test('pratbubblan: present först, alla med i rotationen', () => {
+  const pet = { xp: 50, last: 100 };
+  assert.equal(nudge({ pet, gift: 'glass', today: 100 }).kind, 'gift');
+  assert.match(nudge({ pet, gift: 'glass', today: 100 }).text, /glass/);
+  const kinds = new Set();
+  for (let h = 0; h < 24; h += 2) kinds.add(nudge({ pet, daily: { day: 100 }, everyone: { allIn: true, players: 3 }, today: 100, now: new Date(2026, 0, 1, h) }).kind);
+  assert.ok(kinds.has('allin'));
 });
 
 test('sanitizeProgress rensar skräp', () => {
@@ -184,6 +209,42 @@ for (const [label, envFor] of targets) {
       assert.equal(done, 1);
       const wall3 = await call('GET', '/me/class', null, meAuth2);
       assert.equal(wall3.body.events.filter(e => e.type === 'mission').length, 1);
+
+      // Kunskapsväggen och klassens husdjur
+      assert.equal(wall3.body.wall.p8, 1);
+      assert.equal(wall3.body.wall.p3, undefined);
+      assert.ok(wall3.body.pet.stage >= 1);
+      assert.equal(wall3.body.mission.everyone.players, 2);
+      assert.equal(wall3.body.mission.everyone.contributed, 1);
+      assert.equal(wall3.body.mission.everyone.allIn, false);
+
+      // Alla med: när Alva också spelar är hela klassen med, en händelse per vecka
+      const ar = await call('POST', '/me/rounds', { level: '5', mode: 'find', stars: 2, score: 4, total: 6 }, alvaAuth);
+      assert.equal(ar.body.mission.everyone.allIn, true);
+      assert.equal(ar.body.allIn, true);
+      assert.equal((await call('POST', '/me/rounds', { level: '5', mode: 'find', stars: 2, score: 4, total: 6 }, alvaAuth)).body.allIn, false);
+      const wall4 = await call('GET', '/me/class', null, meAuth2);
+      assert.equal(wall4.body.events.filter(e => e.type === 'allin').length, 1);
+
+      // Hemliga presenter: en per dag, mottagaren ser den tills den markerats som sedd
+      assert.equal((await call('POST', '/me/gift', { treat: 'gift' }, alvaAuth)).status, 400);
+      const g1 = await call('POST', '/me/gift', { treat: 'glass' }, alvaAuth);
+      assert.equal(g1.status, 201);
+      assert.equal((await call('POST', '/me/gift', { treat: 'kaka' }, alvaAuth)).body.reason, 'today');
+      const got = await call('GET', '/me/class', null, meAuth2);
+      assert.deepEqual(got.body.gifts.map(g => g.treat), ['glass']);
+      assert.equal(got.body.gifts[0].from, undefined);
+      await call('PUT', '/me/progress', { progress: { pet: { xp: 20, last: 1 } } }, meAuth2);
+      assert.equal((await call('GET', `/public/classes/${code}?name=Edwin`)).body.me.nudge.kind, 'gift');
+      assert.equal((await call('POST', '/me/gifts/seen', null, meAuth2)).body.seen, 1);
+      assert.equal((await call('GET', '/me/class', null, meAuth2)).body.gifts.length, 0);
+      const pub2 = await call('GET', `/public/classes/${code}?name=Edwin`);
+      assert.notEqual(pub2.body.me.nudge.kind, 'gift');
+      assert.ok(pub2.body.class.pet.name);
+      assert.equal(pub2.body.mission.everyone.allIn, true);
+      const adm3 = (await call('GET', '/admin/classes', null, ADMIN)).body.find(c => c.code === code);
+      assert.equal(adm3.everyone.contributed, 2);
+      assert.equal(adm3.wall.p8, 1);
 
       const logout = await call('POST', '/logout', null, { authorization: `Bearer ${fresh.body.token}` });
       assert.equal(logout.status, 204);

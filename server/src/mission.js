@@ -48,12 +48,37 @@ export async function classMission(db, t, classId, playerCount, playerId = null,
   };
 }
 
-// Lägger in en händelse "Klassen klarade veckans uppdrag" första gången målet nås.
+// Hur många i klassen som är med: i veckan (för "Alla med") och de senaste
+// tre dagarna (för klassens husdjurs humör), samt alla rundor någonsin.
+export async function classPulse(db, t, classId, playerCount, now = new Date()) {
+  const base = () => db(t.rounds).join(t.players, `${t.rounds}.player_id`, `${t.players}.id`).where(`${t.players}.class_id`, classId);
+  const distinct = async since => {
+    const row = await base().andWhere(`${t.rounds}.created_at`, '>=', since).countDistinct({ v: `${t.rounds}.player_id` }).first();
+    return Number(row?.v) || 0;
+  };
+  const total = await base().count({ v: '*' }).first();
+  const contributed = await distinct(weekStart(now));
+  return {
+    everyone: { contributed, players: playerCount, allIn: playerCount >= 2 && contributed >= playerCount },
+    recent: await distinct(now.getTime() - 3 * 86400000),
+    rounds: Number(total?.v) || 0
+  };
+}
+
+// Lägger in en klasshändelse en gång per vecka, t.ex. "Klassen klarade veckans
+// uppdrag" eller "Alla i klassen har varit med".
+async function celebrateOnce(db, t, client, classId, playerId, type, start) {
+  const detail = String(start);
+  const had = await db(t.events).where({ class_id: classId, type, detail }).first();
+  if (had) return false;
+  await insertId(db, client, t.events, { class_id: classId, player_id: playerId, type, detail, created_at: Date.now() });
+  return true;
+}
 export async function celebrateMission(db, t, client, classId, playerId, mission) {
   if (mission.progress < mission.goal) return false;
-  const detail = String(mission.start);
-  const had = await db(t.events).where({ class_id: classId, type: 'mission', detail }).first();
-  if (had) return false;
-  await insertId(db, client, t.events, { class_id: classId, player_id: playerId, type: 'mission', detail, created_at: Date.now() });
-  return true;
+  return celebrateOnce(db, t, client, classId, playerId, 'mission', mission.start);
+}
+export async function celebrateAllIn(db, t, client, classId, playerId, everyone, start) {
+  if (!everyone.allIn) return false;
+  return celebrateOnce(db, t, client, classId, playerId, 'allin', start);
 }

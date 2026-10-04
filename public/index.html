@@ -77,6 +77,7 @@
       <div class="ct-title" id="ctMission"></div>
       <div class="meter"><i id="ctMeter"></i></div>
       <div class="ct-row"><b id="ctProgress"></b><span id="ctMine"></span></div>
+      <p class="ct-all" id="ctAll" hidden></p>
       <p class="ct-event" id="ctEvent" hidden></p>
       <button class="chunky sun" id="openClass">Till klassen</button>
     </div>
@@ -140,9 +141,9 @@
 
     <div class="cardrow">
       <div class="panel">
-        <div class="label">Kompisduell</div>
-        <p>Två spelare på samma skärm. Vem hittar svaret först?</p>
-        <button class="chunky coral" id="openDuel">Utmana en kompis</button>
+        <div class="label">Spela två</div>
+        <p>Två på samma skärm. Tävla i duell eller hjälps åt i lagkamp mot klockan.</p>
+        <button class="chunky coral" id="openDuel">Spela med en kompis</button>
       </div>
       <div class="panel">
         <div class="label">Klistermärken <small id="stickerCount">0 av 30</small></div>
@@ -211,6 +212,20 @@
     </div>
   </section>
 
+  <!-- STEG PÅ VÄGEN: Lära, Öva, Kunna -->
+  <section class="screen" id="step" hidden>
+    <button class="chunky ghost back" id="stepBack">← Vägen</button>
+    <div class="stage step">
+      <div class="buddy-row">
+        <div class="mascot happy" aria-hidden="true"><div class="eyes"><i></i><i></i></div><div class="mouth"></div></div>
+        <p class="speech" aria-live="polite"></p>
+      </div>
+      <h2 id="stepTitle"></h2>
+      <p class="stats" id="stepSub"></p>
+      <div class="moments" id="moments"></div>
+    </div>
+  </section>
+
   <!-- FIND -->
   <section class="screen" id="find" hidden>
     <div class="playhead">
@@ -274,15 +289,19 @@
   <section class="screen" id="duel" hidden>
     <div id="duelSetup">
       <button class="chunky ghost back" data-home>← Hem</button>
-      <h2 class="mode-title">Kompis<em>duell</em></h2>
+      <h2 class="mode-title" id="duelTitle">Kompis<em>duell</em></h2>
       <div class="panel formstack">
         <div class="duel-names">
           <label for="duelP1">Spelare 1 (nere)<input class="textfield" id="duelP1" maxlength="14" autocomplete="off"></label>
           <label for="duelP2">Spelare 2 (uppe)<input class="textfield" id="duelP2" maxlength="14" autocomplete="off"></label>
         </div>
-        <span class="lead">Vad ska ni tävla i?</span>
+        <div class="seg" id="duelKind" role="group" aria-label="Spelsätt">
+          <button class="chip" data-k="duel">⚔️ Duell</button><button class="chip" data-k="coop">🤝 Tillsammans</button>
+        </div>
+        <p class="lead" id="duelKindText"></p>
+        <span class="lead" id="duelModesLabel">Vad ska ni tävla i?</span>
         <div class="chips" id="duelModes"></div>
-        <span class="lead">Först till</span>
+        <span class="lead" id="duelTargetsLabel">Först till</span>
         <div class="chips" id="duelTargets">
           <button class="chip" data-t="5">5</button><button class="chip" data-t="7">7</button><button class="chip" data-t="10">10</button>
         </div>
@@ -381,6 +400,25 @@
       <div class="mission-title" id="missionTitle"></div>
       <div class="meter"><i id="missionMeter"></i></div>
       <p class="stats" id="missionText"></p>
+      <p class="allin" id="missionAll" hidden></p>
+    </div>
+    <div class="panel classpet" id="classPet" hidden>
+      <div class="label">Klassplutten <small>Växer när alla spelar</small></div>
+      <div class="cp-row">
+        <div class="cp-view" id="cpView"></div>
+        <div class="cp-text">
+          <b id="cpStage"></b>
+          <p id="cpMood"></p>
+          <div class="meter"><i id="cpMeter"></i></div>
+          <small id="cpNext"></small>
+        </div>
+      </div>
+    </div>
+    <div class="panel wall" id="wallPanel" hidden>
+      <div class="label">Kunskapsväggen <small>Hur många i klassen kan talet</small></div>
+      <div class="worldtabs" id="wallTabs"></div>
+      <div class="wallgrid" id="wallGrid"></div>
+      <p class="stats" id="wallText"></p>
     </div>
     <div class="panel">
       <div class="label">Händer i klassen <small>Heja på varandra!</small></div>

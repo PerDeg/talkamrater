@@ -3,7 +3,7 @@
 // Speglar konstanterna i public/game.js – håll dem i synk.
 
 export const PET_STAGES = [[0, 'Ägg', '🥚'], [10, 'Bebis', '🐣'], [40, 'Liten', '🐾'], [100, 'Stor', '💜'], [200, 'Jätte', '✨'], [400, 'Kung', '👑']];
-const TREATS = {
+export const TREATS = {
   glass: ['🍦', 'en glass'], pizza: ['🍕', 'en pizzabit'], banan: ['🍌', 'en banan'], tarta: ['🎂', 'en tårtbit'], kaka: ['🍪', 'en kaka'],
   popcorn: ['🍿', 'popcorn'], boll: ['⚽', 'en ny boll'], ballong: ['🎈', 'en ballong'], jordgubb: ['🍓', 'jordgubbar']
 };
@@ -19,6 +19,28 @@ export const MEDALS = {
   't-dz1': ['🧦', 'Strumpmedaljen'], 't-dz2': ['🏰', 'Slottsmedaljen'], dexpert: ['👯', 'Dubbelmästaren']
 };
 const EXPERTS = { plus: ['🎓', 'Talkamratexpert'], minus: ['🧙', 'Minusexpert'], dubbel: ['👯', 'Dubbelexpert'] };
+
+// Klassens husdjur växer av alla rundor i klassen (räknat per elev, så att små
+// och stora klasser växer lika fort) och mår bra när många har spelat nyligen.
+const CLASS_PET_STEPS = [0, 2, 6, 15, 30, 60];
+export function classPetView({ rounds, players, recent }) {
+  const per = rounds / Math.max(1, players);
+  const stage = CLASS_PET_STEPS.reduce((s, min, i) => (per >= min ? i : s), 0);
+  const [, stageName, icon] = PET_STAGES[stage];
+  const next = CLASS_PET_STEPS[stage + 1];
+  const share = players ? recent / players : 0;
+  const name = 'Klassplutten';
+  let mood, moodText;
+  if (stage === 0) { mood = 'ägg'; moodText = 'Klassens ägg väntar. Varje runda värmer det!'; }
+  else if (share >= 0.5) { mood = 'överlycklig'; moodText = `${name} hoppar av glädje. Så många har spelat!`; }
+  else if (share >= 0.2) { mood = 'glad'; moodText = `${name} mår bra. Fler kompisar får gärna spela.`; }
+  else { mood = 'längtar'; moodText = `${name} längtar efter klassen. Spela en runda!`; }
+  return {
+    name, stage, stageName, icon, mood, moodText, rounds,
+    nextAt: next == null ? null : Math.ceil(next * Math.max(1, players)),
+    percent: next == null ? 100 : Math.min(100, Math.round(100 * (per - CLASS_PET_STEPS[stage]) / (next - CLASS_PET_STEPS[stage])))
+  };
+}
 
 export const dayNumber = (d = new Date()) => Math.floor(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 86400000);
 const genitive = n => (/[sxz]$/i.test(n) ? n : n + 's');
@@ -54,12 +76,11 @@ export function eventText(e) {
     case 'book': return `${e.name} har samlat alla klistermärken 📒`;
     case 'pet': return `${genitive(e.name)} husdjur blev kung 👑`;
     case 'mission': return 'Klassen klarade veckans uppdrag 🎉';
+    case 'allin': return 'Alla i klassen har varit med den här veckan 🌟';
     default: return `${e.name} gjorde något bra`;
   }
 }
 
-// En enda försiktig mening från husdjuret, för en liten pratbubbla på andra
-// sajter. Det viktigaste vinner: hunger, önskan, dagens utmaning, klassens uppdrag.
 // Lärarens fokus, t.ex. "p7" → "talkamraterna till 7"
 export function focusLabel(f) {
   const m = /^([pmd])(\d{1,2})$/.exec(f || '');
@@ -79,11 +100,12 @@ function trickyTip(tricky) {
 }
 
 // En enda försiktig mening från husdjuret, för en liten pratbubbla på andra sajter.
-// Hunger och en önskan går först. Annars växlar bubblan (varannan timme) mellan
+// En hemlig present, hunger och en önskan går först. Annars växlar bubblan (varannan timme) mellan
 // lugnare saker: lärarens fokus, dagens utmaning, klassens uppdrag, ett minnestips.
-export function nudge({ pet, daily, mission, focus, tricky, today = dayNumber(), now = new Date() }) {
+export function nudge({ pet, daily, mission, focus, tricky, gift = null, everyone = null, today = dayNumber(), now = new Date() }) {
   const p = petView(pet, today);
   if (p.stage === 0) return { kind: 'egg', text: 'Ägget väntar på dig. Spela en runda så kläcks det! 🥚' };
+  if (gift) { const t = TREATS[gift] || TREATS.glass; return { kind: 'gift', text: `Någon i klassen gav mig ${t[1]} ${t[0]} Kom och se! 🎁` }; }
   if (p.mood === 'hungrig') return { kind: 'hungry', text: 'Jag är hungrig! Spelar vi en runda? 🍓' };
   if (p.wish) return { kind: 'wish', text: `Kan du ${p.wish.text}? Då får jag ${p.wish.treat} ${p.wish.icon}` };
   const options = [];
@@ -94,6 +116,7 @@ export function nudge({ pet, daily, mission, focus, tricky, today = dayNumber(),
   }
   if (mission && mission.progress < mission.goal) options.push({ kind: 'mission', text: `Klassen har ${mission.progress} av ${mission.goal} ${mission.unit}. Hjälper du till? 🤝` });
   if (mission && mission.progress >= mission.goal) options.push({ kind: 'done', text: 'Klassen klarade veckans uppdrag! 🎉' });
+  if (everyone && everyone.allIn) options.push({ kind: 'allin', text: `Alla ${everyone.players} i klassen har varit med den här veckan! 🌟` });
   const tip = trickyTip(tricky);
   if (tip) options.push({ kind: 'tip', text: tip });
   if (!options.length) return { kind: 'happy', text: `${p.name} mår toppen idag 💜` };

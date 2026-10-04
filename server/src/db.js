@@ -58,6 +58,7 @@ export const tableNames = prefix => ({
   progress: `${prefix}progress`,
   rounds: `${prefix}rounds`,
   events: `${prefix}events`,
+  gifts: `${prefix}gifts`,
   cheers: `${prefix}cheers`
 });
 
@@ -167,6 +168,27 @@ function migrations(t, client) {
     async down(knex) {
       await knex.schema.alterTable(t.players, tb => { tb.dropColumn('focus'); });
       await knex.schema.alterTable(t.classes, tb => { tb.dropColumn('focus'); });
+    }
+  }, {
+    // Hemliga presenter: den som klarar dagens utmaning skickar en godsak
+    // till en slumpad klasskompis husdjur. Mottagaren får aldrig veta vem.
+    name: '005_gifts',
+    async up(knex) {
+      await knex.schema.createTable(t.gifts, tb => {
+        cs(tb);
+        tb.increments('id').primary();
+        tb.integer('class_id').unsigned().notNullable().references('id').inTable(t.classes).onDelete('CASCADE');
+        tb.integer('from_id').unsigned().notNullable().references('id').inTable(t.players).onDelete('CASCADE');
+        tb.integer('to_id').unsigned().notNullable().references('id').inTable(t.players).onDelete('CASCADE');
+        tb.string('treat', 16).notNullable();
+        tb.boolean('seen').notNullable().defaultTo(false);
+        tb.bigInteger('created_at').notNullable();
+        tb.index(['to_id', 'seen']);
+        tb.index(['from_id', 'created_at']);
+      });
+    },
+    async down(knex) {
+      await knex.schema.dropTableIfExists(t.gifts);
     }
   }];
 }

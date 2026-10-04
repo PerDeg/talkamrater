@@ -31,9 +31,12 @@ Spelet fungerar på två sätt:
 - **Fri träning** går igenom **alla** kamrater på nivån, t.ex. talet 8 ger 0 + 8 … 8 + 0. Pärlorna hjälper till.
   - Minus visar borttagna pärlor med kryss, och fel svar förklaras med plus ("Kolla med plus: 5 + 2 = 7, inte 8").
   - *Bubbelpoppen* (plus) har alla par, och stora tal kommer i flera vågor.
+- **Pärlorna anpassar sig**: den som svarar rätt många gånger i rad får svagare pärlor och sedan inga alls. Det gäller för hela spelet, inte bara ett tal, så hjälpen nollställs inte när man byter uppgift. Vid fel kommer pärlorna tillbaka.
 - **Vägen till expert**:
-  - Ett tal-steg är klart med minst ★★.
-  - Varje område avslutas med ett **prov** utan pärlor, med ett svar per fråga och en medalj för den som klarar det.
+  - Varje tal har tre moment: **Lära** (hitta kamraten med pärlor, minst ★★), **Öva** (bubbelpoppen i plus, minus åt båda hållen, halvor i dubblor) och **Kunna** (ett kort talprov utan pärlor). Kan eleven redan talet hoppas Lära över.
+  - Efter vartannat tal kommer en **repetition** med blandade frågor från talen man lärt sig.
+  - Varje område avslutas med ett **prov** utan pärlor, med ett svar per fråga och en medalj för den som klarar det. Provet öppnas först när allt i området är klart.
+  - En vecka efter ett prov dyker ett frivilligt **Kom ihåg-prov** upp. Klarar man det börjar medaljen glänsa ✨. Det stoppar aldrig vägen.
   - Längs vägen finns **utmaningar på tid** (60 s).
   - Sist kommer slutprovet med **diplom**.
 - **Dagens utmaning**: 8 frågor med ett tema per veckodag (Tiokamratmåndag, Minustisdag, Dubbelonsdag …).
@@ -41,12 +44,13 @@ Spelet fungerar på två sätt:
   - Den ger en svit 🔥 och ett extra klistermärke.
 - **Husdjuret**: ett ägg som kläcks och sakta växer (bebis → liten → stor → jätte → kung 👑).
   - Varje stjärna ger en stjärnfrukt 🍓. Det tar omkring 150 rundor att nå kung.
-  - Husdjuret har **önskningar**, till exempel *"Lös det här så får jag en glass! Poppa alla bubbelpar som blir 9."* Varje uppfylld önskan ger en godsak och extra tillväxt. Det blir högst tre önskningar per dag.
+  - Husdjuret har **önskningar**, till exempel *"Lös det här så får jag en glass! Poppa alla bubbelpar som blir 9."* Varje uppfylld önskan ger en godsak och extra tillväxt. Det blir högst en önskan om dagen, och inte alla dagar.
   - Har eleven inte spelat på några dagar blir husdjuret hungrigt, men det blir aldrig ledset på riktigt.
-- **Kompisduell**: två spelare på samma skärm.
-  - Den som först svarar rätt får poängen, och den som svarar fel låses en kort stund.
+- **Spela två**: två spelare på samma skärm, i två lägen.
+  - **Duell**: den som först svarar rätt får poängen, och den som svarar fel låses en kort stund. Först till 5/7/10.
+  - **Tillsammans** (lagkamp): spelarna turas om och hjälps åt mot klockan, t.ex. 12 rätt på 90 sekunder. Den som väntar ser frågan och hejar. Ett fel visar rätt svar och turen går vidare.
   - Spelare 2 kan vändas upp och ner för att sitta mittemot.
-  - Man väljer talkamrater, tiokamrater, minus eller dubblor, först till 5/7/10.
+  - Man väljer talkamrater, tiokamrater, minus eller dubblor.
 - **Kluriga kamrater**: spelet minns svåra uppgifter i alla världar och låter eleven öva extra på dem.
 - **Belöningar**:
   - Svenska hejarop, konfetti, ljud och röst.
@@ -72,9 +76,13 @@ Klassidan visar:
 
 - **Veckans uppdrag**: ett gemensamt mål som byts varje måndag, t.ex. "Poppa 130 bubbelpar tillsammans". Målet anpassas efter klassens storlek.
 - **Händer i klassen**: ett flöde med medaljer, nya experter, titlar, sviter, husdjur som växer och rekord. Kompisarna kan **heja** 👏, och den som får hejarop ser det nästa gång spelet öppnas. Bara fasta händelsetyper finns, inga fritexter.
+- **Alla med**: hur många i klassen som spelat den här veckan ("17 av 24"). När alla har varit med får alla ett extra klistermärke.
+- **Klassplutten**: klassens gemensamma husdjur. Den växer av allas rundor och är gladast när många har spelat de senaste dagarna.
+- **Kunskapsväggen**: för varje tal, hur många i klassen som kan det. Inga namn, bara en bild av vad klassen kan och var man kan hjälpa varandra.
+- **Hemliga presenter**: den som klarar dagens utmaning skickar en godsak till en slumpad klasskompis husdjur. Mottagaren får aldrig veta vem den kom från.
 - **Klassens stjärnburk**, ett gemensamt mål som alla fyller tillsammans, och varje elevs stjärnor, klistermärken och medaljer. Listan är sorterad på namn, inte som en topplista.
 
-Lärarsidan visar för varje elev: stjärnor, steg på vägen, medaljer, **vilka talkamrater som är kluriga** och de senaste rundorna.
+Lärarsidan visar för varje elev vad den kan bra, vad den behöver träna på, hur mycket den tränat och bidragit, och läraren kan sätta ett fokustal. För klassen visas "alla med", Klassplutten och kunskapsväggen.
 
 **Personuppgifter:** bara förnamn (eller smeknamn), figur och spelresultat sparas. Inga e-postadresser och inga lösenord.
 

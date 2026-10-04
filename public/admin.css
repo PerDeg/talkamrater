@@ -35,3 +35,10 @@ td select.saved { border-color: var(--leaf); }
 .good { color: var(--leaf); font-weight: 800; }
 .small { font-size: 0.8rem; font-weight: 700; }
 .app { max-width: 1180px; }
+.adm-wall { margin-bottom: 12px; display: grid; gap: 6px; }
+.adm-wall p { margin: 0; }
+.adm-wall-row { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.adm-wall-row b { min-width: 5.5em; }
+.adm-wall-row span { min-width: 2.4em; text-align: center; border-radius: 8px; padding: 2px 4px; font-weight: 800; font-variant-numeric: tabular-nums;
+  background: color-mix(in srgb, var(--leaf) calc(var(--share) * 80%), var(--sky-2)); }
+.adm-wall-row sup { font-size: 0.65rem; margin-left: 1px; }

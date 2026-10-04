@@ -36,7 +36,14 @@ GET https://talkamrater.degerfalt.se/api/public/classes/{klasskod}?name={namn}&e
 
 ```json
 {
-  "class": { "name": "Klass 2", "code": "SOL-4821", "players": 24 },
+  "class": {
+    "name": "Klass 2", "code": "SOL-4821", "players": 24,
+    "pet": {
+      "name": "Klassplutten", "stage": 2, "stageName": "Liten", "icon": "🐾",
+      "mood": "glad", "moodText": "Klassplutten mår bra. Fler kompisar får gärna spela.",
+      "rounds": 180, "nextAt": 360, "percent": 33
+    }
+  },
   "mission": {
     "title": "Poppa 130 bubbelpar tillsammans",
     "unit": "bubbelpar",
@@ -44,7 +51,8 @@ GET https://talkamrater.degerfalt.se/api/public/classes/{klasskod}?name={namn}&e
     "progress": 15,
     "percent": 12,
     "done": false,
-    "endsAt": 1791158400000
+    "endsAt": 1791158400000,
+    "everyone": { "contributed": 17, "players": 24, "allIn": false }
   },
   "jar": { "total": 342, "goal": 400 },
   "me": {
@@ -84,6 +92,15 @@ GET https://talkamrater.degerfalt.se/api/public/classes/{klasskod}?name={namn}&e
 
 **`class`**: klassens namn, kod och antal elever som gått med.
 
+**`class.pet`**: Klassplutten, klassens gemensamma husdjur. Den växer av alla rundor i klassen (räknat per elev, så att små och stora klasser växer lika fort) och mår bra när många har spelat de senaste tre dagarna.
+| Fält | Betydelse |
+|---|---|
+| `name` | Alltid "Klassplutten" |
+| `stage`, `stageName`, `icon` | Stadium 0–5, samma som elevens husdjur: Ägg 🥚 … Kung 👑 |
+| `mood`, `moodText` | `ägg`, `längtar`, `glad` eller `överlycklig`, plus en färdig mening |
+| `rounds`, `nextAt` | Klassens rundor hittills och hur många som behövs till nästa stadium (`null` när den är kung) |
+| `percent` | 0–100, hur långt det är kvar till nästa stadium |
+
 **`mission`**: veckans gemensamma uppdrag. Det byts måndag 00:00 (serverns tidszon).
 | Fält | Typ | Betydelse |
 |---|---|---|
@@ -93,6 +110,7 @@ GET https://talkamrater.degerfalt.se/api/public/classes/{klasskod}?name={namn}&e
 | `percent` | tal 0–100 | Färdigräknat för en förloppsindikator |
 | `done` | bool | `true` när målet är nått |
 | `endsAt` | ms sedan 1970 | När veckan tar slut (för "3 dagar kvar") |
+| `everyone` | objekt | **Alla med:** `contributed` = hur många elever som spelat minst en runda den här veckan, `players` = antal elever, `allIn` = `true` när alla har varit med (minst två elever). Visa t.ex. "17 av 24 har varit med". När alla är med får alla ett extra klistermärke i spelet. |
 
 **`jar`**: klassens stjärnburk: alla elevers stjärnor (`total`) mot lärarens mål (`goal`).
 
@@ -101,7 +119,7 @@ GET https://talkamrater.degerfalt.se/api/public/classes/{klasskod}?name={namn}&e
 |---|---|
 | `name`, `avatar` | Elevens namn och figur (emoji) |
 | `stars`, `stickers` | Insamlade stjärnor och antal olika klistermärken (av 30) |
-| `steps` | Klarade steg på vägarna till expert (alla världar) |
+| `steps` | Klarade steg på vägarna till expert (alla världar). Varje tal har tre moment (Lära, Öva, Kunna), och repetitioner och Kom ihåg-prov räknas också, så siffran växer stadigt. |
 | `medals`, `medalIcons` | Antal medaljer och medaljerna som emojis |
 | `experts` | Världar där eleven är expert: `plus`, `minus`, `dubbel` |
 | `dailyStreak` | Dagens utmaning så många dagar i rad |
@@ -118,11 +136,12 @@ GET https://talkamrater.degerfalt.se/api/public/classes/{klasskod}?name={namn}&e
 | `mood`, `moodText` | `ägg`, `glad`, `hungrig` eller `överlycklig`, plus en färdig mening |
 | `wish` | Dagens önskan, eller `null`. `text` passar efter "Kan du …?". `have`/`need` visar hur långt eleven kommit. |
 
-**`me.nudge`**: det viktigaste husdjuret vill säga just nu, som en färdig mening (`text`) och en typ (`kind`). Ägg, hunger och en önskan går först. Husdjuret har högst en önskan om dagen, och inte alla dagar. Annars växlar bubblan varannan timme mellan lärarens fokus, dagens utmaning, klassens uppdrag och ett minnestips.
+**`me.nudge`**: det viktigaste husdjuret vill säga just nu, som en färdig mening (`text`) och en typ (`kind`). Ägg, en hemlig present, hunger och en önskan går först. Husdjuret har högst en önskan om dagen, och inte alla dagar. Annars växlar bubblan varannan timme mellan lärarens fokus, dagens utmaning, klassens uppdrag, "alla med" och ett minnestips.
 
 | `kind` | Exempel på `text` |
 |---|---|
 | `egg` | Ägget väntar på dig. Spela en runda så kläcks det! 🥚 |
+| `gift` | Någon i klassen gav mig 🍦 Kom och se! 🎁 (en hemlig present väntar, försvinner när eleven öppnar spelet) |
 | `hungry` | Jag är hungrig! Spelar vi en runda? 🍓 |
 | `wish` | Kan du poppa alla bubbelpar som blir 9? Då får jag en glass 🍦 |
 | `daily` | Dagens utmaning väntar! Håll sviten på 3 dagar 🔥 |
@@ -130,9 +149,10 @@ GET https://talkamrater.degerfalt.se/api/public/classes/{klasskod}?name={namn}&e
 | `mission` | Klassen har 15 av 130 bubbelpar. Hjälper du till? 🤝 |
 | `tip` | Kom ihåg: 3 och 5 är kompisar till 8 🧠 |
 | `done` | Klassen klarade veckans uppdrag! 🎉 |
+| `allin` | Alla 24 i klassen har varit med den här veckan! 🌟 |
 | `happy` | Plutt mår toppen idag 💜 |
 
-**`events`**: klassens senaste stora händelser, nyast först. Använd `text` direkt. `type` är `medal`, `expert`, `daily`, `book`, `pet` eller `mission`, och kan användas för egna ikoner. `at` är en tidpunkt i ms.
+**`events`**: klassens senaste stora händelser, nyast först. Använd `text` direkt. `type` är `medal`, `expert`, `daily`, `book`, `pet`, `mission` eller `allin` (alla i klassen har varit med den här veckan), och kan användas för egna ikoner. `at` är en tidpunkt i ms.
 
 **`playUrl`**: länk till spelet. Den öppnar *Gå med i klassen* med koden ifylld.
 
@@ -213,7 +233,7 @@ Ett kompakt kort med veckans uppdrag, elevens rad, husdjurets önskan och eventu
 
 ## Integritet
 
-Klasskod plus förnamn räcker för att se en elevs status. Därför är funktionen avstängd tills läraren slår på den per klass. Endast förnamn, figur och spelresultat visas, aldrig något annat.
+Klasskod plus förnamn räcker för att se en elevs status. Därför är funktionen avstängd tills läraren slår på den per klass. Endast förnamn, figur och spelresultat visas, aldrig något annat. Klassplutten och "alla med" visar bara antal, aldrig vem som har eller inte har spelat. Hemliga presenter visar aldrig vem de kom från.
 
 ## Be Claude bygga in det i schemat
 

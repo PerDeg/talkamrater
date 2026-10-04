@@ -95,9 +95,9 @@
     set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} },
     del(k) { try { localStorage.removeItem(k); } catch (e) {} }
   };
-  const FIELDS = ['best', 'total', 'rounds', 'stickers', 'path', 'records', 'tricky', 'skill', 'pet', 'daily'];
+  const FIELDS = ['best', 'total', 'rounds', 'stickers', 'path', 'records', 'tricky', 'skill', 'dates', 'pet', 'daily'];
   const freshProgress = () => ({
-    best: {}, total: 0, rounds: 0, stickers: [], path: {}, records: {}, tricky: {}, skill: {},
+    best: {}, total: 0, rounds: 0, stickers: [], path: {}, records: {}, tricky: {}, skill: {}, dates: {},
     pet: { xp: 0, last: 0, born: 0, name: '' }, daily: { day: 0, streak: 0, best: 0, count: 0 }
   });
   const progressOf = s => Object.fromEntries(FIELDS.map(k => [k, s[k]]));
@@ -186,10 +186,56 @@
         un.hidden = false;
         un.insertAdjacentHTML('afterbegin', `🤝 Du hjälpte klassen med <b>${added} ${esc(m.unit)}</b> (${m.progress} av ${m.goal})<br>`);
       }
+      if (net.classInfo && m.everyone) net.classInfo.mission.everyone = m.everyone;
       if (res.completed) {
         setTimeout(() => { cheer('Klassen klarade veckans uppdrag!', true); rain(220); sfx.fanfare(); say('Hurra! Klassen klarade veckans uppdrag!'); }, 1500);
+      } else if (res.allIn) {
+        setTimeout(() => { cheer('Alla i klassen är med!', true); rain(160); sfx.fanfare(); say('Hurra! Nu har alla i klassen varit med den här veckan!'); }, 1500);
+      }
+      if (res.allIn || (m.everyone && m.everyone.allIn)) allInBonus(m);
+    } catch (e) {}
+  }
+  // Hemliga presenter från klasskompisar: husdjuret får en godsak, men ingen
+  // får veta vem den kom från
+  const GIFT_XP = 3;
+  let giftsBusy = false;
+  async function receiveGifts(gifts) {
+    if (!gifts.length || giftsBusy) return;
+    giftsBusy = true;
+    try {
+      await api('POST', 'me/gifts/seen');
+      for (const g of gifts) { save.pet.xp += GIFT_XP; save.pet.treats = (save.pet.treats || 0) + 1; }
+      const t = treatOf({ treat: gifts[gifts.length - 1].treat });
+      prefs.lastGift = { day: today(), treat: t[0], n: gifts.length }; savePrefs();
+      persist();
+      const text = gifts.length === 1 ? `Någon i klassen gav ${petName()} ${t[2]}! ${t[1]}` : `${petName()} fick ${gifts.length} hemliga presenter från klassen! 🎁`;
+      setTimeout(() => { cheer(text, true); sfx.streak(); rain(70); say(gifts.length === 1 ? `Någon i klassen gav ${petName()} ${t[2]}!` : `${petName()} fick ${gifts.length} hemliga presenter!`); }, 600);
+      if (current === 'start') renderStart();
+    } catch (e) {} finally { giftsBusy = false; }
+  }
+  // Skickas när man klarar dagens utmaning
+  async function sendGift() {
+    if (!net.player) return;
+    try {
+      const t = pick(TREATS);
+      const r = await api('POST', 'me/gift', { treat: t[0] });
+      if (r && r.sent && current === 'done') {
+        const un = $('#unlock'); un.hidden = false;
+        un.insertAdjacentHTML('beforeend', `<br>🎁 Du skickade ${t[2]} ${t[1]} som hemlig present till en klasskompis husdjur!`);
       }
     } catch (e) {}
+  }
+  // Alla med-bonus: när hela klassen har spelat under veckan får alla ett extra klistermärke
+  function allInBonus(m) {
+    const wk = dayNumber(new Date(m.start));
+    if (!m.start || (save.dates.allin || 0) >= wk) return;
+    save.dates.allin = wk;
+    const owned = new Set(save.stickers);
+    const missing = STICKERS.filter(([e]) => !owned.has(e));
+    const prize = missing.length ? pick(missing) : pick(STICKERS);
+    save.stickers.push(prize[0]);
+    persist();
+    setTimeout(() => { cheer(`Alla med-bonus! ${prize[0]}`, true); rain(120); say('Alla i klassen har spelat den här veckan! Du får ett extra klistermärke.'); }, 2600);
   }
   function postEvent(type, detail) { if (net.player) api('POST', 'me/events', { type, detail: String(detail) }).catch(() => {}); }
 
@@ -213,6 +259,8 @@
     if (!net.player || !net.online) return null;
     try {
       net.classInfo = await api('GET', 'me/class');
+      receiveGifts(net.classInfo.gifts || []);
+      if (net.classInfo.mission && net.classInfo.mission.everyone && net.classInfo.mission.everyone.allIn) allInBonus(net.classInfo.mission);
       const seen = prefs.seenCheers[net.player.id] || 0;
       const fresh = net.classInfo.myCheers - seen;
       if (current === 'start') {
@@ -595,6 +643,10 @@
     }
     const days = p.last ? today() - p.last : 99;
     if (days >= 2) return { cls: 'mood-hungry', text: days <= 3 ? `${petName()} är hungrig! Spela en runda för att mata.` : `${petName()} har längtat efter dig! En runda så blir allt bra igen.` };
+    if (prefs.lastGift && prefs.lastGift.day === today()) {
+      const t = treatOf({ treat: prefs.lastGift.treat });
+      return { cls: 'mood-happy', text: `${petName()} fick ${t[2]} ${t[1]} från någon i klassen idag! 🎁` };
+    }
     if (p.wishDay === today() && p.wishCount >= WISHES_PER_DAY) return { cls: 'mood-happy', text: `${petName()} fick sin önskan idag och är överlycklig! 💜` };
     if (p.wish) return { cls: days <= 0 ? 'mood-happy' : 'mood-ok', text: days <= 0 ? `${petName()} är mätt men har en önskan …` : `${petName()} har en önskan idag.` };
     return { cls: days <= 0 ? 'mood-happy' : 'mood-ok', text: days <= 0 ? pick([`${petName()} är mätt och glad!`, `${petName()} gillar att räkna med dig!`]) : `${petName()} undrar om ni ska spela idag.` };
@@ -711,6 +763,12 @@
 
   /* ================= Frågor per värld ================= */
   function prepQ(q) {
+    if (q.form != null && q.fixed) {
+      if (q.w === 'minus') { q.ans = q.form === 0 ? q.n - q.a : q.a; q.max = q.n; }
+      else if (q.w === 'dubbel') { q.ans = q.form === 0 ? 2 * q.n : q.n; q.max = q.form === 0 ? Math.max(12, 2 * q.n + 3) : Math.max(6, q.n + 3); }
+      else { q.ans = q.n - q.a; q.max = q.n; }
+      return q;
+    }
     if (q.w === 'plus') { q.form = rnd(0, 2); q.ans = q.n - q.a; q.max = q.n; }
     else if (q.w === 'minus') { q.form = Math.random() < 0.7 ? 0 : 1; q.ans = q.form === 0 ? q.n - q.a : q.a; q.max = q.n; }
     else { q.form = rnd(0, 2); q.ans = q.form === 0 ? 2 * q.n : q.n; q.max = q.form === 0 ? Math.max(12, 2 * q.n + 3) : Math.max(6, q.n + 3); }
@@ -773,15 +831,21 @@
     const n = +m[2], a = +m[3];
     return { w, n, a: w === 'dubbel' ? n : Math.random() < 0.5 ? a : n - a };
   }
-  // Färdighet per tal och värld (0–10). Styr om pärlorna visas.
+  // Färdighet per tal och värld (0–10), plus en total färdighet "g" för hela
+  // spelet. Pärlorna styrs av den högsta av dem, så att de inte kommer tillbaka
+  // bara för att man byter tal. Ett fel sänker båda, så hjälpen kommer tillbaka
+  // när det börjar bli svårt.
   const skillKey = q => q.w[0] + q.n;
-  const skillOf = q => save.skill[skillKey(q)] || 0;
+  const skillOf = q => Math.max(save.skill[skillKey(q)] || 0, save.skill.g || 0);
+  const clamp10 = v => Math.max(0, Math.min(10, v));
   function markSkill(q, correctFirstTry) {
     const k = skillKey(q);
-    save.skill[k] = Math.max(0, Math.min(10, (save.skill[k] || 0) + (correctFirstTry ? 1 : -2)));
+    save.skill[k] = clamp10((save.skill[k] || 0) + (correctFirstTry ? 1 : -2));
+    save.skill.g = clamp10((save.skill.g || 0) + (correctFirstTry ? 1 : -3));
   }
   // full = pärlor med tomma ringar, faint = svaga pärlor, none = inga pärlor
   const beadMode = q => (skillOf(q) >= 7 ? 'none' : skillOf(q) >= 4 ? 'faint' : 'full');
+  const knows = (w, n) => (save.skill[w[0] + n] || 0) >= 7;
 
   function markTricky(q, wrong) {
     const k = trickyKey(q);
@@ -900,13 +964,62 @@
   }
 
   /* ================= Vägen till expert ================= */
+  // Varje tal på vägen har tre moment: Lära (med pärlor), Öva (på ett annat sätt)
+  // och Kunna (ett kort talprov utan pärlor). Efter vartannat tal kommer en
+  // repetition, och zonens prov öppnas först när allt i zonen är klart.
+  // Kan man redan ett tal (pärlorna har försvunnit) hoppas Lära över.
+  const MOMENTS = {
+    plus: [
+      { id: 'learn', label: 'Lära', icon: '📿', text: n => `Hitta kamraterna till ${n} med pärlorna. Minst ★★.` },
+      { id: 'practice', label: 'Öva', icon: '🫧', text: n => `Poppa alla bubbelpar som blir ${n}. Minst ★★.` },
+      { id: 'master', label: 'Kunna', icon: '🎯', text: () => 'Ett kort talprov utan pärlor.' }
+    ],
+    minus: [
+      { id: 'learn', label: 'Lära', icon: '📿', text: n => `Minus från ${n} med pärlorna. Minst ★★.` },
+      { id: 'practice', label: 'Öva', icon: '🔄', text: () => 'Åt båda hållen: hur många är kvar, och hur många försvann? Minst ★★.' },
+      { id: 'master', label: 'Kunna', icon: '🎯', text: () => 'Ett kort talprov utan pärlor.' }
+    ],
+    dubbel: [
+      { id: 'learn', label: 'Lära', icon: '📿', text: n => `Dubblorna upp till ${n} med pärlorna. Minst ★★.` },
+      { id: 'practice', label: 'Öva', icon: '✂️', text: () => 'Halvor: dela talet i två lika delar. Minst ★★.' },
+      { id: 'master', label: 'Kunna', icon: '🎯', text: () => 'Ett kort prov utan pärlor.' }
+    ]
+  };
+  const practiceKey = (wid, n) => (wid === 'plus' ? `${n}:bubbles` : wid === 'minus' ? `m${n}:both` : `d${n}:half`);
+  const masterId = (wid, n) => `k-${WORLDS[wid].prefix}n${n}`;
+  function momentsFor(wid, n, zonePassed) {
+    const p = WORLDS[wid].prefix;
+    const learnStars = save.best[`${p}${n}:find`] || 0, practiceStars = save.best[practiceKey(wid, n)] || 0;
+    const learnDone = learnStars >= 2 || (save.path[`${p}n${n}`] || 0) > 0;
+    const state = {
+      learn: { done: zonePassed || learnDone || knows(wid, n), stars: learnStars, skipped: !learnDone && !zonePassed && knows(wid, n) },
+      practice: { done: zonePassed || practiceStars >= 2, stars: practiceStars },
+      master: { done: zonePassed || (save.path[masterId(wid, n)] || 0) > 0, stars: null }
+    };
+    return MOMENTS[wid].map(m => ({ ...m, ...state[m.id], text: m.text(n) }));
+  }
+  // Talprovet: kort, utan pärlor, ett fel får man göra
+  function numTestCfg(wid, n) {
+    if (wid === 'dubbel') { const count = n <= 2 ? 4 : 6; return { lo: 1, hi: n, count, pass: count - 1 }; }
+    const count = n <= 3 ? 5 : 8;
+    return { lo: n, hi: n, count, pass: count - 1 };
+  }
   function stations(wid) {
     const w = WORLDS[wid], p = w.prefix, list = [];
     for (const z of w.zones) {
+      // Den som redan klarat zonens prov behöver inte göra om zonen
+      const zonePassed = (save.path['t-' + z.id] || 0) > 0;
       for (let n = z.from; n <= z.to; n++) {
-        list.push({ world: wid, kind: 'number', id: `${p}n${n}`, n, zone: z, name: w.level(n), done: (save.best[`${p}${n}:find`] || 0) >= 2 });
+        const moments = momentsFor(wid, n, zonePassed);
+        list.push({ world: wid, kind: 'number', id: `${p}n${n}`, n, zone: z, name: w.level(n), moments, done: moments.every(m => m.done) });
+        const k = n - z.from + 1;
+        if (k % 2 === 0 && n < z.to) {
+          const id = `r-${z.id}-${k}`, small = n <= 3;
+          list.push({ world: wid, kind: 'review', id, zone: z, name: 'Repetition', lo: z.from, hi: n,
+            count: small ? 6 : 8, pass: small ? 5 : 6, done: zonePassed || (save.path[id] || 0) > 0 });
+        }
       }
-      list.push({ world: wid, kind: 'test', id: 't-' + z.id, zone: z, name: `Prov: ${z.name}`, lo: z.from, hi: z.to, count: z.test.count, pass: z.test.pass, done: (save.path['t-' + z.id] || 0) > 0 });
+      list.push({ world: wid, kind: 'test', id: 't-' + z.id, zone: z, name: `Prov: ${z.name}`, lo: z.from, hi: z.to, count: z.test.count, pass: z.test.pass, done: zonePassed });
       if (z.challenge) list.push({ world: wid, kind: 'challenge', zone: z, ...z.challenge, done: (save.path[z.challenge.id] || 0) > 0 });
     }
     list.push({ world: wid, kind: 'final', ...w.final, done: (save.path[w.final.id] || 0) > 0 });
@@ -915,16 +1028,46 @@
     return list;
   }
   const stationById = id => WORLD_IDS.flatMap(stations).find(s => s.id === id);
-  const doneCount = wid => stations(wid).filter(s => s.done).length;
+  // Framsteg på vägen räknat i moment: ett tal är tre moment, allt annat ett
+  function pathUnits(wid) {
+    const all = stations(wid);
+    return {
+      done: all.reduce((sum, s) => sum + (s.kind === 'number' ? s.moments.filter(m => m.done).length : s.done ? 1 : 0), 0),
+      total: all.reduce((sum, s) => sum + (s.kind === 'number' ? s.moments.length : 1), 0)
+    };
+  }
+  const doneCount = wid => pathUnits(wid).done;
+  const nextMoment = s => s.moments.find(m => !m.done);
+  const stepName = s => (s.kind === 'number' && !s.done ? `${s.name}: ${nextMoment(s).label}` : s.name);
+
+  // Kom ihåg-provet: en vecka efter ett klarat zonprov kan medaljen fås att
+  // glänsa. Frivilligt, det stoppar aldrig vägen.
+  const RECALL_DAYS = 7;
+  function recallFor(wid, z) {
+    const id = 't-' + z.id, day = save.dates[id];
+    if (!save.path[id] || save.path['s-' + id] || !day || today() - day < RECALL_DAYS) return null;
+    return { world: wid, kind: 'recall', id: 's-' + id, zone: z, name: `Kom ihåg: ${z.name}`, lo: z.from, hi: z.to, count: 5, pass: 4 };
+  }
+  const recallsWaiting = () => WORLD_IDS.flatMap(w => WORLDS[w].zones.map(z => recallFor(w, z)).filter(Boolean));
+  // Prov som klarades innan datum sparades räknas från idag
+  function fixDates() {
+    let changed = false;
+    for (const k of Object.keys(ALL_MEDALS)) if (k.startsWith('t-') && save.path[k] && !save.dates[k]) { save.dates[k] = today(); changed = true; }
+    if (changed) persist();
+  }
 
   function stationDetail(s) {
-    const p = WORLDS[s.world].prefix;
-    if (s.kind === 'number') return s.done ? starStr(save.best[`${p}${s.n}:find`]) : 'Klara rundan med minst ★★';
-    if (s.kind === 'test') return s.done ? `Klarat! ${save.path[s.id]} av ${s.count} rätt` : `${s.count} frågor · ${s.pass} rätt behövs`;
+    if (s.kind === 'number') {
+      const dots = s.moments.map(m => (m.done ? '●' : '○')).join('');
+      return s.done ? `<span class="dots">${dots}</span> Klart!` : `<span class="dots">${dots}</span> ${s.open ? `Nu: ${nextMoment(s).label}` : 'Lära · Öva · Kunna'}`;
+    }
+    if (s.kind === 'review') return s.done ? `Klarat! ${save.path[s.id]} av ${s.count} rätt` : `Blandat ${s.lo}–${s.hi} · ${s.pass} av ${s.count} rätt`;
+    if (s.kind === 'test') return s.done ? `Klarat! ${save.path[s.id] || ''} ${save.path[s.id] ? `av ${s.count} rätt` : ''}` : `${s.count} frågor · ${s.pass} rätt behövs`;
     if (s.kind === 'challenge') return s.done ? `Klarat! Rekord ${save.records[s.id] || 0}` : `${s.secs} sekunder · mål ${s.goal} rätt`;
     return s.done ? `Du är ${WORLDS[s.world].expertTitle.toLowerCase()}!` : `${s.count} frågor · ${s.pass} rätt behövs`;
   }
   const nodeIcon = s => (s.kind === 'number' ? (s.done || s.open ? s.n : '🔒')
+    : s.kind === 'review' ? (s.done ? '✓' : s.open ? '🔁' : '🔒')
     : s.kind === 'test' ? (s.done ? '✓' : s.open ? '📝' : '🔒')
     : s.kind === 'challenge' ? (s.done ? '✓' : s.open ? '⏱️' : '🔒')
     : (s.done ? EXPERT_ICON[s.world] : s.open ? '🏆' : '🔒'));
@@ -939,9 +1082,12 @@
       const medal = w.medals['t-' + z.id];
       const el = document.createElement('div');
       el.className = 'panel zone';
+      const rc = recallFor(w.id, z), shine = !!save.path['s-t-' + z.id];
       el.innerHTML = `<svg class="road" aria-hidden="true"><path class="bed"/><path class="dash"/></svg>
-        <div class="zone-head"><h3>${z.name}<small>${w.id === 'dubbel' ? 'Dubblor' : 'Talen'} ${z.from}–${z.to}</small></h3><span class="medal ${save.path['t-' + z.id] ? 'on' : ''}" title="${medal[1]}">${medal[0]}</span></div>
+        <div class="zone-head"><h3>${z.name}<small>${w.id === 'dubbel' ? 'Dubblor' : 'Talen'} ${z.from}–${z.to}</small></h3><span class="medal ${save.path['t-' + z.id] ? 'on' : ''}${shine ? ' shine' : ''}" title="${medal[1]}${shine ? ' (glänser)' : ''}">${medal[0]}</span></div>
+        ${rc ? '<button class="recall-btn" data-recall>✨ Kom ihåg-prov: få medaljen att glänsa</button>' : ''}
         <div class="stops"></div>`;
+      if (rc) $('[data-recall]', el).addEventListener('click', () => { roadContext = true; showIntro(rc); });
       const stops = $('.stops', el);
       all.filter(s => s.zone === z).forEach((s, i) => stops.appendChild(stopButton(s, zigzag[i % 4])));
       wrap.appendChild(el);
@@ -962,7 +1108,7 @@
     b.disabled = !s.open && !s.done;
     b.innerHTML = `<span class="node kind-${s.kind}" data-me="${s.open && !s.done ? myFace() : ''}">${nodeIcon(s)}</span>
       <span class="txt"><b>${esc(s.name)}</b><small>${stationDetail(s)}</small></span>`;
-    b.setAttribute('aria-label', `${s.name}. ${s.done ? 'Klarad' : s.open ? 'Nästa steg' : 'Låst'}`);
+    b.setAttribute('aria-label', `${s.name}. ${s.done ? 'Klarad' : s.open ? 'Nästa steg' : 'Låst'}${s.kind === 'number' ? `, ${s.moments.filter(m => m.done).length} av 3 moment` : ''}`);
     b.addEventListener('click', () => openStation(s));
     return b;
   }
@@ -987,8 +1133,49 @@
   let roadContext = false;
   function openStation(s) {
     roadContext = true;
-    if (s.kind === 'number') return s.world === 'plus' ? openMode(s.n) : startFindLevel(s.world, s.n);
+    if (s.kind === 'number') return openStep(s);
     showIntro(s);
+  }
+
+  // Ett tal på vägen: tre moment i tur och ordning
+  const STEP_TALK = [
+    n => `Först lär vi oss ${n}. Pärlorna hjälper dig!`,
+    () => pick(['Nu övar vi på ett nytt sätt. Det gör hjärnan stark!', 'Öva, öva! Varje gång blir det lite lättare.']),
+    () => 'Sista momentet! Visa att du kan det utan pärlor.'
+  ];
+  function openStep(s) {
+    stopGame();
+    roadContext = true;
+    show('step');
+    const w = WORLDS[s.world], what = s.world === 'plus' ? `talkamraterna till ${s.n}` : s.world === 'minus' ? `minus från ${s.n}` : `dubblorna upp till ${s.n}`;
+    const done = s.moments.filter(m => m.done).length;
+    $('#stepTitle').textContent = s.name;
+    $('#stepSub').textContent = done === s.moments.length ? 'Klart! Spela gärna igen, repetition gör dig ännu säkrare.' : `${done} av ${s.moments.length} moment klara`;
+    const first = s.moments.findIndex(m => !m.done);
+    const box = $('#moments'); box.innerHTML = '';
+    s.moments.forEach((m, i) => {
+      const open = m.done || i === first;
+      const b = document.createElement('button');
+      b.className = 'moment' + (m.done ? ' done' : open ? ' open' : '');
+      b.disabled = !open;
+      b.innerHTML = `<span class="mi" aria-hidden="true">${m.done ? '✓' : open ? m.icon : '🔒'}</span>
+        <span class="mt"><b>${i + 1}. ${m.label}</b><small>${m.skipped ? 'Du kan redan talet, så det här momentet är klart! 💪' : esc(m.text)}</small></span>
+        ${m.stars ? `<span class="ms" aria-label="${m.stars} stjärnor">${starStr(m.stars)}</span>` : ''}`;
+      b.addEventListener('click', () => startMoment(s, m));
+      box.appendChild(b);
+    });
+    talk(first < 0 ? `Du kan ${what}! Bra jobbat, ${nm()}!` : STEP_TALK[first](s.n), 'happy');
+    $('#stepBack').onclick = () => openRoad(s.world);
+    const cur = $('#moments .moment.open:not(.done)');
+    if (cur) cur.focus({ preventScroll: true });
+  }
+  function startMoment(s, m) {
+    const extra = { stepId: s.id };
+    if (m.id === 'learn') return startFindLevel(s.world, s.n, false, extra);
+    if (m.id === 'master') return startNumTest(s.world, s.n, extra);
+    if (s.world === 'plus') return startBubbles(s.n, extra);
+    if (s.world === 'minus') return startBoth(s.n, extra);
+    return startHalves(s.n, extra);
   }
 
   function showIntro(s) {
@@ -1000,6 +1187,12 @@
       $('#introTitle').textContent = s.name;
       list.innerHTML = `<li>⏱️ ${s.secs} sekunder</li><li>🎯 Mål: ${s.goal} rätt</li><li>${s.lo === s.hi ? (w.id === 'minus' ? `Minus från ${s.lo}` : `Bara kamrater till ${s.lo}`) : `Blandat: ${what}`}</li>`;
       talk(save.records[s.id] ? `Ditt rekord är ${save.records[s.id]}. Kan du slå det?` : 'Svara så snabbt du kan. Fel gör inget, fortsätt bara!');
+    } else if (s.kind === 'review' || s.kind === 'recall') {
+      $('#introTitle').textContent = s.name;
+      list.innerHTML = `<li>🔁 ${s.count} blandade frågor: ${what}</li><li>🎯 ${s.pass} rätt behövs</li><li>🙈 Inga pärlor, ett svar per fråga</li>`;
+      talk(s.kind === 'recall'
+        ? `Det var ett tag sedan du klarade ${s.zone.name}. Kommer du ihåg? Då börjar medaljen glänsa! ✨`
+        : 'Nu blandar vi talen du har lärt dig. Kommer du ihåg dem?');
     } else {
       $('#introTitle').textContent = s.name;
       list.innerHTML = `<li>📝 ${s.count} frågor: ${what}</li><li>🎯 ${s.pass} rätt behövs för att klara</li><li>🙈 Inga pärlor nu, du har dem i huvudet!</li>`;
@@ -1043,13 +1236,16 @@
     renderPet();
     renderWorldTabs($('#worldTabs'), renderStart);
 
-    const all = stations(w.id), done = all.filter(s => s.done).length;
+    fixDates();
+    const all = stations(w.id), units = pathUnits(w.id);
     const next = all.find(s => !s.done);
     $('#roadLabel').textContent = w.id === 'plus' ? 'Vägen till expert' : `${w.name}: vägen till expert`;
-    $('#roadCount').textContent = `Steg ${done} av ${all.length}`;
-    $('#roadMeter').style.width = (100 * done / all.length) + '%';
-    $('#roadNext').innerHTML = next ? `Nästa: <span>${esc(next.name)}</span>` : `<span>Du är ${w.expertTitle}!</span>`;
-    $('#openRoad').textContent = done === 0 ? 'Börja resan' : next ? 'Fortsätt resan' : 'Titta på vägen';
+    $('#roadCount').textContent = `Steg ${units.done} av ${units.total}`;
+    $('#roadMeter').style.width = (100 * units.done / units.total) + '%';
+    const recalls = recallsWaiting().filter(r => r.world === w.id);
+    $('#roadNext').innerHTML = (next ? `Nästa: <span>${esc(stepName(next))}</span>` : `<span>Du är ${w.expertTitle}!</span>`)
+      + (recalls.length ? `<br><span class="recall-note">✨ Ett Kom ihåg-prov väntar</span>` : '');
+    $('#openRoad').textContent = units.done === 0 ? 'Börja resan' : next ? 'Fortsätt resan' : 'Titta på vägen';
 
     const tricky = Object.values(save.tricky).filter(v => v > 0).length;
     $('#trickyPanel').hidden = tricky === 0;
@@ -1122,6 +1318,10 @@
     $('#ctMeter').style.width = Math.min(100, 100 * m.progress / m.goal) + '%';
     $('#ctProgress').textContent = done ? `Klart! ${m.progress} ${m.unit} 🎉` : `${m.progress} av ${m.goal} ${m.unit}`;
     $('#ctMine').textContent = m.mine > 0 ? `Du har bidragit med ${m.mine} ${m.unit}. Tack! 🤝` : 'Spela en runda så hjälper du klassen!';
+    const all = m.everyone;
+    $('#ctAll').hidden = !all || all.players < 2;
+    if (all && all.players >= 2) $('#ctAll').textContent = all.allIn ? `🌟 Alla ${all.players} är med den här veckan!` : `👥 ${all.contributed} av ${all.players} har varit med den här veckan`
+      + (ci.pet && ci.pet.stage > 0 ? ` · ${ci.pet.icon} ${ci.pet.name} ${ci.pet.mood === 'längtar' ? 'längtar' : 'är glad'}` : '');
     const ev = ci.events && ci.events[0];
     $('#ctEvent').hidden = !ev;
     if (ev) $('#ctEvent').innerHTML = `${esc(ev.avatar)} ${eventText(ev)}`;
@@ -1170,10 +1370,31 @@
   }
 
   /* ================= Spel: Hitta kamraten / prov ================= */
-  function startFindLevel(w, n, isFocus) {
+  function startFindLevel(w, n, isFocus, extra = {}) {
     const Wd = WORLDS[w];
     startFind({ kind: 'train', world: w, n, focus: !!isFocus || teacherFocus() === `${w[0]}${n}`, level: `${Wd.prefix}${n}`, mode: 'find',
-      label: isFocus ? `Fokus: ${Wd.level(n)}` : Wd.level(n), qs: allQs(w, n), beads: true, retry: true });
+      label: isFocus ? `Fokus: ${Wd.level(n)}` : Wd.level(n), qs: allQs(w, n), beads: true, retry: true,
+      ...extra, again: () => startFindLevel(w, n, isFocus, extra) });
+  }
+  // Öva minus åt båda hållen: "8 − 3 = ?" och "8 − ? = 5" varannan gång
+  function startBoth(n, extra = {}) {
+    const qs = allQs('minus', n).map((q, i) => ({ ...q, form: i % 2, fixed: true }));
+    startFind({ kind: 'train', world: 'minus', n, level: `m${n}`, mode: 'both', label: `Minus från ${n}: åt båda hållen`, qs, beads: true, retry: true,
+      ...extra, again: () => startBoth(n, extra) });
+  }
+  // Öva halvor: "Hälften av 12" och "? + ? = 12"
+  function startHalves(n, extra = {}) {
+    let qs = range(1, n).map((L, i) => ({ w: 'dubbel', n: L, a: L, form: i % 3 === 2 ? 1 : 2, fixed: true }));
+    while (qs.length < 4) qs = qs.concat(qs.map(q => ({ ...q, form: q.form === 2 ? 1 : 2 })));
+    startFind({ kind: 'train', world: 'dubbel', n, level: `d${n}`, mode: 'half', label: `Halvor upp till ${2 * n}`, qs: shuffle(qs), beads: true, retry: true,
+      ...extra, again: () => startHalves(n, extra) });
+  }
+  // Talprovet (Kunna): kort och utan pärlor
+  function startNumTest(w, n, extra = {}) {
+    const c = numTestCfg(w, n), Wd = WORLDS[w];
+    const station = { world: w, kind: 'numtest', id: masterId(w, n), name: `Talprov: ${Wd.level(n)}`, ...c };
+    startFind({ kind: 'numtest', world: w, n, level: station.id, mode: 'test', label: station.name, qs: randQs(w, c.count, c.lo, c.hi), beads: false, retry: false, station,
+      ...extra, again: () => startNumTest(w, n, extra) });
   }
   function startMix(i) {
     const w = W(), m = w.mixes[i];
@@ -1188,7 +1409,8 @@
     startFind({ kind: 'tricky', world: 'plus', level: 'tricky', mode: 'find', label: 'Kluriga kamrater', qs, beads: true, retry: true });
   }
   function startTest(s) {
-    startFind({ kind: s.kind, world: s.world, level: s.id, mode: 'test', label: s.name, qs: randQs(s.world, s.count, s.lo, s.hi), beads: false, retry: false, station: s });
+    startFind({ kind: s.kind, world: s.world, level: s.id, mode: 'test', label: s.name, qs: randQs(s.world, s.count, s.lo, s.hi), beads: false, retry: false, station: s,
+      again: () => startTest(s) });
   }
 
   function startFind(cfg) {
@@ -1309,7 +1531,7 @@
   /* ================= Spel: Bubbelpoppen ================= */
   const BUB_COLORS = ['var(--blue)', 'var(--coral)', 'var(--leaf)', 'var(--berry)', 'var(--grape)', '#14A3B8'];
   const WAVE = 6;
-  function startBubbles(n) {
+  function startBubbles(n, extra = {}) {
     stopGame();
     // Alla par som blir n, t.ex. 8: 0+8, 1+7, 2+6, 3+5, 4+4
     const pairs = shuffle(range(0, pairCount(n) - 1).map(a => [a, n - a]));
@@ -1317,7 +1539,7 @@
     const per = Math.ceil(pairs.length / waveCount);
     const waves = [];
     for (let i = 0; i < pairs.length; i += per) waves.push(pairs.slice(i, i + per));
-    G = { game: 'bubbles', kind: 'train', world: 'plus', mode: 'bubbles', level: String(n), n, waves, wave: 0, pairs: pairs.length, found: 0, mistakes: 0, streak: 0, bestStreak: 0, firstTry: 0, missStreak: 0, sel: null, busy: false };
+    G = { ...extra, again: () => startBubbles(n, extra), game: 'bubbles', kind: 'train', world: 'plus', mode: 'bubbles', level: String(n), n, waves, wave: 0, pairs: pairs.length, found: 0, mistakes: 0, streak: 0, bestStreak: 0, firstTry: 0, missStreak: 0, sel: null, busy: false };
     show('bubbles');
     $('#bubN').textContent = n;
     $('#bubLabel').textContent = `Talet ${n}`;
@@ -1498,6 +1720,29 @@
     { id: 'dub', label: 'Dubblor', w: 'dubbel', lo: 1, hi: 10 }
   ];
   let duelMode = 'p10', duelTarget = 7;
+  // Tillsammans: två spelare turas om och hjälps åt mot klockan
+  let duelKind = 'duel', coopTarget = 12;
+  const COOP_SECS = 90;
+  function renderDuelKind() {
+    const coop = duelKind === 'coop';
+    $$('#duelKind .chip').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.k === duelKind)));
+    $('#duelTitle').innerHTML = coop ? 'Lag<em>kamp</em>' : 'Kompis<em>duell</em>';
+    $('#duelKindText').textContent = coop
+      ? `Ni turas om att svara och hjälps åt. Klarar laget målet på ${COOP_SECS} sekunder?`
+      : 'Båda får samma fråga. Vem hittar svaret först?';
+    $('#duelModesLabel').textContent = coop ? 'Vad ska ni träna på?' : 'Vad ska ni tävla i?';
+    $('#duelTargetsLabel').textContent = coop ? `Lagets mål på ${COOP_SECS} sekunder` : 'Först till';
+    $('#duelGo').textContent = coop ? 'Starta lagkampen!' : 'Starta duellen!';
+    const row = $('#duelTargets'); row.innerHTML = '';
+    (coop ? [8, 12, 16] : [5, 7, 10]).forEach(t => {
+      const b = document.createElement('button');
+      b.className = 'chip'; b.dataset.t = t; b.textContent = coop ? `${t} rätt` : t;
+      b.setAttribute('aria-pressed', String(t === (coop ? coopTarget : duelTarget)));
+      b.addEventListener('click', () => { if (coop) coopTarget = t; else duelTarget = t; sfx.select(); renderDuelKind(); });
+      row.appendChild(b);
+    });
+  }
+  $$('#duelKind .chip').forEach(b => b.addEventListener('click', () => { duelKind = b.dataset.k; sfx.select(); renderDuelKind(); }));
   function openDuel() {
     stopGame();
     show('duel');
@@ -1513,31 +1758,95 @@
       b.addEventListener('click', () => { duelMode = m.id; $$('#duelModes .chip').forEach(x => x.setAttribute('aria-pressed', String(x === b))); sfx.select(); });
       row.appendChild(b);
     });
-    $$('#duelTargets .chip').forEach(b => {
-      b.setAttribute('aria-pressed', String(+b.dataset.t === duelTarget));
-      b.onclick = () => { duelTarget = +b.dataset.t; $$('#duelTargets .chip').forEach(x => x.setAttribute('aria-pressed', String(x === b))); sfx.select(); };
-    });
+    renderDuelKind();
   }
   function startDuel() {
     stopGame();
     const m = DUEL_MODES.find(x => x.id === duelMode);
     prefs.flip = $('#duelFlip').checked; savePrefs();
-    D = { m, target: duelTarget, busy: true, q: null, last: null,
+    D = { m, coop: duelKind === 'coop', target: duelKind === 'coop' ? coopTarget : duelTarget, busy: true, q: null, last: null, turn: 0, score: 0,
       p: [{ name: $('#duelP1').value.trim() || 'Spelare 1', score: 0, lock: 0 }, { name: $('#duelP2').value.trim() || 'Spelare 2', score: 0, lock: 0 }] };
     $('#duelSetup').hidden = true; $('#duelWin').hidden = true; $('#duelPlay').hidden = false;
     $('#duelPlay').classList.toggle('flip', prefs.flip);
     [0, 1].forEach(i => {
       const h = $('#half' + i);
-      h.classList.remove('won', 'lost', 'locked');
+      h.classList.remove('won', 'lost', 'locked', 'waiting');
       $('.dname', h).textContent = D.p[i].name;
       $('.dscore', h).textContent = '0';
       $('.dmsg', h).textContent = 'Gör dig redo …';
       $('.deq', h).innerHTML = '';
       $('.dans', h).innerHTML = '';
     });
-    $('#duelTarget').textContent = `Först till ${D.target}`;
+    $('#duelTarget').textContent = D.coop ? `Lagets mål: ${D.target} rätt` : `Först till ${D.target}`;
     sfx.tick();
-    timer = setTimeout(nextDuel, 1200);
+    if (!D.coop) { timer = setTimeout(nextDuel, 1200); return; }
+    D.turn = Math.random() < 0.5 ? 0 : 1;
+    timer = setTimeout(() => {
+      if (!D) return;
+      D.end = Date.now() + COOP_SECS * 1000;
+      ticker = setInterval(coopTick, 200);
+      coopTick();
+      nextCoop();
+    }, 1200);
+  }
+  function coopTick() {
+    if (!D || !D.coop) return;
+    const left = Math.max(0, D.end - Date.now());
+    $('#duelTarget').textContent = `⏱ ${Math.ceil(left / 1000)} s · ${D.score} av ${D.target}`;
+    if (left <= 0 && !D.over) endCoop(false);
+  }
+  function nextCoop() {
+    if (!D || D.over) return;
+    let q;
+    do { q = rndQ(D.m.w, D.m.lo, D.m.hi); } while (D.last && q.n === D.last.n && q.a === D.last.a && D.m.lo !== D.m.hi);
+    prepQ(q);
+    D.q = q; D.last = q; D.busy = false;
+    const i = D.turn, h = $('#half' + i), o = $('#half' + (1 - i));
+    h.classList.remove('won', 'lost', 'waiting'); o.classList.remove('won', 'lost'); o.classList.add('waiting');
+    $('.deq', h).innerHTML = equationHTML(q, false);
+    $('.deq', o).innerHTML = equationHTML(q, false);
+    $('.dmsg', h).textContent = 'Din tur!';
+    $('.dmsg', o).textContent = `Heja på ${D.p[i].name}! 📣`;
+    $('.dans', o).innerHTML = '';
+    renderAnswers($('.dans', h), q, (b, v) => coopPick(i, b, v));
+  }
+  function coopPick(i, btn, v) {
+    if (!D || D.busy || D.over || i !== D.turn) return;
+    D.busy = true;
+    const h = $('#half' + i), o = $('#half' + (1 - i)), P = D.p[i];
+    [0, 1].forEach(k => { $('.deq', $('#half' + k)).innerHTML = equationHTML(D.q, true); });
+    $$('.ans', h).forEach(x => { x.disabled = true; });
+    if (v === D.q.ans) {
+      D.score++; P.score++;
+      btn.classList.add('right'); sfx.right();
+      const [x, y] = centerOf(btn); burst(x, y, 30);
+      $('.dscore', h).textContent = P.score;
+      $('.dmsg', h).textContent = pick(['Rätt! Bra lagjobb!', 'Snyggt!', 'Pang!', 'Ja!']);
+      $('.dmsg', o).textContent = `${P.name} fixade det! Nu är det din tur.`;
+      coopTick();
+      if (D.score >= D.target) { D.over = true; timer = setTimeout(() => endCoop(true), 700); return; }
+      if (D.score === Math.ceil(D.target / 2)) { cheer('Halvvägs!'); say('Halvvägs! Heja laget!'); }
+      timer = setTimeout(() => { D.turn = 1 - i; nextCoop(); }, 900);
+    } else {
+      btn.classList.add('wrong'); sfx.wrong();
+      $$('.ans', h).forEach(x => { if (+x.textContent === D.q.ans) x.classList.add('correct-was'); });
+      $('.dmsg', h).textContent = `Rätt svar var ${D.q.ans}. Ingen fara!`;
+      $('.dmsg', o).textContent = `Nu är det din tur, ${D.p[1 - i].name}!`;
+      timer = setTimeout(() => { D.turn = 1 - i; nextCoop(); }, 1600);
+    }
+  }
+  function endCoop(won) {
+    if (!D) return;
+    D.over = true; D.busy = true;
+    clearInterval(ticker);
+    $('#duelWin .seal').textContent = won ? '🤝' : '⏱️';
+    $('#duelWinText').textContent = won ? 'Ni klarade det tillsammans!' : 'Tiden är slut!';
+    $('#duelWinScore').textContent = `${D.score} av ${D.target}`;
+    $('#duelWinSub').textContent = won ? `${D.p[0].name} och ${D.p[1].name}, vilket lag!` : pick(['Så nära! Försök igen, ni klarar det.', 'Bra kämpat! Ett försök till?']);
+    $('#duelAgain').textContent = won ? 'Spela igen' : 'Försök igen';
+    $('#duelWin').hidden = false;
+    if (won) { sfx.fanfare(); rain(200); say(`Hurra! ${D.p[0].name} och ${D.p[1].name} klarade det tillsammans!`); }
+    else { sfx.sad(); say('Tiden är slut! Bra kämpat, försök igen!'); }
   }
   function nextDuel() {
     if (!D) return;
@@ -1592,6 +1901,8 @@
   function winDuel(i) {
     if (!D) return;
     const w = D.p[i], l = D.p[1 - i];
+    $('#duelWin .seal').textContent = '🏆';
+    $('#duelAgain').textContent = 'Revansch!';
     $('#duelWinText').textContent = `${w.name} vann!`;
     $('#duelWinScore').textContent = `${w.score} – ${l.score}`;
     $('#duelWinSub').textContent = pick([`Bra kämpat båda två!`, `${l.name}, revansch?`, 'Vilken match!']);
@@ -1616,9 +1927,16 @@
       const key = g.station.id;
       if (!save.path[key] && ALL_MEDALS[key]) { medal = ALL_MEDALS[key]; medalKey = key; }
       save.path[key] = Math.max(save.path[key] || 0, r.score || 1);
+      // När provet klarades, så att Kom ihåg-provet kan komma en vecka senare
+      if (g.station.kind === 'test' && !save.dates[key]) save.dates[key] = today();
     }
-    // Klarade tal-steg sparas också i path, så att lärarsidan ser hela vägen
-    WORLD_IDS.forEach(w => stations(w).forEach(s => { if (s.kind === 'number' && s.done) save.path[s.id] = 1; }));
+    // Klarade Lära-moment sparas också i path, så att lärarsidan ser hela vägen
+    WORLD_IDS.forEach(w => stations(w).forEach(s => {
+      if (s.kind !== 'number') return;
+      if (s.moments[0].done) save.path[s.id] = 1;
+      if (s.moments[1].done) save.path['o-' + s.id] = 1;
+    }));
+    const shined = g.station && g.station.kind === 'recall' && r.passed;
     save.total += r.stars;
     save.rounds++;
 
@@ -1660,6 +1978,7 @@
     // Bara stora händelser till klassflödet, så att det inte svämmar över
     if (medalKey) postEvent('medal', medalKey);
     if (daily && [7, 30, 100].includes(daily)) postEvent('daily', daily);
+    if (daily) sendGift();
     if (grew === PET_STAGES.length - 1) postEvent('pet', grew);
     if (bookDone) postEvent('book', 'alla');
 
@@ -1684,15 +2003,30 @@
     if (newTitle !== oldTitle) notes.push(`Ny titel! Nu är du <b>${newTitle}</b>`);
     if (medal) notes.push(`Du vann <b>${medal[1]}</b> ${medal[0]}`);
     if (daily) notes.push(`🔥 Dagens utmaning klar! <b>${daily} ${daily === 1 ? 'dag' : 'dagar'} i rad</b>`);
-    if (afterDone > beforeDone && next && g.kind !== 'daily') notes.push(`Ett steg till på vägen till expert! Nästa: <b>${esc(next.name)}</b>`);
+    const step = g.stepId ? stationById(g.stepId) : null;
+    if (step && afterDone > beforeDone) {
+      const n = step.moments.filter(m => m.done).length;
+      notes.push(step.done ? `🎉 <b>${esc(step.name)}</b> är klart! Alla tre momenten.${next ? ` Nästa: <b>${esc(stepName(next))}</b>` : ''}`
+        : `✓ Moment klart! <b>${n} av 3</b> för ${esc(step.name)}. Nästa: <b>${esc(nextMoment(step).label)}</b>`);
+    } else if (afterDone > beforeDone && next && g.kind !== 'daily') notes.push(`Ett steg till på vägen till expert! Nästa: <b>${esc(stepName(next))}</b>`);
+    if (shined) notes.push(`✨ Du kom ihåg! <b>${esc(ALL_MEDALS[g.station.id.slice(2)][1])}</b> glänser nu.`);
+    if (step && r.passed === false && g.kind === 'numtest') notes.push('Öva lite till i <b>Lära</b> eller <b>Öva</b>, sen provar du igen. Du är nära!');
     if (r.newRecord) notes.push('Nytt rekord!');
     if (g.skillStart) {
+      // Pärlorna: säg till när de försvinner eller kommer tillbaka, men max två rader
       const label = k => (k[0] === 'p' ? `talkamraterna till ${k.slice(1)}` : k[0] === 'm' ? `minus från ${k.slice(1)}` : `dubblorna till ${k.slice(1)}`);
-      for (const [k, v] of Object.entries(save.skill)) {
-        const was = g.skillStart[k] || 0;
-        if (was < 7 && v >= 7) notes.push(`💪 Pärlorna för ${label(k)} har försvunnit. Du kan dem!`);
-        else if (was >= 4 && v < 4) notes.push(`Pärlorna för ${label(k)} är tillbaka som hjälp ett tag.`);
+      const was = g.skillStart.g || 0, now = save.skill.g || 0;
+      const beadNotes = [];
+      if (was < 7 && now >= 7) beadNotes.push('💪 Du har svarat rätt så många gånger att pärlorna försvinner. De kommer tillbaka om du behöver dem!');
+      else if (was >= 4 && now < 4) beadNotes.push('Pärlorna är tillbaka som hjälp ett tag. Det är helt okej!');
+      if (now < 7) {
+        for (const [k, v] of Object.entries(save.skill)) {
+          if (k === 'g') continue;
+          const before = g.skillStart[k] || 0;
+          if (before < 7 && v >= 7) beadNotes.push(`💪 Pärlorna för ${label(k)} har försvunnit. Du kan dem!`);
+        }
       }
+      notes.push(...beadNotes.slice(0, 2));
     }
     if (wishNote) notes.push(`${wishNote.t[1]} ${esc(petName())} fick ${wishNote.t[2]}! Önskan uppfylld.`);
     wishNote = null;
@@ -1713,8 +2047,13 @@
     lastStart = g;
     $('#againBtn').textContent = r.passed ? 'Spela igen' : 'Försök igen';
     const fromRoad = roadContext || !!g.station;
-    $('#otherBtn').textContent = fromRoad ? 'Vägen till expert' : 'Till start';
-    $('#otherBtn').onclick = () => (fromRoad ? openRoad(wid) : goHome());
+    if (step && !step.done) {
+      $('#otherBtn').textContent = r.passed ? 'Nästa moment' : `Till ${step.name}`;
+      $('#otherBtn').onclick = () => openStep(stationById(step.id));
+    } else {
+      $('#otherBtn').textContent = fromRoad ? 'Vägen till expert' : 'Till start';
+      $('#otherBtn').onclick = () => (fromRoad ? openRoad(wid) : goHome());
+    }
 
     if (r.passed) {
       sfx.fanfare(); rain(); setTimeout(() => rain(80), 700);
@@ -1738,6 +2077,7 @@
 
   $('#againBtn').addEventListener('click', () => {
     const g = lastStart; if (!g) return goHome();
+    if (g.again) return g.again();
     if (g.game === 'bubbles') startBubbles(g.n);
     else if (g.game === 'challenge') startChallenge(stationById(g.station.id));
     else if (g.mode === 'test') startTest(stationById(g.station.id));
@@ -1776,7 +2116,7 @@
     const got = STICKERS.filter(([e]) => counts[e]).length;
     $('#bookCount').textContent = `${got} av ${STICKERS.length}`;
     $('#medalRow').innerHTML = WORLD_IDS.map(w => Object.entries(WORLDS[w].medals).map(([k, [e, name]]) => (save.path[k]
-      ? `<div class="slot"><div><div class="em">${e}</div><small>${name}</small></div></div>`
+      ? `<div class="slot${save.path['s-' + k] ? ' shine' : ''}"><div><div class="em">${e}</div><small>${name}${save.path['s-' + k] ? ' ✨' : ''}</small></div></div>`
       : `<div class="slot missing" title="${name}">?</div>`)).join('')).join('');
     const g = $('#bookGrid'); g.innerHTML = '';
     STICKERS.forEach(([e, name]) => {
@@ -1797,6 +2137,7 @@
       case 'daily': return `${n} har gjort dagens utmaning ${esc(e.detail)} dagar i rad! 🔥`;
       case 'book': return `${n} har samlat alla klistermärken! 📒`;
       case 'mission': return `🎉 <b>Klassen klarade veckans uppdrag!</b> Sista biten: ${n}`;
+      case 'allin': return `🌟 <b>Alla i klassen har varit med den här veckan!</b> Alla får ett extra klistermärke.`;
       case 'pet': return `<b>${esc(genitive(e.name))}</b> husdjur växte och blev ${esc((PET_STAGES[+e.detail] || [0, 'större'])[1].toLowerCase())}! ${PET_ICONS[+e.detail] || '🐾'}`;
       case 'record': {
         const [id, sc] = String(e.detail).split(':');
@@ -1846,6 +2187,15 @@
     $('#missionText').textContent = m.progress >= m.goal
       ? `Uppdraget klart! ${m.progress} ${m.unit}. Grymt jobbat allihop!`
       : `${m.progress} av ${m.goal} ${m.unit} · ${daysLeft <= 1 ? 'sista dagen' : `${daysLeft} dagar kvar`}`;
+    const all = m.everyone;
+    $('#missionAll').hidden = !all || all.players < 2;
+    if (all && all.players >= 2) {
+      $('#missionAll').innerHTML = all.allIn
+        ? `🌟 <b>Alla ${all.players} har varit med!</b> Alla med-bonus: ett extra klistermärke till alla.`
+        : `👥 <b>${all.contributed} av ${all.players}</b> har varit med den här veckan. När alla har spelat en runda får alla ett extra klistermärke!`;
+    }
+    renderClassPet(c.pet);
+    renderWall(c);
     // Stjärnburken
     $('#jarGoal').textContent = `Mål: ${c.goal} ★`;
     $('#jarBig').innerHTML = `${c.total} <span>★</span>`;
@@ -1881,6 +2231,46 @@
         <span class="medals" aria-label="${p.medals} medaljer">${PET_ICONS[petStage(p.petXp || 0)]} ${'🏅'.repeat(Math.min(p.medals || 0, 10))}${(p.experts || []).map(w => EXPERT_ICON[w] || '').join('')}</span>
       </div>`).join('');
     if (c.total >= c.goal || m.progress >= m.goal) rain(80);
+  }
+  // Klassplutten växer av allas rundor och blir glad när många spelar
+  function renderClassPet(p) {
+    $('#classPet').hidden = !p;
+    if (!p) return;
+    const cls = { 'ägg': 'mood-new', 'längtar': 'mood-hungry', 'glad': 'mood-ok' }[p.mood] || 'mood-happy';
+    $('#cpView').innerHTML = petHTML(p.stage, cls);
+    $('#cpStage').textContent = `${p.name} · ${p.stageName}`;
+    $('#cpMood').textContent = p.moodText;
+    $('#cpMeter').style.width = p.percent + '%';
+    $('#cpNext').textContent = p.nextAt ? `${p.rounds} rundor av ${p.nextAt} tills ${p.name} växer` : `${p.name} är fullvuxen!`;
+  }
+  // Kunskapsväggen: hur många i klassen som kan varje tal. Inga namn,
+  // bara en bild av vad klassen kan tillsammans och var vi kan hjälpas åt.
+  let wallWorld = 'plus';
+  function renderWall(c) {
+    const wall = c.wall || {};
+    $('#wallPanel').hidden = !c.wall;
+    if (!c.wall) return;
+    const tabs = $('#wallTabs'); tabs.innerHTML = '';
+    WORLD_IDS.forEach(id => {
+      const b = document.createElement('button');
+      b.textContent = WORLDS[id].tab; b.setAttribute('aria-pressed', String(wallWorld === id));
+      b.addEventListener('click', () => { wallWorld = id; sfx.select(); renderWall(c); });
+      tabs.appendChild(b);
+    });
+    const w = WORLDS[wallWorld], total = c.players.length;
+    $('#wallGrid').innerHTML = w.levels.map(n => {
+      const k = wallWorld[0] + n, cnt = wall[k] || 0, share = total ? cnt / total : 0;
+      const mine = knows(wallWorld, n);
+      return `<div class="wtile${mine ? ' mine' : ''}" style="--share:${share.toFixed(2)}" aria-label="${esc(w.level(n))}: ${cnt} av ${total} kan${mine ? ', du också' : ''}">
+        <b>${wallWorld === 'minus' ? MINUS : wallWorld === 'dubbel' ? '2×' : ''}${n}</b><small>${cnt}</small></div>`;
+    }).join('');
+    const known = w.levels.filter(n => wall[wallWorld[0] + n]).length;
+    // Tips om vad klassen kan träna på: de tal färst kan, helst de lite större
+    const low = w.levels.filter(n => (wall[wallWorld[0] + n] || 0) < Math.max(1, total / 3))
+      .sort((x, y) => (wall[wallWorld[0] + x] || 0) - (wall[wallWorld[0] + y] || 0) || y - x).slice(0, 4).sort((x, y) => x - y);
+    $('#wallText').innerHTML = known === 0
+      ? 'När någon kan ett tal så bra att pärlorna försvinner lyser rutan upp här.'
+      : `Siffran visar hur många som kan talet. ⭐ = du kan det.${low.length ? ` Klassen kan träna mer på <b>${low.join(', ')}</b>. Kan du det? Hjälp en kompis!` : ' Klassen kan alla tal. Grymt!'}`;
   }
   function renderAvatarPicker() {
     const row = $('#myAvatar'); row.innerHTML = '';

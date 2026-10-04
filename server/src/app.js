@@ -2,8 +2,8 @@ import express from 'express';
 import { insertId } from './db.js';
 import { newToken, hashToken, validPin, hashPin, checkPin, safeEqual, newClassCode, normalizeCode, rateLimiter } from './auth.js';
 import { emptyProgress, sanitizeProgress, mergeProgress, summarize } from './progress.js';
-import { classMission, celebrateMission } from './mission.js';
-import { petView, eventText, medalIcons, nudge, validFocus, focusLabel } from './display.js';
+import { classMission, celebrateMission, classPulse, celebrateAllIn } from './mission.js';
+import { petView, eventText, medalIcons, nudge, validFocus, focusLabel, classPetView, TREATS } from './display.js';
 import { weekStart, missionFor } from './mission.js';
 
 // Händelser som kan visas i klassens flöde. Texten byggs i spelet utifrån typ + detalj.
@@ -13,6 +13,18 @@ const EVENT_TYPES = ['medal', 'expert', 'daily', 'book', 'pet'];
 const EVENT_DETAIL = /^[\p{L}\p{N} :_-]{0,32}$/u;
 const EVENTS_PER_DAY = 3;
 const FEED_LENGTH = 12;
+// Hemliga presenter: en per elev och dag, till en slumpad klasskompis
+const GIFTS_SHOWN = 10;
+const startOfDay = (d = new Date()) => { const x = new Date(d); x.setHours(0, 0, 0, 0); return x.getTime(); };
+// Kunskapsväggen: hur många i klassen som kan ett tal (utan namn)
+const KNOWS = 7;
+function knowledgeWall(progressList) {
+  const wall = {};
+  for (const p of progressList) {
+    for (const [k, v] of Object.entries(p.skill)) if (k !== 'g' && v >= KNOWS) wall[k] = (wall[k] || 0) + 1;
+  }
+  return wall;
+}
 
 const AVATARS = ['🦊', '🐼', '🐸', '🦁', '🐯', '🐨', '🐵', '🐰', '🐶', '🐱', '🦄', '🐲'];
 const MAX_PLAYERS_PER_CLASS = 60;
@@ -199,7 +211,9 @@ export function createApp({ db, t, client, adminKey, publicDir, trustProxy = 'lo
     const count = await db(t.players).where({ class_id: req.player.class_id }).count({ n: '*' }).first();
     const mission = await classMission(db, t, req.player.class_id, Number(count.n), req.player.id);
     const completed = await celebrateMission(db, t, client, req.player.class_id, req.player.id, mission);
-    res.json({ mission, completed });
+    const pulse = await classPulse(db, t, req.player.class_id, Number(count.n));
+    const allIn = await celebrateAllIn(db, t, client, req.player.class_id, req.player.id, pulse.everyone, mission.start);
+    res.json({ mission: { ...mission, everyone: pulse.everyone }, completed, allIn });
   });
 
   api.get('/me/class', auth, async (req, res) => {
@@ -207,9 +221,11 @@ export function createApp({ db, t, client, adminKey, publicDir, trustProxy = 'lo
     const rows = await db(t.players).leftJoin(t.progress, `${t.players}.id`, `${t.progress}.player_id`)
       .where(`${t.players}.class_id`, c.id).select(`${t.players}.id`, `${t.players}.name`, `${t.players}.avatar`, `${t.progress}.data`)
       .orderBy(`${t.players}.name`);
+    const progressList = [];
     const players = rows.map(r => {
       let data = {};
       try { data = r.data ? JSON.parse(r.data) : {}; } catch { /* ignoreras */ }
+      progressList.push(sanitizeProgress(data));
       return { id: Number(r.id), name: r.name, avatar: r.avatar, me: Number(r.id) === Number(req.player.id), ...summarize(data) };
     });
     const me = Number(req.player.id);
@@ -229,11 +245,41 @@ export function createApp({ db, t, client, adminKey, publicDir, trustProxy = 'lo
     });
     const myCheers = await db(t.cheers).join(t.events, `${t.cheers}.event_id`, `${t.events}.id`)
       .where(`${t.events}.player_id`, me).count({ n: '*' }).first();
+    const pulse = await classPulse(db, t, c.id, players.length);
+    const gifts = await db(t.gifts).where({ to_id: me, seen: false }).orderBy('created_at').limit(GIFTS_SHOWN);
     res.json({
       name: c.name, goal: Number(c.goal), total: players.reduce((s, p) => s + p.stars, 0), players,
-      mission: await classMission(db, t, c.id, players.length, me),
+      mission: { ...(await classMission(db, t, c.id, players.length, me)), everyone: pulse.everyone },
+      pet: classPetView({ rounds: pulse.rounds, players: players.length, recent: pulse.recent }),
+      wall: knowledgeWall(progressList),
+      gifts: gifts.map(g => ({ id: Number(g.id), treat: g.treat, at: Number(g.created_at) })),
       events, myCheers: Number(myCheers.n)
     });
+  });
+
+  // Hemlig present till en klasskompis husdjur. Den som får presenten får aldrig
+  // veta vem den kom från, och den som ger får inte veta vem den gick till.
+  api.post('/me/gift', auth, async (req, res) => {
+    const treat = String(req.body?.treat || '');
+    if (!TREATS[treat]) fail(400, 'Okänd godsak');
+    const me = Number(req.player.id), classId = req.player.class_id, dayStart = startOfDay();
+    const given = await db(t.gifts).where({ from_id: me }).andWhere('created_at', '>=', dayStart).first();
+    if (given) return res.json({ sent: false, reason: 'today' });
+    const mates = (await db(t.players).where({ class_id: classId }).whereNot({ id: me }).select('id', 'last_seen'))
+      .sort((a, b) => (Number(a.last_seen) || 0) - (Number(b.last_seen) || 0));
+    if (!mates.length) return res.json({ sent: false, reason: 'alone' });
+    // Helst någon som inte fått en present idag, och gärna någon som inte spelat på ett tag
+    const gotToday = new Set((await db(t.gifts).where({ class_id: classId }).andWhere('created_at', '>=', dayStart).select('to_id')).map(g => Number(g.to_id)));
+    const fresh = mates.filter(m => !gotToday.has(Number(m.id)));
+    const pool = (fresh.length ? fresh : mates).slice(0, Math.max(1, Math.ceil((fresh.length || mates.length) / 2)));
+    const to = pool[Math.floor(Math.random() * pool.length)];
+    await insertId(db, client, t.gifts, { class_id: classId, from_id: me, to_id: to.id, treat, seen: false, created_at: Date.now() });
+    res.status(201).json({ sent: true });
+  });
+
+  api.post('/me/gifts/seen', auth, async (req, res) => {
+    const n = await db(t.gifts).where({ to_id: req.player.id, seen: false }).update({ seen: true });
+    res.json({ seen: Number(n) || 0 });
   });
 
   api.post('/me/events', auth, async (req, res) => {
@@ -284,6 +330,7 @@ export function createApp({ db, t, client, adminKey, publicDir, trustProxy = 'lo
     const wanted = String(req.query.name || '').trim().toLowerCase();
     const row = wanted ? rows.find(r => r.name.toLowerCase() === wanted) : null;
     const mission = await classMission(db, t, c.id, rows.length, row ? row.id : null);
+    const pulse = await classPulse(db, t, c.id, rows.length);
     let me = null;
     if (row) {
       const p = sanitizeProgress(parse(row.data));
@@ -293,7 +340,10 @@ export function createApp({ db, t, client, adminKey, publicDir, trustProxy = 'lo
         stars: sum.stars, stickers: sum.stickers, steps: sum.pathDone, medals: sum.medals, medalIcons: medalIcons(p.path),
         experts: sum.experts, dailyStreak: sum.dailyStreak, contribution: mission.mine,
         pet: petView(p.pet),
-        nudge: nudge({ pet: p.pet, daily: p.daily, mission, focus: row.focus || c.focus, tricky: p.tricky })
+        nudge: nudge({
+          pet: p.pet, daily: p.daily, mission, focus: row.focus || c.focus, tricky: p.tricky, everyone: pulse.everyone,
+          gift: (await db(t.gifts).where({ to_id: row.id, seen: false }).orderBy('created_at').first())?.treat || null
+        })
       };
     }
     const events = await db(t.events).join(t.players, `${t.events}.player_id`, `${t.players}.id`)
@@ -303,11 +353,11 @@ export function createApp({ db, t, client, adminKey, publicDir, trustProxy = 'lo
     const base = publicUrl || `${req.protocol}://${req.get('host')}/`;
     res.set('Cache-Control', 'public, max-age=60');
     res.json({
-      class: { name: c.name, code: c.code, players: rows.length },
+      class: { name: c.name, code: c.code, players: rows.length, pet: classPetView({ rounds: pulse.rounds, players: rows.length, recent: pulse.recent }) },
       mission: {
         title: mission.title, unit: mission.unit, goal: mission.goal, progress: mission.progress,
         percent: Math.min(100, Math.round(100 * mission.progress / mission.goal)),
-        done: mission.progress >= mission.goal, endsAt: mission.endsAt
+        done: mission.progress >= mission.goal, endsAt: mission.endsAt, everyone: pulse.everyone
       },
       jar: { total, goal: Number(c.goal) },
       me,
@@ -339,17 +389,26 @@ export function createApp({ db, t, client, adminKey, publicDir, trustProxy = 'lo
       .select('player_id', db.raw('count(*) as n'), db.raw('sum(score) as score'), db.raw('sum(stars) as stars'),
         db.raw("sum(case when mode = 'bubbles' then total else 0 end) as pairs"));
     const weekOf = id => week.find(w => Number(w.player_id) === Number(id)) || {};
+    const pulses = {};
+    for (const c of classes) {
+      const n = players.filter(p => Number(p.class_id) === Number(c.id)).length;
+      pulses[c.id] = { n, ...(await classPulse(db, t, c.id, n)) };
+    }
     res.json(classes.map(c => {
       const mine = players.filter(p => Number(p.class_id) === Number(c.id));
       const m = missionFor(start, mine.length);
+      const pulse = pulses[c.id];
+      const progressList = mine.map(p => { try { return sanitizeProgress(p.data ? JSON.parse(p.data) : {}); } catch { return sanitizeProgress({}); } });
       return {
         id: Number(c.id), name: c.name, code: c.code, goal: Number(c.goal), public: !!c.public, focus: c.focus || '',
         mission: { title: m.title(m.goal), unit: m.unit },
+        everyone: pulse.everyone, pet: classPetView({ rounds: pulse.rounds, players: pulse.n, recent: pulse.recent }),
+        wall: knowledgeWall(progressList),
         players: mine.map(p => {
           let data = {};
           try { data = p.data ? JSON.parse(p.data) : {}; } catch { /* ignoreras */ }
           const prog = sanitizeProgress(data);
-          const skill = Object.entries(prog.skill);
+          const skill = Object.entries(prog.skill).filter(([k]) => k !== 'g');
           const w = weekOf(p.id);
           const contribution = { pairs: w.pairs, answers: w.score, rounds: w.n, stars: w.stars }[m.id];
           return {
