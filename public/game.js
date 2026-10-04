@@ -215,7 +215,7 @@
   }
   // Skickas när man klarar dagens utmaning
   async function sendGift() {
-    if (!net.player) return;
+    if (!net.player || isSolo()) return;
     try {
       const t = pick(TREATS);
       const r = await api('POST', 'me/gift', { treat: t[0] });
@@ -237,7 +237,7 @@
     persist();
     setTimeout(() => { cheer(`Alla med-bonus! ${prize[0]}`, true); rain(120); say('Alla i klassen har spelat den här veckan! Du får ett extra klistermärke.'); }, 2600);
   }
-  function postEvent(type, detail) { if (net.player) api('POST', 'me/events', { type, detail: String(detail) }).catch(() => {}); }
+  function postEvent(type, detail) { if (net.player && !isSolo()) api('POST', 'me/events', { type, detail: String(detail) }).catch(() => {}); }
 
   function useAccount(token, player, progress, dirty = false) {
     net.token = token; net.player = player;
@@ -255,8 +255,10 @@
     if (expired) cheer('Logga in igen');
   }
 
+  // Eget konto utan klass: inga klassfunktioner
+  const isSolo = () => !!(net.player && net.player.solo);
   async function refreshClassInfo() {
-    if (!net.player || !net.online) return null;
+    if (!net.player || !net.online || isSolo()) return null;
     try {
       net.classInfo = await api('GET', 'me/class');
       receiveGifts(net.classInfo.gifts || []);
@@ -293,6 +295,7 @@
     try {
       const h = await api('GET', 'health');
       net.online = !!(h && h.app === 'talkamrater');
+      voiceState.server = net.online && !!h.tts;
     } catch (e) { net.online = false; }
     if (net.online && net.token) {
       try {
@@ -347,6 +350,8 @@
       const AC = window.AudioContext || window.webkitAudioContext;
       if (!AC) return null;
       ac = new AC();
+      // iOS avbryter ljudet ibland (samtal, annan app, talsyntes). Starta igen när det går.
+      ac.onstatechange = () => { if (ac.state !== 'running' && ac.state !== 'closed' && !document.hidden) ac.resume().catch(() => {}); };
     }
     return ac;
   }
@@ -386,7 +391,8 @@
 
   let unlocked = false;
   function unlockAudio() {
-    if (prefs.sound) {
+    // Rösten från servern spelas också som vanligt ljud, så lås upp för den med
+    if (prefs.sound || prefs.voice) {
       playThroughMuteSwitch();
       try {
         const a = audioContext();
@@ -409,7 +415,7 @@
   }
   // Varje tryckning ser till att ljudet är igång (iOS pausar det i bakgrunden)
   ['pointerdown', 'touchend', 'keydown'].forEach(ev => addEventListener(ev, () => {
-    if (!unlocked || (ac && ac.state !== 'running') || (silentEl && silentEl.paused)) unlockAudio();
+    if (!unlocked || (ac && ac.state !== 'running') || (silentEl && silentEl.paused)) { unlockAudio(); warmVoice(); }
   }, { capture: true, passive: true }));
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) { if (silentEl) silentEl.pause(); }
@@ -445,6 +451,57 @@
   };
 
   /* ================= Röst ================= */
+  // Två vägar:
+  // 1. Serverns röst (Piper). Färdiga ljudfiler som spelas som vanligt ljud.
+  //    Fungerar på iPhone, i hemskärmsappen och även i ljudlöst läge.
+  // 2. Annars telefonens egen talsyntes (Web Speech). Den är opålitlig på mobiler.
+  const speechText = text => String(text).replaceAll(MINUS, ' minus ').replace(/(\d)\s*-\s*(\d)/g, '$1 minus $2')
+    .replaceAll('+', ' plus ').replaceAll('=', ' är ').replace(/[^\p{L}\p{N}\s!?,.'-]/gu, ' ').replace(/\s+/g, ' ').trim().slice(0, 160);
+  const voiceState = { server: false, last: '', error: '' };
+  const ttsCache = new Map(); // text -> Promise<AudioBuffer>
+  let ttsSrc = null, sayId = 0;
+  function decode(a, buf) {
+    // Äldre Safari kan bara avkoda med callback
+    return new Promise((res, rej) => { const p = a.decodeAudioData(buf, res, rej); if (p && p.then) p.then(res, rej); });
+  }
+  function ttsBuffer(text) {
+    if (ttsCache.has(text)) return ttsCache.get(text);
+    const p = fetch('api/tts?t=' + encodeURIComponent(text))
+      .then(r => { if (!r.ok) throw new Error('tts ' + r.status); return r.arrayBuffer(); })
+      .then(buf => decode(audioContext(), buf));
+    p.catch(() => ttsCache.delete(text));
+    ttsCache.set(text, p);
+    if (ttsCache.size > 120) ttsCache.delete(ttsCache.keys().next().value);
+    return p;
+  }
+  // Hämta de vanligaste hejaropen i förväg, så att de kommer direkt
+  let warmed = false;
+  function warmVoice() {
+    if (warmed || !voiceState.server || !prefs.voice || !audioContext()) return;
+    warmed = true;
+    const list = [...CHEERS, ...nameCheers(), ...OOPS, ...Object.values(STREAKS)].map(speechText);
+    (async () => { for (const t of list) { try { await ttsBuffer(t); } catch (e) { return; } } })();
+  }
+  function say(text) {
+    if (!prefs.voice) return;
+    const clean = speechText(text);
+    if (!clean) return;
+    const id = ++sayId;
+    stopVoiceOutput();
+    const a = voiceState.server ? audioContext() : null;
+    if (!a) return sayNative(clean);
+    ttsBuffer(clean).then(buf => {
+      if (id !== sayId) return; // något nyare ska sägas
+      if (a.state !== 'running') a.resume().catch(() => {});
+      const src = a.createBufferSource(), g = a.createGain();
+      g.gain.value = 1;
+      src.buffer = buf; src.connect(g).connect(a.destination);
+      src.start();
+      ttsSrc = src;
+      voiceState.last = 'server';
+    }).catch(e => { voiceState.error = e.message; if (id === sayId) sayNative(clean); });
+  }
+
   let voices = [];
   const loadVoices = () => { try { voices = speechSynthesis.getVoices() || []; } catch (e) {} };
   if (window.speechSynthesis) {
@@ -457,15 +514,17 @@
     return sv.find(v => /enhanced|premium|förbättrad|google/i.test(v.name)) || sv[0] || null;
   };
   let currentUtterance = null, speakTimer = 0;
-  function say(text) {
-    if (!prefs.voice || !window.speechSynthesis) return;
+  function sayNative(text) {
+    if (!window.speechSynthesis) return;
     try {
       const s = window.speechSynthesis;
-      const u = new SpeechSynthesisUtterance(text.replaceAll(MINUS, ' minus ').replace(/[^\p{L}\p{N}\s!?,.+=-]/gu, ''));
+      const u = new SpeechSynthesisUtterance(text);
       u.lang = 'sv-SE';
       const v = swedishVoice();
       if (v) u.voice = v;
       u.rate = 1.05; u.pitch = 1.25;
+      u.onstart = () => { voiceState.last = 'native'; };
+      u.onerror = e => { voiceState.error = 'telefonens röst: ' + (e.error || 'fel'); };
       currentUtterance = u; // håll kvar referensen, annars kan Safari tappa meningen
       clearTimeout(speakTimer);
       if (s.speaking || s.pending) {
@@ -478,7 +537,40 @@
       }
     } catch (e) {}
   }
-  function stopSpeech() { clearTimeout(speakTimer); try { if (speechSynthesis.speaking || speechSynthesis.pending) speechSynthesis.cancel(); } catch (e) {} }
+  function stopVoiceOutput() {
+    if (ttsSrc) { try { ttsSrc.stop(); } catch (e) {} ttsSrc = null; }
+    clearTimeout(speakTimer);
+    try { if (window.speechSynthesis && (speechSynthesis.speaking || speechSynthesis.pending)) speechSynthesis.cancel(); } catch (e) {}
+  }
+  function stopSpeech() { sayId++; stopVoiceOutput(); }
+
+  // "Testa ljudet": spelar en ton och säger en mening, och visar vad som händer.
+  // Bra för att felsöka på en telefon.
+  async function soundTest() {
+    unlockAudio();
+    const box = $('#soundStatus'); box.hidden = false;
+    const a = audioContext();
+    const lines = [];
+    const wasSound = prefs.sound, wasVoice = prefs.voice;
+    prefs.sound = true; prefs.voice = true;
+    sfx.fanfare();
+    lines.push(`Ljud: ${a ? a.state : 'saknas'}${navigator.audioSession ? ` · läge ${navigator.audioSession.type}` : ''}${silentEl ? ' · tyst spår ' + (silentEl.paused ? 'pausat' : 'spelar') : ''}`);
+    lines.push(voiceState.server ? 'Röst: från servern (Piper)' : 'Röst: telefonens egen');
+    loadVoices();
+    const sv = swedishVoice();
+    lines.push(window.speechSynthesis ? `Telefonens röster: ${voices.length}, svensk: ${sv ? sv.name : 'ingen'}` : 'Telefonen har ingen talsyntes');
+    box.textContent = lines.join('\n') + '\nSpelar upp …';
+    voiceState.error = ''; voiceState.last = '';
+    setTimeout(() => say(`Hej ${nm()}! Hör du mig? Sju plus tre är tio.`), 900);
+    setTimeout(() => {
+      prefs.sound = wasSound; prefs.voice = wasVoice;
+      lines.push(voiceState.last === 'server' ? 'Talet spelades från servern ✓'
+        : voiceState.last === 'native' ? 'Talet spelades med telefonens röst ✓'
+        : `Talet startade inte${voiceState.error ? ` (${voiceState.error})` : ''}`);
+      lines.push(prefs.sound && prefs.voice ? 'Hörde du inget? Kolla volymen och att telefonen inte är på stör ej.' : 'Obs: ljud eller röst är avstängt i spelet (knapparna högst upp).');
+      box.textContent = lines.join('\n');
+    }, 4000);
+  }
 
   /* ================= Konfetti och hejarop ================= */
   const cv = $('#fx'), cx = cv.getContext('2d');
@@ -1268,12 +1360,20 @@
     const acc = !!net.player;
     renderClassTop();
     renderInstall();
-    $('#joinCard').hidden = acc || !net.online;
+    const solo = isSolo();
+    $('#joinCard').hidden = !net.online || (acc && !solo);
+    $('#joinCardTitle').textContent = solo ? 'Går du i en klass?' : 'Spela med din klass';
+    $('#joinCardText').textContent = solo
+      ? 'Skriv klasskoden från din lärare, så följer dina stjärnor, ditt husdjur och din väg med in i klassen.'
+      : 'Hjälps åt med veckans uppdrag, heja på varandra och spara dina stjärnor på alla enheter. Spelar du hemma kan du skapa ett eget konto.';
+    $('#openJoin').textContent = solo ? 'Gå med i en klass' : 'Gå med i klassen';
+    $('#openAccount').hidden = solo;
     $('#nameField').hidden = acc;
     $('#resetBtn').hidden = acc;
     $('#logoutBtn').hidden = !acc;
     $('#whoLine').hidden = !acc;
-    if (acc) $('#whoLine').textContent = `${net.player.avatar} ${net.player.name} i ${net.player.className || 'klassen'}`;
+    if (acc) $('#whoLine').textContent = solo ? `${net.player.avatar} ${net.player.name} · din kod ${net.player.classCode}`
+      : `${net.player.avatar} ${net.player.name} i ${net.player.className || 'klassen'}`;
 
     $('#soundBtn').setAttribute('aria-pressed', String(prefs.sound));
     $('#soundBtn').textContent = prefs.sound ? '🔊' : '🔇';
@@ -1297,7 +1397,7 @@
   // Klassen överst på startsidan: veckans uppdrag, ditt bidrag och senaste händelsen
   function renderClassTop() {
     const box = $('#classTop');
-    if (!net.player) { box.hidden = true; return; }
+    if (!net.player || isSolo()) { box.hidden = true; return; }
     box.hidden = false;
     const ci = net.classInfo;
     $('#ctName').textContent = net.player.className || 'Klassen';
@@ -1334,6 +1434,7 @@
     stopGame();
     show('welcome');
     $('#welcomeJoin').hidden = !net.online;
+    $('#welcomeAccount').hidden = !net.online;
     $('#welcomeOr').hidden = !net.online;
     $('#welcomeName').value = '';
   }
@@ -1347,6 +1448,8 @@
   $('#welcomeGo').addEventListener('click', welcomeStart);
   $('#welcomeName').addEventListener('keydown', e => { if (e.key === 'Enter') welcomeStart(); });
   $('#welcomeJoinBtn').addEventListener('click', () => openJoin());
+  $('#welcomeAccountBtn').addEventListener('click', () => openAccount());
+  $('#welcomeLoginBtn').addEventListener('click', () => openJoin());
 
   /* ================= Välj spelsätt (plus) ================= */
   let chosenN = 8;
@@ -2294,6 +2397,7 @@
   const J = { cls: null, code: '' };
   const body = () => $('#joinBody');
   function openJoin(code) {
+    if (isSolo()) return openMove();
     stopGame();
     show('join');
     joinCode(code || ls.get(CLASS_KEY) || '', !!code);
@@ -2301,8 +2405,8 @@
   function joinCode(prefill, auto) {
     $('#joinBack').onclick = () => (needsWelcome() ? showWelcome() : goHome());
     body().innerHTML = `<div class="formstack">
-      <h2>Skriv klasskoden</h2>
-      <p class="lead">Koden får du av din lärare, till exempel SOL-4821.</p>
+      <h2>Skriv din kod</h2>
+      <p class="lead">Klasskoden får du av din lärare, till exempel SOL-4821. Har du ett eget konto skriver du din egen kod.</p>
       <input class="codefield" id="classCode" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="14" value="${esc(prefill)}" aria-label="Klasskod">
       <p class="error" id="joinErr"></p>
       <button class="chunky coral" id="codeGo">Fortsätt</button></div>`;
@@ -2314,6 +2418,7 @@
         const res = await api('GET', 'classes/' + encodeURIComponent(code));
         J.cls = res; J.code = res.class.code;
         ls.set(CLASS_KEY, J.code);
+        if (res.class.solo) return loginSolo();
         joinWho();
       } catch (e) { $('#joinErr').textContent = e.message; $('#codeGo').disabled = false; }
     };
@@ -2333,6 +2438,92 @@
       else pinPad({ title: `Hej ${p.name}!`, lead: 'Tryck dina tre hemliga bilder.', back: joinWho, submit: pin => api('POST', 'login', { code: J.code, playerId: p.id, pin }) });
     }));
     $('#kidNew').addEventListener('click', joinNew);
+  }
+  // Eget konto: bara en spelare bakom koden, så direkt till bildkoden
+  function loginSolo() {
+    const p = J.cls.players[0];
+    if (!p) return joinCode(J.code);
+    const submit = pin => api('POST', 'login', { code: J.code, playerId: p.id, pin });
+    if (p.needsPin) return choosePin(p.name, submit, () => joinCode(J.code));
+    pinPad({ title: `Hej ${p.name}!`, lead: 'Tryck dina tre hemliga bilder.', back: () => joinCode(J.code), submit });
+  }
+  // Skapa ett eget konto utan klass
+  function openAccount() {
+    stopGame();
+    show('join');
+    J.cls = null; J.code = '';
+    $('#joinBack').onclick = () => (needsWelcome() ? showWelcome() : goHome());
+    let avatar = pick(AVATARS);
+    body().innerHTML = `<div class="formstack"><h2>Skapa eget konto</h2>
+      <p class="lead">Spelet kommer ihåg dina stjärnor, ditt husdjur och din väg, på alla enheter.</p>
+      <label class="lead" for="newName">Vad heter du? Skriv ditt förnamn.</label>
+      <input class="textfield" id="newName" maxlength="24" autocomplete="off" value="${esc(save.name || '')}">
+      <span class="lead">Välj en figur</span>
+      <div class="pickrow" id="avPick"></div>
+      <p class="error" id="joinErr"></p>
+      <button class="chunky coral" id="newGo">Fortsätt</button></div>`;
+    const paint = () => $$('#avPick button').forEach(b => b.setAttribute('aria-pressed', String(b.textContent === avatar)));
+    AVATARS.forEach(a => {
+      const b = document.createElement('button'); b.textContent = a; b.setAttribute('aria-label', 'Figur ' + a);
+      b.addEventListener('click', () => { avatar = a; paint(); sfx.select(); });
+      $('#avPick').appendChild(b);
+    });
+    paint();
+    $('#newGo').addEventListener('click', () => {
+      const name = $('#newName').value.trim();
+      if (name.length < 2) { $('#joinErr').textContent = 'Skriv ditt namn (minst två bokstäver).'; return; }
+      choosePin(name, pin => api('POST', 'accounts', { name, avatar, pin }), openAccount);
+    });
+    $('#newName').focus();
+  }
+  // Ett eget konto går med i en klass. Allt följer med.
+  function openMove() {
+    stopGame();
+    show('join');
+    $('#joinBack').onclick = goHome;
+    body().innerHTML = `<div class="formstack">
+      <h2>Gå med i en klass</h2>
+      <p class="lead">Skriv klasskoden från din lärare, till exempel SOL-4821. Allt du har samlat följer med.</p>
+      <input class="codefield" id="classCode" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="14" aria-label="Klasskod">
+      <p class="error" id="joinErr"></p>
+      <button class="chunky coral" id="codeGo">Fortsätt</button></div>`;
+    const go = async () => {
+      const code = $('#classCode').value.trim();
+      if (!code) return;
+      $('#codeGo').disabled = true;
+      try {
+        const res = await api('GET', 'classes/' + encodeURIComponent(code));
+        if (res.class.solo) throw new Error('Det där är ett eget konto, inte en klass. Fråga din lärare efter klasskoden.');
+        moveConfirm(res);
+      } catch (e) { $('#joinErr').textContent = e.message; $('#codeGo').disabled = false; }
+    };
+    $('#codeGo').addEventListener('click', go);
+    $('#classCode').addEventListener('keydown', e => { if (e.key === 'Enter') go(); });
+    $('#classCode').focus();
+  }
+  function moveConfirm(res) {
+    $('#joinBack').onclick = openMove;
+    body().innerHTML = `<div class="formstack">
+      <h2>${esc(res.class.name)}</h2>
+      <p class="lead">Du går med som:</p>
+      <input class="textfield" id="moveName" maxlength="24" autocomplete="off" value="${esc(net.player.name)}" aria-label="Ditt namn i klassen">
+      <p class="lead">Sen loggar du in med klasskoden och samma bildkod som nu. Din egen kod slutar gälla.</p>
+      <p class="error" id="joinErr"></p>
+      <button class="chunky coral" id="moveGo">Gå med i klassen</button></div>`;
+    $('#moveGo').addEventListener('click', async () => {
+      $('#moveGo').disabled = true;
+      try {
+        const r = await api('POST', 'me/join', { code: res.class.code, name: $('#moveName').value.trim() });
+        net.player = r.player;
+        ls.set(ACCOUNT_KEY, { ...(ls.get(ACCOUNT_KEY) || {}), player: net.player });
+        ls.set(CLASS_KEY, res.class.code);
+        goHome();
+        refreshClassInfo();
+        sfx.fanfare(); rain(140);
+        cheer(`Välkommen till ${res.class.name}!`, true);
+        say(`Välkommen till klassen, ${net.player.name}!`);
+      } catch (e) { $('#joinErr').textContent = e.message; $('#moveGo').disabled = false; }
+    });
   }
   function joinNew() {
     $('#joinBack').onclick = joinWho;
@@ -2414,16 +2605,27 @@
         ls.set(GUEST_KEY, withDefaults({ name: guest.name }, {}));
         persist();
       }
-      goHome();
-      refreshClassInfo();
-      sfx.fanfare(); rain(120);
-      cheer(`Välkommen ${res.player.name}!`, true);
-      say(`Välkommen ${res.player.name}!`);
+      const welcome = () => {
+        goHome();
+        refreshClassInfo();
+        sfx.fanfare(); rain(120);
+        cheer(`Välkommen ${res.player.name}!`, true);
+        say(`Välkommen ${res.player.name}!`);
+      };
+      if (!res.code) return welcome();
+      // Nytt eget konto: visa koden som behövs för att logga in på en annan enhet
+      $('#joinBack').onclick = welcome;
+      body().innerHTML = `<div class="codecard"><h2>Ditt konto är klart!</h2>
+        <p class="lead">Det här är din egen kod. Skriv upp den, eller be en vuxen spara den. Den behövs när du vill spela på en annan enhet.</p>
+        <span class="bigcode">${esc(res.code)}</span>
+        <p class="lead">Du loggar in med koden och dina tre hemliga bilder.</p>
+        <button class="chunky coral" id="codeOk">Jag har sparat koden</button></div>`;
+      $('#codeOk').addEventListener('click', welcome);
     };
     if (!hasProgress(progressOf(guest))) return finishLogin(false);
     $('#joinBack').onclick = () => finishLogin(false);
     body().innerHTML = `<div class="formstack"><h2>Ta med dina stjärnor?</h2>
-      <p class="lead">På den här enheten finns ${guest.total} stjärnor och ${guest.stickers.length} klistermärken som inte är sparade i klassen. Är det dina?</p>
+      <p class="lead">På den här enheten finns ${guest.total} stjärnor och ${guest.stickers.length} klistermärken som inte är sparade i ${res.player.solo ? 'ditt konto' : 'klassen'}. Är det dina?</p>
       <button class="chunky coral" id="mergeYes">Ja, ta med dem</button>
       <button class="chunky ghost" id="mergeNo">Nej, de är någon annans</button></div>`;
     $('#mergeYes').addEventListener('click', () => finishLogin(true));
@@ -2447,7 +2649,8 @@
   $('#duelSetupBtn').addEventListener('click', openDuel);
   $('#duelQuit').addEventListener('click', goHome);
   $('#openClass').addEventListener('click', openClass);
-  $('#openJoin').addEventListener('click', openJoin);
+  $('#openJoin').addEventListener('click', () => openJoin());
+  $('#openAccount').addEventListener('click', () => openAccount());
   $('#logoutBtn').addEventListener('click', () => logout(false));
   $('#nameInput').addEventListener('input', e => {
     save.name = e.target.value.replace(/[<>]/g, '').trim().slice(0, 16);
@@ -2455,11 +2658,13 @@
     persist();
   });
   $('#soundBtn').addEventListener('click', () => { prefs.sound = !prefs.sound; savePrefs(); renderStart(); if (prefs.sound) { unlockAudio(); sfx.right(); } else if (silentEl) silentEl.pause(); });
+  $('#soundTest').addEventListener('click', soundTest);
   $('#voiceBtn').addEventListener('click', () => {
     prefs.voice = !prefs.voice; savePrefs(); renderStart();
     if (!prefs.voice) return stopSpeech();
     loadVoices();
-    if (!window.speechSynthesis) cheer('Rösten finns inte här');
+    if (voiceState.server) say(`Hej ${nm()}!`);
+    else if (!window.speechSynthesis) cheer('Rösten finns inte här');
     else if (voices.length && !swedishVoice()) cheer('Ingen svensk röst på enheten');
     else say(`Hej ${nm()}!`);
   });

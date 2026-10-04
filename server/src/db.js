@@ -190,6 +190,15 @@ function migrations(t, client) {
     async down(knex) {
       await knex.schema.dropTableIfExists(t.gifts);
     }
+  }, {
+    // Egna konton utan klass: en "klass" med bara en elev och en egen kod
+    name: '006_solo',
+    async up(knex) {
+      await knex.schema.alterTable(t.classes, tb => { tb.boolean('solo').notNullable().defaultTo(false); });
+    },
+    async down(knex) {
+      await knex.schema.alterTable(t.classes, tb => { tb.dropColumn('solo'); });
+    }
   }];
 }
 

@@ -90,7 +90,7 @@ for (const [label, envFor] of targets) {
     before(async () => {
       const opened = await openDatabase(envFor());
       db = opened.db;
-      const app = createApp({ ...opened, adminKey: 'hemlig' });
+      const app = createApp({ ...opened, adminKey: 'hemlig', loginPerMinute: 500 });
       server = await new Promise(res => { const s = app.listen(0, () => res(s)); });
       base = `http://127.0.0.1:${server.address().port}/api`;
     });
@@ -248,6 +248,43 @@ for (const [label, envFor] of targets) {
 
       const logout = await call('POST', '/logout', null, { authorization: `Bearer ${fresh.body.token}` });
       assert.equal(logout.status, 204);
+    });
+
+    test('eget konto utan klass, och sedan med i en klass', async () => {
+      const acc = await call('POST', '/accounts', { name: 'Vera', avatar: '🦊', pin: [5, 6, 7] });
+      assert.equal(acc.status, 201);
+      assert.match(acc.body.code, /^[A-Z]+-\d{4}$/);
+      assert.equal(acc.body.player.solo, true);
+      assert.equal(acc.body.player.className, null);
+      const auth = { authorization: `Bearer ${acc.body.token}` };
+      await call('PUT', '/me/progress', { progress: { total: 12, stickers: ['🦖'] } }, auth);
+      // Logga in på en annan enhet med den egna koden
+      const look = await call('GET', `/classes/${acc.body.code}`);
+      assert.equal(look.body.class.solo, true);
+      assert.equal(look.body.players.length, 1);
+      assert.equal((await call('POST', `/classes/${acc.body.code}/players`, { name: 'Inkräktare', pin: [1, 1, 1] })).status, 400);
+      const login = await call('POST', '/login', { code: acc.body.code, playerId: look.body.players[0].id, pin: [5, 6, 7] });
+      assert.equal(login.status, 200);
+      assert.equal(login.body.progress.total, 12);
+      // Syns inte bland klasserna och kan inte visas publikt
+      const adm = await call('GET', '/admin/classes', null, ADMIN);
+      assert.equal(adm.body.find(c => c.code === acc.body.code).solo, true);
+      assert.equal((await call('GET', `/public/classes/${acc.body.code}?name=Vera`)).status, 404);
+      // Går med i en klass: allt följer med, den egna koden försvinner
+      const cls = await call('POST', '/admin/classes', { name: 'Klass 3A' }, ADMIN);
+      assert.equal((await call('POST', '/me/join', { code: acc.body.code }, auth)).status, 400);
+      const joined = await call('POST', '/me/join', { code: cls.body.code }, auth);
+      assert.equal(joined.status, 200);
+      assert.equal(joined.body.player.solo, false);
+      assert.equal(joined.body.player.className, 'Klass 3A');
+      assert.equal((await call('GET', '/me', null, auth)).body.progress.total, 12);
+      assert.equal((await call('GET', `/classes/${acc.body.code}`)).status, 404);
+      assert.equal((await call('POST', '/me/join', { code: cls.body.code }, auth)).status, 400);
+      // Namnkrock när ett till eget konto vill in
+      const acc2 = await call('POST', '/accounts', { name: 'vera', pin: [1, 2, 3] });
+      const a2 = { authorization: `Bearer ${acc2.body.token}` };
+      assert.equal((await call('POST', '/me/join', { code: cls.body.code }, a2)).status, 409);
+      assert.equal((await call('POST', '/me/join', { code: cls.body.code, name: 'Vera B' }, a2)).body.player.name, 'Vera B');
     });
 
     test('låser efter fem fel', async () => {

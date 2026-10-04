@@ -44,9 +44,16 @@
       <p>Gå med i klassen så hjälps ni åt med veckans uppdrag, ser varandras medaljer och sparar dina stjärnor på alla enheter.</p>
       <button class="chunky coral" id="welcomeJoinBtn">Gå med i min klass</button>
     </div>
+    <div class="panel welcome-class" id="welcomeAccount" hidden>
+      <div class="label">Spelar du hemma?</div>
+      <p>Skapa ett eget konto, så kommer spelet ihåg dina stjärnor, ditt husdjur och din väg på alla enheter. Du får en egen kod att logga in med.</p>
+      <button class="chunky sun" id="welcomeAccountBtn">Skapa eget konto</button>
+      <button class="textbtn" id="welcomeLoginBtn">Jag har redan ett konto</button>
+    </div>
     <div class="or" id="welcomeOr" hidden><span>eller</span></div>
     <div class="panel formstack">
-      <div class="label">Spela själv</div>
+      <div class="label">Spela utan konto</div>
+      <p class="lead">Då sparas allt bara på den här enheten.</p>
       <label class="lead" for="welcomeName">Vad heter du?</label>
       <input class="textfield" id="welcomeName" maxlength="16" autocomplete="off" placeholder="Ditt förnamn">
       <p class="error" id="welcomeErr"></p>
@@ -83,9 +90,12 @@
     </div>
 
     <div class="panel joincard" id="joinCard" hidden>
-      <div class="label">Spela med din klass</div>
-      <p>Hjälps åt med veckans uppdrag, heja på varandra och spara dina stjärnor på alla enheter.</p>
-      <button class="chunky coral" id="openJoin">Gå med i klassen</button>
+      <div class="label" id="joinCardTitle">Spela med din klass</div>
+      <p id="joinCardText">Hjälps åt med veckans uppdrag, heja på varandra och spara dina stjärnor på alla enheter.</p>
+      <div class="joincard-actions">
+        <button class="chunky coral" id="openJoin">Gå med i klassen</button>
+        <button class="chunky sun" id="openAccount">Skapa eget konto</button>
+      </div>
     </div>
 
     <div class="panel daily" id="dailyCard">
@@ -162,8 +172,10 @@
       <label class="namefield" id="nameField" for="nameInput">Vem spelar? <input id="nameInput" maxlength="16" autocomplete="off"></label>
       <span class="who" id="whoLine" hidden></span>
       <button class="textbtn" id="logoutBtn" hidden>Byt spelare</button>
+      <button class="textbtn" id="soundTest">Testa ljudet</button>
       <button class="textbtn" id="resetBtn">Nollställ allt</button>
     </div>
+    <p class="sound-status" id="soundStatus" hidden></p>
   </section>
 
   <!-- VÄGEN TILL EXPERT -->

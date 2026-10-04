@@ -597,6 +597,13 @@ details.friends summary { font-family: var(--display); font-weight: 800; font-si
 .half.waiting { background: var(--sky-2); }
 .half.waiting .dmsg { color: var(--grape); font-size: 1.2rem; }
 
+.sound-status { white-space: pre-line; margin: 10px 0 0; background: var(--card); border-radius: 14px; padding: 10px 12px; font-size: 0.9rem; font-weight: 700; color: var(--ink-soft); overflow-wrap: anywhere; }
+
+.joincard-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.welcome-class .textbtn { margin-top: 6px; color: #E6ECFF; }
+.codecard { text-align: center; display: grid; gap: 12px; justify-items: center; }
+.codecard .bigcode { font-family: var(--display); font-weight: 800; font-size: clamp(1.6rem, 9vw, 3rem); letter-spacing: 0.04em; white-space: nowrap; background: var(--sun); border-radius: 16px; padding: 4px 16px; user-select: all; }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition: none !important; }
   .cheer { animation: none; transform: translate(-50%, -50%); opacity: 1; }

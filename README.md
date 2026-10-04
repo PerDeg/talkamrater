@@ -57,7 +57,24 @@ Spelet fungerar på två sätt:
   - Bonus vid flera rätt i rad.
   - Stjärnor, titlar, 30 klistermärken och 13 medaljer.
 
-- **Första gången** väljer man mellan att gå med i sin klass och att skriva sitt namn och spela själv. Inget namn är förvalt.
+- **Första gången** väljer man mellan att gå med i sin klass, skapa ett eget konto eller bara skriva sitt namn och spela på enheten. Inget namn är förvalt.
+
+### Rösten
+
+Spelet läser upp hejarop och frågor på svenska.
+
+- **Serverns röst (standard):** servern har talsyntesen [Piper](https://github.com/rhasspy/piper) med en svensk röst. Spelet hämtar färdiga ljudfiler (`GET /api/tts?t=…`) och spelar dem som vanligt ljud. Det fungerar på iPhone, i hemskärmsappen och även när telefonen står på ljudlöst. Varje mening räknas bara fram en gång, sedan sparas den på servern och i telefonen.
+- **Telefonens röst (reserv):** saknas Piper, eller går servern inte att nå, används webbläsarens egen talsyntes. Den är opålitlig på mobiler.
+- **Testa ljudet** längst ner på startsidan spelar en ton och säger en mening, och visar vad som fungerar. Bra att trycka på om det är tyst.
+- Piper och rösten (`sv_SE-nst-medium`, ca 60 MB) laddas ner när Docker-avbildningen byggs. Bygg utan med `--build-arg PIPER=0`, byt röst med `--build-arg PIPER_VOICE=…`, eller stäng av med `TTS=off` i env-filen.
+
+## Eget konto utan klass
+
+Den som spelar hemma kan skapa ett **eget konto**: namn, figur och en hemlig bildkod. Eleven får en **egen kod**, t.ex. `BUBBLA-3155`, som visas på startsidan. Med koden och bildkoden kommer eleven åt sina stjärnor, sitt husdjur och sin väg på alla enheter.
+
+- Inloggningen sker på samma ställe som för klassen: skriv koden, tryck bildkoden.
+- Ett eget konto kan senare **gå med i en klass** med klasskoden. Allt följer med, och den egna koden slutar gälla.
+- Läraren ser egna konton i en egen lista på lärarsidan och kan ge en ny bildkod eller radera.
 
 ## Klassen: inloggning utan lösenord
 
@@ -214,6 +231,9 @@ Huvudversionen är låst (`postgres:17-alpine`). Så här byter du till en ny:
 | `GET /api/health` | Lever servern och databasen? |
 | `GET /api/classes/:kod` | Klassens namn och elever (för inloggningen) |
 | `POST /api/classes/:kod/players` | Ny elev `{name, avatar, pin:[a,b,c]}` |
+| `POST /api/accounts` | Eget konto utan klass `{name, avatar, pin}` → token och egen kod |
+| `POST /api/me/join` | Eget konto går med i en klass `{code, name?}` |
+| `GET /api/tts?t=` | Talsyntes: en WAV-fil med texten uppläst (om Piper finns) |
 | `POST /api/login` | `{code, playerId, pin}` → token |
 | `GET /api/me` · `PATCH /api/me` | Eleven och framstegen · byt figur |
 | `PUT /api/me/progress` | Spara framsteg (slås ihop med det som finns: det bästa från båda) |
@@ -222,6 +242,7 @@ Huvudversionen är låst (`postgres:17-alpine`). Så här byter du till en ny:
 | `GET /api/me/class` | Klassidan: elever, stjärnburk, veckans uppdrag, händelser |
 | `POST /api/me/events` | Ny händelse i flödet `{type, detail}` |
 | `POST /api/events/:id/cheer` | Heja på en klasskompis |
+| `POST /api/me/gift` · `POST /api/me/gifts/seen` | Hemlig present till en klasskompis · markera fått presenter som sedda |
 | `POST /api/logout` | Logga ut |
 | `/api/admin/...` | Klasser, elever, ny bildkod, radera (kräver headern `X-Admin-Key`) |
 

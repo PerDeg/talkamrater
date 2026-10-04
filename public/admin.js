@@ -69,6 +69,9 @@
     try { sessionStorage.setItem('tk-admin', key); } catch (e) {}
     $('#loginBox').hidden = true; $('#main').hidden = false;
     const wrap = $('#classes'); wrap.innerHTML = '';
+    // Egna konton (utan klass) visas för sig, längst ner
+    const solos = classes.filter(c => c.solo);
+    classes = classes.filter(c => !c.solo);
     if (!classes.length) wrap.innerHTML = '<p class="panel adm-class muted">Inga klasser än. Skapa en ovanför.</p>';
     for (const c of classes) {
       const el = document.createElement('section');
@@ -158,6 +161,34 @@
       confirmClick($('[data-del-class]', el), 'Radera klassen och alla elever? Klicka igen', async () => { await api('DELETE', `admin/classes/${c.id}`); load(); });
       wrap.appendChild(el);
     }
+    if (solos.length) wrap.appendChild(soloSection(solos));
+  }
+
+  function soloSection(solos) {
+    const el = document.createElement('section');
+    el.className = 'panel adm-class';
+    el.innerHTML = `<div class="adm-head"><h2>Egna konton</h2><span class="muted">${solos.length} st, utan klass</span></div>
+      <p class="muted">Elever som har skapat ett eget konto. De loggar in med sin egen kod och bildkod, och kan gå med i en klass senare.</p>
+      <div class="tablewrap"><table>
+        <thead><tr><th>Elev</th><th>Egen kod</th><th>Kan bra</th><th>Tränat</th><th></th></tr></thead><tbody></tbody>
+      </table></div>`;
+    const tb = $('tbody', el);
+    for (const c of solos) {
+      const p = c.players[0];
+      if (!p) continue;
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><span class="em">${esc(p.avatar)}</span> <b>${esc(p.name)}</b>
+          <div class="muted small">★ ${p.stars} · ${p.medals} medaljer · senast ${ago(p.lastSeen)}</div></td>
+        <td><b>${esc(c.code)}</b></td>
+        <td class="good">${p.strong.length ? p.strong.map(esc).join('<br>') : '<span class="muted">Inget säkert än</span>'}</td>
+        <td>${p.training.rounds} rundor totalt<div class="muted small">${p.training.weekRounds} i veckan</div></td>
+        <td><div class="actions"><button class="small-btn" data-reset>Ny bildkod</button><button class="small-btn danger" data-del>Ta bort</button></div></td>`;
+      confirmClick($('[data-reset]', tr), 'Säker? Klicka igen', async () => { await api('POST', `admin/players/${p.id}/reset-pin`); load(); });
+      confirmClick($('[data-del]', tr), 'Radera allt?', async () => { await api('DELETE', `admin/classes/${c.id}`); load(); });
+      tb.appendChild(tr);
+    }
+    return el;
   }
 
   $('#loginForm').addEventListener('submit', e => { e.preventDefault(); key = $('#adminKey').value; load(); });

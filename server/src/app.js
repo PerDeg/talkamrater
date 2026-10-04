@@ -37,7 +37,7 @@ class HttpError extends Error {
 const fail = (status, message) => { throw new HttpError(status, message); };
 const cleanName = n => String(n || '').replace(/[\u0000-\u001f<>]/g, '').replace(/\s+/g, ' ').trim().slice(0, 24);
 
-export function createApp({ db, t, client, adminKey, publicDir, trustProxy = 'loopback, linklocal, uniquelocal', allowedOrigins = [], publicUrl = '' }) {
+export function createApp({ db, t, client, adminKey, publicDir, trustProxy = 'loopback, linklocal, uniquelocal', allowedOrigins = [], publicUrl = '', tts = null, loginPerMinute = 20 }) {
   const app = express();
   app.disable('x-powered-by');
   app.set('trust proxy', trustProxy);
@@ -61,7 +61,7 @@ export function createApp({ db, t, client, adminKey, publicDir, trustProxy = 'lo
   api.use((req, res, next) => { res.set('Cache-Control', 'no-store'); next(); });
 
   const lookupLimit = rateLimiter({ windowMs: 60_000, max: 30 });
-  const loginLimit = rateLimiter({ windowMs: 60_000, max: 20 });
+  const loginLimit = rateLimiter({ windowMs: 60_000, max: loginPerMinute });
 
   /* ---------- Hjälpfunktioner ---------- */
   async function startSession(playerId) {
@@ -100,7 +100,14 @@ export function createApp({ db, t, client, adminKey, publicDir, trustProxy = 'lo
     if (!c) fail(404, 'Hittar ingen klass med den koden. Kolla med din lärare.');
     return c;
   }
-  const publicPlayer = (p, c) => ({ id: Number(p.id), name: p.name, avatar: p.avatar, className: c?.name, classCode: c?.code, focus: p.focus || c?.focus || null });
+  const publicPlayer = (p, c) => ({ id: Number(p.id), name: p.name, avatar: p.avatar, className: c?.solo ? null : c?.name, classCode: c?.code, solo: !!c?.solo, focus: p.focus || c?.focus || null });
+  async function newCode() {
+    for (let i = 0; i < 10; i++) {
+      const code = newClassCode();
+      if (!(await db(t.classes).where({ code }).first())) return code;
+    }
+    fail(500, 'Kunde inte skapa en unik kod.');
+  }
 
   async function auth(req, res, next) {
     const m = /^Bearer (.+)$/.exec(req.get('authorization') || '');
@@ -127,20 +134,51 @@ export function createApp({ db, t, client, adminKey, publicDir, trustProxy = 'lo
   /* ---------- Öppna anrop ---------- */
   api.get('/health', async (req, res) => {
     await db.raw('select 1');
-    res.json({ ok: true, app: 'talkamrater', version: 2 });
+    res.json({ ok: true, app: 'talkamrater', version: 2, tts: !!tts });
+  });
+
+  // Talsyntes: GET /api/tts?t=Hurra! ger en WAV-fil. Samma text ger alltid samma
+  // ljud, så webbläsaren får spara det länge.
+  const ttsLimit = rateLimiter({ windowMs: 60_000, max: 120 });
+  api.get('/tts', ttsLimit, async (req, res) => {
+    if (!tts) fail(404, 'Talsyntesen är inte installerad på servern.');
+    let file;
+    try { file = await tts.synth(String(req.query.t || '')); }
+    catch (e) { fail(503, 'Talsyntesen svarar inte just nu.'); }
+    res.set({ 'Content-Type': 'audio/wav', 'Cache-Control': 'public, max-age=2592000, immutable' });
+    res.sendFile(file);
   });
 
   api.get('/classes/:code', lookupLimit, async (req, res) => {
     const c = await classByCode(req.params.code);
     const players = await db(t.players).where({ class_id: c.id }).orderBy('name');
     res.json({
-      class: { name: c.name, code: c.code },
+      class: { name: c.name, code: c.code, solo: !!c.solo },
       players: players.map(p => ({ id: Number(p.id), name: p.name, avatar: p.avatar, needsPin: !p.pin_hash }))
     });
   });
 
+  // Eget konto utan klass. Eleven får en egen kod (som en klasskod) och väljer en bildkod.
+  const accountLimit = rateLimiter({ windowMs: 3_600_000, max: 10 });
+  api.post('/accounts', accountLimit, async (req, res) => {
+    const name = cleanName(req.body?.name);
+    const avatar = AVATARS.includes(req.body?.avatar) ? req.body.avatar : AVATARS[0];
+    const pin = req.body?.pin;
+    if (name.length < 2) fail(400, 'Skriv ditt namn (minst två bokstäver).');
+    if (!validPin(pin)) fail(400, 'Välj tre bilder som din hemliga kod.');
+    const code = await newCode();
+    const now = Date.now();
+    const classId = await insertId(db, client, t.classes, { code, name, goal: 500, solo: true, created_at: now });
+    const id = await insertId(db, client, t.players, { class_id: classId, name, avatar, pin_hash: hashPin(pin), created_at: now });
+    const c = await db(t.classes).where({ id: classId }).first();
+    const player = await db(t.players).where({ id }).first();
+    const token = await startSession(id);
+    res.status(201).json({ token, code, player: publicPlayer(player, c), ...(await loadProgress(id)) });
+  });
+
   api.post('/classes/:code/players', loginLimit, async (req, res) => {
     const c = await classByCode(req.params.code);
+    if (c.solo) fail(400, 'Det där är någons egen kod, inte en klasskod.');
     const name = cleanName(req.body?.name);
     const avatar = AVATARS.includes(req.body?.avatar) ? req.body.avatar : AVATARS[0];
     const pin = req.body?.pin;
@@ -184,6 +222,24 @@ export function createApp({ db, t, client, adminKey, publicDir, trustProxy = 'lo
   api.get('/me', auth, async (req, res) => {
     const c = await db(t.classes).where({ id: req.player.class_id }).first();
     res.json({ player: publicPlayer(req.player, c), ...(await loadProgress(req.player.id)) });
+  });
+
+  // Ett eget konto går med i en klass: stjärnor och allt annat följer med
+  api.post('/me/join', auth, loginLimit, async (req, res) => {
+    const from = await db(t.classes).where({ id: req.player.class_id }).first();
+    if (!from || !from.solo) fail(400, 'Du är redan med i en klass.');
+    const c = await classByCode(req.body?.code);
+    if (c.solo) fail(400, 'Det där är någons egen kod, inte en klasskod.');
+    const count = await db(t.players).where({ class_id: c.id }).count({ n: '*' }).first();
+    if (Number(count.n) >= MAX_PLAYERS_PER_CLASS) fail(409, 'Klassen är full.');
+    const name = req.body?.name != null ? cleanName(req.body.name) : req.player.name;
+    if (name.length < 2) fail(400, 'Skriv ditt namn (minst två bokstäver).');
+    const taken = await db(t.players).where({ class_id: c.id }).whereRaw('lower(name) = ?', [name.toLowerCase()]).first();
+    if (taken) fail(409, `Det finns redan någon som heter ${taken.name} i klassen. Lägg till första bokstaven i efternamnet, t.ex. "${name} K".`);
+    await db(t.players).where({ id: req.player.id }).update({ class_id: c.id, name });
+    await db(t.classes).where({ id: from.id }).del(); // det egna kontots tomma "klass"
+    const player = await db(t.players).where({ id: req.player.id }).first();
+    res.json({ player: publicPlayer(player, c) });
   });
 
   api.patch('/me', auth, async (req, res) => {
@@ -322,7 +378,7 @@ export function createApp({ db, t, client, adminKey, publicDir, trustProxy = 'lo
   });
   publicApi.get('/classes/:code', lookupLimit, async (req, res) => {
     const c = await db(t.classes).where({ code: normalizeCode(req.params.code) }).first();
-    if (!c || !c.public) fail(404, 'Klassen finns inte eller visas inte publikt.');
+    if (!c || !c.public || c.solo) fail(404, 'Klassen finns inte eller visas inte publikt.');
     const rows = await db(t.players).leftJoin(t.progress, `${t.players}.id`, `${t.progress}.player_id`)
       .where(`${t.players}.class_id`, c.id).select(`${t.players}.id`, `${t.players}.name`, `${t.players}.avatar`, `${t.players}.focus`, `${t.progress}.data`);
     const parse = d => { try { return d ? JSON.parse(d) : {}; } catch { return {}; } };
@@ -400,7 +456,7 @@ export function createApp({ db, t, client, adminKey, publicDir, trustProxy = 'lo
       const pulse = pulses[c.id];
       const progressList = mine.map(p => { try { return sanitizeProgress(p.data ? JSON.parse(p.data) : {}); } catch { return sanitizeProgress({}); } });
       return {
-        id: Number(c.id), name: c.name, code: c.code, goal: Number(c.goal), public: !!c.public, focus: c.focus || '',
+        id: Number(c.id), name: c.name, code: c.code, goal: Number(c.goal), public: !!c.public, focus: c.focus || '', solo: !!c.solo,
         mission: { title: m.title(m.goal), unit: m.unit },
         everyone: pulse.everyone, pet: classPetView({ rounds: pulse.rounds, players: pulse.n, recent: pulse.recent }),
         wall: knowledgeWall(progressList),
@@ -440,13 +496,9 @@ export function createApp({ db, t, client, adminKey, publicDir, trustProxy = 'lo
     const name = cleanName(req.body?.name);
     if (name.length < 1) fail(400, 'Ge klassen ett namn.');
     const goal = Math.max(10, Math.min(100000, Math.floor(Number(req.body?.goal)) || 500));
-    for (let i = 0; i < 10; i++) {
-      const code = newClassCode();
-      if (await db(t.classes).where({ code }).first()) continue;
-      const id = await insertId(db, client, t.classes, { code, name, goal, created_at: Date.now() });
-      return res.status(201).json({ id, name, code, goal });
-    }
-    fail(500, 'Kunde inte skapa en unik klasskod.');
+    const code = await newCode();
+    const id = await insertId(db, client, t.classes, { code, name, goal, created_at: Date.now() });
+    res.status(201).json({ id, name, code, goal });
   });
 
   api.patch('/admin/classes/:id', admin, async (req, res) => {
