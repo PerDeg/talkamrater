@@ -58,9 +58,13 @@
     });
   }
 
+  let me = { super: true }, schools = [];
   async function load() {
-    let classes;
-    try { classes = await api('GET', 'admin/classes'); }
+    let classes, contests;
+    try {
+      me = await api('GET', 'admin/me');
+      [classes, schools, contests] = await Promise.all([api('GET', 'admin/classes'), api('GET', 'admin/schools'), api('GET', 'admin/contests')]);
+    }
     catch (e) {
       $('#loginBox').hidden = false; $('#main').hidden = true;
       $('#loginErr').textContent = e.status === 401 ? 'Fel adminnyckel.' : e.message;
@@ -68,6 +72,11 @@
     }
     try { sessionStorage.setItem('tk-admin', key); } catch (e) {}
     $('#loginBox').hidden = true; $('#main').hidden = false;
+    $('#whoami').textContent = me.super ? 'Huvudadmin' : `Lärare · ${me.school.name}`;
+    renderSchools();
+    renderContests(contests, classes);
+    $('#classSchoolWrap').hidden = !me.super || !schools.length;
+    $('#classSchool').innerHTML = '<option value="">Ingen skola</option>' + schools.map(x => `<option value="${x.id}">${esc(x.name)}</option>`).join('');
     const wrap = $('#classes'); wrap.innerHTML = '';
     // Egna konton (utan klass) visas för sig, längst ner
     const solos = classes.filter(c => c.solo);
@@ -86,6 +95,7 @@
           <span>Till eleverna: Gå till <b>${esc(gameUrl)}</b>, tryck <b>Gå med i klassen</b> och skriv koden <b>${esc(c.code)}</b>.</span>
           <button class="small-btn" data-copy>Kopiera</button>
         </div>
+        ${me.super && schools.length ? `<p class="muted"><label>Skola: <select class="adm-select" data-school><option value="">Ingen skola</option>${schools.map(x => `<option value="${x.id}" ${x.id === c.schoolId ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</select></label></p>` : ''}
         <p class="muted">${c.players.length} ${c.players.length === 1 ? 'elev' : 'elever'} · stjärnburken ${stars} av
           <span class="goal-edit"><input type="number" min="10" value="${c.goal}" aria-label="Mål för stjärnburken"><button class="small-btn" data-goal>Spara</button></span></p>
         <div class="adm-public">
@@ -145,6 +155,8 @@
         await api('PATCH', `admin/classes/${c.id}`, { goal: Number($('.goal-edit input', el).value) });
         load();
       });
+      const schoolSel = $('[data-school]', el);
+      if (schoolSel) schoolSel.addEventListener('change', async e => { await api('PATCH', `admin/classes/${c.id}`, { schoolId: Number(e.target.value) || null }); load(); });
       $('[data-class-focus]', el).addEventListener('change', async e => {
         await api('PATCH', `admin/classes/${c.id}`, { focus: e.target.value });
         load();
@@ -162,6 +174,97 @@
       wrap.appendChild(el);
     }
     if (solos.length) wrap.appendChild(soloSection(solos));
+  }
+
+  /* ---------- Skolor (huvudadmin) ---------- */
+  function showKey(name, key) {
+    const box = $('#keyBox'); box.hidden = false;
+    box.innerHTML = `<p><b>Lärarnyckel för ${esc(name)}</b>. Ge den till skolans lärare. Den visas bara nu, men du kan alltid skapa en ny.</p>
+      <code class="adm-key">${esc(key)}</code> <button class="small-btn" data-copy-key>Kopiera</button>`;
+    $('[data-copy-key]', box).addEventListener('click', async e => { try { await navigator.clipboard.writeText(key); e.target.textContent = 'Kopierat!'; } catch (err) {} });
+  }
+  function renderSchools() {
+    $('#schoolsBox').hidden = !me.super;
+    if (!me.super) return;
+    const list = $('#schools');
+    list.innerHTML = schools.length ? '' : '<p class="muted">Inga skolor än. Klasser kan finnas utan skola, men klasskamp kräver en skola.</p>';
+    for (const x of schools) {
+      const row = document.createElement('div'); row.className = 'adm-school';
+      row.innerHTML = `<b>${esc(x.name)}</b><span class="muted">${x.classes} ${x.classes === 1 ? 'klass' : 'klasser'}</span>
+        <span class="actions"><button class="small-btn" data-key>Ny lärarnyckel</button><button class="small-btn danger" data-del>Ta bort</button></span>`;
+      confirmClick($('[data-key]', row), 'Gamla nyckeln slutar gälla. Klicka igen', async () => { const r = await api('POST', `admin/schools/${x.id}/key`); await load(); showKey(x.name, r.key); });
+      confirmClick($('[data-del]', row), 'Klasserna blir kvar. Klicka igen', async () => { await api('DELETE', `admin/schools/${x.id}`); load(); });
+      list.appendChild(row);
+    }
+  }
+  $('#newSchool').addEventListener('submit', async e => {
+    e.preventDefault(); $('#schoolErr').textContent = '';
+    try {
+      const r = await api('POST', 'admin/schools', { name: $('#schoolName').value });
+      $('#schoolName').value = '';
+      await load(); showKey(r.name, r.key);
+    } catch (err) { $('#schoolErr').textContent = err.message; }
+  });
+
+  /* ---------- Klasskamp ---------- */
+  const METRIC_LABEL = { pairs: 'Bubbelpar (bubbelberg)', answers: 'Rätta svar', rounds: 'Rundor', stars: 'Stjärnor' };
+  const dateText = ms => new Date(ms).toLocaleDateString('sv-SE', { day: 'numeric', month: 'long' });
+  function renderContests(contests, classes) {
+    const wrap = $('#contests'); wrap.innerHTML = '';
+    const scope = me.super ? schools : [me.school];
+    for (const school of scope) {
+      const mine = classes.filter(c => c.schoolId === school.id && !c.solo);
+      const el = document.createElement('section');
+      el.className = 'panel adm-contests';
+      el.innerHTML = `<div class="label">Klasskamp · ${esc(school.name)} <small>Klasserna bygger var sitt berg och hejar på varandra</small></div>
+        <p class="muted">Varje klass bygger mot ett eget mål efter hur många elever den har, så att stora och små klasser har samma chans. Klasserna visas i bokstavsordning, aldrig som en placering.</p>
+        <div class="adm-contest-list"></div>
+        <details class="adm-newcontest"><summary>Starta en ny klasskamp</summary>
+          ${mine.length < 2 ? '<p class="muted">Skolan behöver minst två klasser.</p>' : `
+          <form class="adm-form">
+            <label>Namn <input class="textfield" name="title" maxlength="64" placeholder="Skolans bubbelberg"></label>
+            <label>Vad bygger klasserna av? <select class="adm-select" name="metric">${Object.entries(METRIC_LABEL).map(([k, v]) => `<option value="${k}">${v}</option>`).join('')}</select></label>
+            <fieldset class="adm-checks"><legend>Klasser som är med</legend>${mine.map(c => `<label class="check"><input type="checkbox" name="cls" value="${c.id}" checked> ${esc(c.name)}</label>`).join('')}</fieldset>
+            <label>Sista dag (valfritt) <input class="textfield" type="date" name="ends"></label>
+            <button class="chunky coral" type="submit">Starta klasskampen</button>
+            <p class="error"></p>
+          </form>`}
+        </details>`;
+      const list = $('.adm-contest-list', el);
+      const here = contests.filter(k => k.schoolId === school.id);
+      if (!here.length) list.innerHTML = '<p class="muted">Ingen klasskamp än.</p>';
+      for (const k of here) list.appendChild(contestCard(k, mine));
+      const form = $('form', el);
+      if (form) form.addEventListener('submit', async e => {
+        e.preventDefault();
+        const f = new FormData(form);
+        try {
+          await api('POST', 'admin/contests', {
+            schoolId: school.id, title: f.get('title'), metric: f.get('metric'),
+            classIds: f.getAll('cls').map(Number), endsAt: f.get('ends') ? new Date(f.get('ends') + 'T23:59:59').getTime() : null
+          });
+          load();
+        } catch (err) { $('.error', form).textContent = err.message; }
+      });
+      wrap.appendChild(el);
+    }
+  }
+  function contestCard(k) {
+    const el = document.createElement('div');
+    el.className = 'adm-contest' + (k.active && !k.ended ? '' : ' off');
+    const status = k.ended ? `Slut ${dateText(k.endsAt)}` : !k.active ? 'Pausad' : k.endsAt ? `Pågår till ${dateText(k.endsAt)}` : 'Pågår';
+    el.innerHTML = `<div class="adm-head"><h3>${esc(k.title)}</h3><span class="badge">${status}</span></div>
+      <p class="muted">Startade ${dateText(k.startsAt)} · hela skolan har byggt <b>${k.total} ${esc(k.unit)}</b></p>
+      <div class="adm-mountains">${k.classes.map(c => `<div class="adm-mt"><b>${esc(c.name)}</b>
+        <span class="adm-bar"><i style="width:${c.percent}%"></i></span><span>${c.progress} av ${c.goal} · ${c.percent} %</span></div>`).join('')}</div>
+      <p class="actions"><button class="small-btn" data-toggle>${k.active ? 'Pausa' : 'Starta igen'}</button>
+        ${k.ended ? '' : '<button class="small-btn" data-end>Avsluta nu</button>'}
+        <button class="small-btn danger" data-del>Ta bort</button></p>`;
+    $('[data-toggle]', el).addEventListener('click', async () => { await api('PATCH', `admin/contests/${k.id}`, { active: !k.active }); load(); });
+    const end = $('[data-end]', el);
+    if (end) confirmClick(end, 'Avsluta kampen? Klicka igen', async () => { await api('PATCH', `admin/contests/${k.id}`, { endsAt: Date.now() }); load(); });
+    confirmClick($('[data-del]', el), 'Radera kampen? Klicka igen', async () => { await api('DELETE', `admin/contests/${k.id}`); load(); });
+    return el;
   }
 
   function soloSection(solos) {
@@ -196,7 +299,7 @@
     e.preventDefault();
     $('#newErr').textContent = '';
     try {
-      await api('POST', 'admin/classes', { name: $('#className').value, goal: Number($('#classGoal').value) });
+      await api('POST', 'admin/classes', { name: $('#className').value, goal: Number($('#classGoal').value), schoolId: Number($('#classSchool').value) || undefined });
       $('#className').value = '';
       load();
     } catch (err) { $('#newErr').textContent = err.message; }

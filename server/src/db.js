@@ -59,6 +59,9 @@ export const tableNames = prefix => ({
   rounds: `${prefix}rounds`,
   events: `${prefix}events`,
   gifts: `${prefix}gifts`,
+  schools: `${prefix}schools`,
+  contests: `${prefix}contests`,
+  contestClasses: `${prefix}contest_classes`,
   cheers: `${prefix}cheers`
 });
 
@@ -198,6 +201,46 @@ function migrations(t, client) {
     },
     async down(knex) {
       await knex.schema.alterTable(t.classes, tb => { tb.dropColumn('solo'); });
+    }
+  }, {
+    // Skolor med egen lärarnyckel, och klasskamper mellan skolans klasser
+    name: '007_schools',
+    async up(knex) {
+      await knex.schema.createTable(t.schools, tb => {
+        cs(tb);
+        tb.increments('id').primary();
+        tb.string('name', 64).notNullable();
+        tb.string('key_hash', 64).nullable().unique();
+        tb.bigInteger('created_at').notNullable();
+      });
+      await knex.schema.alterTable(t.classes, tb => {
+        tb.integer('school_id').unsigned().nullable().references('id').inTable(t.schools).onDelete('SET NULL');
+      });
+      await knex.schema.createTable(t.contests, tb => {
+        cs(tb);
+        tb.increments('id').primary();
+        tb.integer('school_id').unsigned().notNullable().references('id').inTable(t.schools).onDelete('CASCADE');
+        tb.string('title', 64).notNullable();
+        tb.string('metric', 16).notNullable();
+        tb.boolean('active').notNullable().defaultTo(true);
+        tb.bigInteger('starts_at').notNullable();
+        tb.bigInteger('ends_at').nullable();
+        tb.bigInteger('created_at').notNullable();
+        tb.index(['school_id']);
+      });
+      await knex.schema.createTable(t.contestClasses, tb => {
+        cs(tb);
+        tb.integer('contest_id').unsigned().notNullable().references('id').inTable(t.contests).onDelete('CASCADE');
+        tb.integer('class_id').unsigned().notNullable().references('id').inTable(t.classes).onDelete('CASCADE');
+        tb.primary(['contest_id', 'class_id']);
+        tb.index(['class_id']);
+      });
+    },
+    async down(knex) {
+      await knex.schema.dropTableIfExists(t.contestClasses);
+      await knex.schema.dropTableIfExists(t.contests);
+      await knex.schema.alterTable(t.classes, tb => { tb.dropForeign(['school_id']); tb.dropColumn('school_id'); });
+      await knex.schema.dropTableIfExists(t.schools);
     }
   }];
 }

@@ -604,6 +604,19 @@ details.friends summary { font-family: var(--display); font-weight: 800; font-si
 .codecard { text-align: center; display: grid; gap: 12px; justify-items: center; }
 .codecard .bigcode { font-family: var(--display); font-weight: 800; font-size: clamp(1.6rem, 9vw, 3rem); letter-spacing: 0.04em; white-space: nowrap; background: var(--sun); border-radius: 16px; padding: 4px 16px; user-select: all; }
 
+/* Klasskamp: bergen */
+.mountains { display: grid; grid-template-columns: repeat(auto-fit, minmax(72px, 1fr)); gap: 10px 8px; margin: 10px 0 6px; align-items: end; }
+.mtn { display: grid; justify-items: center; gap: 2px; text-align: center; min-width: 0; }
+.mtn .peak { position: relative; width: 100%; max-width: 110px; aspect-ratio: 1.15; clip-path: polygon(50% 0, 100% 100%, 0 100%);
+  background: linear-gradient(to top, var(--blue) 0 var(--fill), var(--sky-2) var(--fill) 100%); }
+.mtn.mine .peak { background: linear-gradient(to top, var(--coral) 0 var(--fill), #FFE3D6 var(--fill) 100%); }
+.mtn .flag { height: 1.3em; font-size: 1.1rem; line-height: 1; }
+.mtn b { font-family: var(--display); font-size: 1.1rem; line-height: 1.1; overflow-wrap: anywhere; }
+.mtn small { font-weight: 800; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.mtn.mine b::after { content: " (vi)"; font-size: 0.8rem; color: var(--coral-deep); }
+.contest-cheer { margin: 6px 0 0; font-weight: 800; font-size: 1.1rem; }
+.ct-contest { margin: 0; font-weight: 800; color: #F1ECFF; }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition: none !important; }
   .cheer { animation: none; transform: translate(-50%, -50%); opacity: 1; }

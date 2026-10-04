@@ -5,6 +5,7 @@ import { emptyProgress, sanitizeProgress, mergeProgress, summarize } from './pro
 import { classMission, celebrateMission, classPulse, celebrateAllIn } from './mission.js';
 import { petView, eventText, medalIcons, nudge, validFocus, focusLabel, classPetView, TREATS } from './display.js';
 import { weekStart, missionFor } from './mission.js';
+import { METRICS, validMetric, contestView, contestForClass, celebrateContest, contestCheer } from './contest.js';
 
 // Händelser som kan visas i klassens flöde. Texten byggs i spelet utifrån typ + detalj.
 // Bara större händelser, så att flödet inte svämmar över i en stor klass.
@@ -125,10 +126,34 @@ export function createApp({ db, t, client, adminKey, publicDir, trustProxy = 'lo
     req.tokenHash = s.token_hash;
     next();
   }
-  function admin(req, res, next) {
-    if (!adminKey) return res.status(503).json({ error: 'Adminläget är avstängt. Sätt ADMIN_KEY på servern.' });
-    if (!safeEqual(req.get('x-admin-key') || '', adminKey)) return res.status(401).json({ error: 'Fel adminnyckel' });
-    next();
+  // Två sorters nycklar till lärarsidan:
+  //  - ADMIN_KEY (huvudadmin) ser allt och skapar skolor
+  //  - en skolas lärarnyckel ser bara den skolans klasser och klasskamper
+  const adminLimit = rateLimiter({ windowMs: 60_000, max: 60 });
+  async function admin(req, res, next) {
+    const key = req.get('x-admin-key') || '';
+    if (adminKey && safeEqual(key, adminKey)) { req.scope = { super: true }; return next(); }
+    if (key.length >= 16) {
+      const school = await db(t.schools).where({ key_hash: hashToken(key) }).first();
+      if (school) { req.scope = { super: false, schoolId: Number(school.id), schoolName: school.name }; return next(); }
+    }
+    if (!adminKey && !(await db(t.schools).whereNotNull('key_hash').first())) {
+      return res.status(503).json({ error: 'Adminläget är avstängt. Sätt ADMIN_KEY på servern.' });
+    }
+    return adminLimit(req, res, () => res.status(401).json({ error: 'Fel nyckel' }));
+  }
+  const superOnly = (req, res, next) => (req.scope.super ? next() : res.status(403).json({ error: 'Bara huvudadmin kan göra det här.' }));
+  // Klassen/eleven måste höra till lärarens skola
+  async function ownClass(req, id) {
+    const c = await db(t.classes).where({ id: Number(id) || 0 }).first();
+    if (!c || (!req.scope.super && Number(c.school_id) !== req.scope.schoolId)) fail(404, 'Klassen finns inte.');
+    return c;
+  }
+  async function ownPlayer(req, id) {
+    const p = await db(t.players).where({ id: Number(id) || 0 }).first();
+    if (!p) fail(404, 'Spelaren finns inte.');
+    await ownClass(req, p.class_id);
+    return p;
   }
 
   /* ---------- Öppna anrop ---------- */
@@ -269,7 +294,16 @@ export function createApp({ db, t, client, adminKey, publicDir, trustProxy = 'lo
     const completed = await celebrateMission(db, t, client, req.player.class_id, req.player.id, mission);
     const pulse = await classPulse(db, t, req.player.class_id, Number(count.n));
     const allIn = await celebrateAllIn(db, t, client, req.player.class_id, req.player.id, pulse.everyone, mission.start);
-    res.json({ mission: { ...mission, everyone: pulse.everyone }, completed, allIn });
+    // Klasskamp: delmål för klassens berg (25/50/75/100 %)
+    let contest = null;
+    const cRow = await contestForClass(db, t, req.player.class_id);
+    if (cRow) {
+      const view = await contestView(db, t, cRow, req.player.class_id);
+      const reached = await celebrateContest(db, t, client, cRow, view, req.player.class_id, req.player.id);
+      const mine = view.classes.find(c => c.mine);
+      contest = { title: view.title, unit: view.unit, mountain: view.mountain, progress: mine.progress, goal: mine.goal, percent: mine.percent, reached };
+    }
+    res.json({ mission: { ...mission, everyone: pulse.everyone }, completed, allIn, contest });
   });
 
   api.get('/me/class', auth, async (req, res) => {
@@ -309,6 +343,7 @@ export function createApp({ db, t, client, adminKey, publicDir, trustProxy = 'lo
       pet: classPetView({ rounds: pulse.rounds, players: players.length, recent: pulse.recent }),
       wall: knowledgeWall(progressList),
       gifts: gifts.map(g => ({ id: Number(g.id), treat: g.treat, at: Number(g.created_at) })),
+      contest: await (async () => { const r = await contestForClass(db, t, c.id); return r ? contestView(db, t, r, c.id) : null; })(),
       events, myCheers: Number(myCheers.n)
     });
   });
@@ -387,6 +422,8 @@ export function createApp({ db, t, client, adminKey, publicDir, trustProxy = 'lo
     const row = wanted ? rows.find(r => r.name.toLowerCase() === wanted) : null;
     const mission = await classMission(db, t, c.id, rows.length, row ? row.id : null);
     const pulse = await classPulse(db, t, c.id, rows.length);
+    const cRow = await contestForClass(db, t, c.id);
+    const contest = cRow ? await contestView(db, t, cRow, c.id) : null;
     let me = null;
     if (row) {
       const p = sanitizeProgress(parse(row.data));
@@ -397,7 +434,7 @@ export function createApp({ db, t, client, adminKey, publicDir, trustProxy = 'lo
         experts: sum.experts, dailyStreak: sum.dailyStreak, contribution: mission.mine,
         pet: petView(p.pet),
         nudge: nudge({
-          pet: p.pet, daily: p.daily, mission, focus: row.focus || c.focus, tricky: p.tricky, everyone: pulse.everyone,
+          pet: p.pet, daily: p.daily, mission, focus: row.focus || c.focus, tricky: p.tricky, everyone: pulse.everyone, contest: contestCheer(contest),
           gift: (await db(t.gifts).where({ to_id: row.id, seen: false }).orderBy('created_at').first())?.treat || null
         })
       };
@@ -414,6 +451,11 @@ export function createApp({ db, t, client, adminKey, publicDir, trustProxy = 'lo
         title: mission.title, unit: mission.unit, goal: mission.goal, progress: mission.progress,
         percent: Math.min(100, Math.round(100 * mission.progress / mission.goal)),
         done: mission.progress >= mission.goal, endsAt: mission.endsAt, everyone: pulse.everyone
+      },
+      contest: contest && {
+        title: contest.title, unit: contest.unit, mountain: contest.mountain, ended: contest.ended, endsAt: contest.endsAt, total: contest.total,
+        classes: contest.classes.map(k => ({ name: k.name, progress: k.progress, goal: k.goal, percent: k.percent, mine: k.mine })),
+        text: contestCheer(contest)
       },
       jar: { total, goal: Number(c.goal) },
       me,
@@ -436,10 +478,18 @@ export function createApp({ db, t, client, adminKey, publicDir, trustProxy = 'lo
     for (const k of keys) (by[k[0]] = by[k[0]] || []).push(Number(k.slice(1)));
     return Object.entries(by).map(([w, ns]) => `${WORLD_NAME[w]}: ${ns.sort((a, b) => a - b).join(', ')}`);
   };
+  api.get('/admin/me', admin, async (req, res) => {
+    res.json(req.scope.super ? { super: true } : { super: false, school: { id: req.scope.schoolId, name: req.scope.schoolName } });
+  });
+
   api.get('/admin/classes', admin, async (req, res) => {
-    const classes = await db(t.classes).orderBy('name');
-    const players = await db(t.players).leftJoin(t.progress, `${t.players}.id`, `${t.progress}.player_id`)
-      .select(`${t.players}.*`, `${t.progress}.data`).orderBy(`${t.players}.name`);
+    let cq = db(t.classes).orderBy('name');
+    if (!req.scope.super) cq = cq.where({ school_id: req.scope.schoolId });
+    const classes = await cq;
+    const classIds = classes.map(c => c.id);
+    const players = classIds.length ? await db(t.players).leftJoin(t.progress, `${t.players}.id`, `${t.progress}.player_id`)
+      .whereIn(`${t.players}.class_id`, classIds)
+      .select(`${t.players}.*`, `${t.progress}.data`).orderBy(`${t.players}.name`) : [];
     const start = weekStart();
     const week = await db(t.rounds).where('created_at', '>=', start).groupBy('player_id')
       .select('player_id', db.raw('count(*) as n'), db.raw('sum(score) as score'), db.raw('sum(stars) as stars'),
@@ -457,6 +507,7 @@ export function createApp({ db, t, client, adminKey, publicDir, trustProxy = 'lo
       const progressList = mine.map(p => { try { return sanitizeProgress(p.data ? JSON.parse(p.data) : {}); } catch { return sanitizeProgress({}); } });
       return {
         id: Number(c.id), name: c.name, code: c.code, goal: Number(c.goal), public: !!c.public, focus: c.focus || '', solo: !!c.solo,
+        schoolId: c.school_id ? Number(c.school_id) : null,
         mission: { title: m.title(m.goal), unit: m.unit },
         everyone: pulse.everyone, pet: classPetView({ rounds: pulse.rounds, players: pulse.n, recent: pulse.recent }),
         wall: knowledgeWall(progressList),
@@ -485,6 +536,7 @@ export function createApp({ db, t, client, adminKey, publicDir, trustProxy = 'lo
   });
 
   api.patch('/admin/players/:id', admin, async (req, res) => {
+    await ownPlayer(req, req.params.id);
     const focus = req.body?.focus ?? '';
     if (!validFocus(focus)) fail(400, 'Okänt fokus. Använd t.ex. p7, m10 eller d6.');
     const n = await db(t.players).where({ id: Number(req.params.id) }).update({ focus: focus || null });
@@ -496,13 +548,22 @@ export function createApp({ db, t, client, adminKey, publicDir, trustProxy = 'lo
     const name = cleanName(req.body?.name);
     if (name.length < 1) fail(400, 'Ge klassen ett namn.');
     const goal = Math.max(10, Math.min(100000, Math.floor(Number(req.body?.goal)) || 500));
+    let schoolId = req.scope.super ? (Number(req.body?.schoolId) || null) : req.scope.schoolId;
+    if (schoolId && !(await db(t.schools).where({ id: schoolId }).first())) fail(400, 'Skolan finns inte.');
     const code = await newCode();
-    const id = await insertId(db, client, t.classes, { code, name, goal, created_at: Date.now() });
-    res.status(201).json({ id, name, code, goal });
+    const id = await insertId(db, client, t.classes, { code, name, goal, school_id: schoolId, created_at: Date.now() });
+    res.status(201).json({ id, name, code, goal, schoolId });
   });
 
   api.patch('/admin/classes/:id', admin, async (req, res) => {
+    await ownClass(req, req.params.id);
     const patch = {};
+    if (req.body?.schoolId !== undefined) {
+      if (!req.scope.super) fail(403, 'Bara huvudadmin kan flytta klasser mellan skolor.');
+      const sid = Number(req.body.schoolId) || null;
+      if (sid && !(await db(t.schools).where({ id: sid }).first())) fail(400, 'Skolan finns inte.');
+      patch.school_id = sid;
+    }
     if (req.body?.name != null) patch.name = cleanName(req.body.name);
     if (req.body?.goal != null) patch.goal = Math.max(10, Math.min(100000, Math.floor(Number(req.body.goal)) || 500));
     if (req.body?.public != null) patch.public = !!req.body.public;
@@ -517,11 +578,13 @@ export function createApp({ db, t, client, adminKey, publicDir, trustProxy = 'lo
   });
 
   api.delete('/admin/classes/:id', admin, async (req, res) => {
+    await ownClass(req, req.params.id);
     await db(t.classes).where({ id: Number(req.params.id) }).del();
     res.status(204).end();
   });
 
   api.post('/admin/players/:id/reset-pin', admin, async (req, res) => {
+    await ownPlayer(req, req.params.id);
     const id = Number(req.params.id);
     const n = await db(t.players).where({ id }).update({ pin_hash: null, failed: 0, locked_until: null });
     if (!n) fail(404, 'Spelaren finns inte.');
@@ -530,13 +593,107 @@ export function createApp({ db, t, client, adminKey, publicDir, trustProxy = 'lo
   });
 
   api.delete('/admin/players/:id', admin, async (req, res) => {
+    await ownPlayer(req, req.params.id);
     await db(t.players).where({ id: Number(req.params.id) }).del();
     res.status(204).end();
   });
 
   api.get('/admin/players/:id/rounds', admin, async (req, res) => {
+    await ownPlayer(req, req.params.id);
     const rows = await db(t.rounds).where({ player_id: Number(req.params.id) }).orderBy('created_at', 'desc').limit(50);
     res.json(rows.map(r => ({ level: r.level, mode: r.mode, stars: r.stars, score: r.score, total: r.total, mistakes: r.mistakes, at: Number(r.created_at) })));
+  });
+
+  /* ---------- Skolor (huvudadmin) ---------- */
+  const cleanTitle = v => String(v ?? '').replace(/[\u0000-\u001f<>]/g, '').replace(/\s+/g, ' ').trim().slice(0, 64);
+  const schoolKey = () => newToken(); // visas en gång, sparas bara som hash
+  api.get('/admin/schools', admin, async (req, res) => {
+    let q = db(t.schools).orderBy('name');
+    if (!req.scope.super) q = q.where({ id: req.scope.schoolId });
+    const schools = await q;
+    const counts = await db(t.classes).whereNotNull('school_id').groupBy('school_id').select('school_id', db.raw('count(*) as n'));
+    res.json(schools.map(s => ({ id: Number(s.id), name: s.name, classes: Number(counts.find(c => Number(c.school_id) === Number(s.id))?.n) || 0, hasKey: !!s.key_hash })));
+  });
+  api.post('/admin/schools', admin, superOnly, async (req, res) => {
+    const name = cleanTitle(req.body?.name);
+    if (name.length < 2) fail(400, 'Ge skolan ett namn.');
+    const key = schoolKey();
+    const id = await insertId(db, client, t.schools, { name, key_hash: hashToken(key), created_at: Date.now() });
+    res.status(201).json({ id, name, key });
+  });
+  api.post('/admin/schools/:id/key', admin, superOnly, async (req, res) => {
+    const key = schoolKey();
+    const n = await db(t.schools).where({ id: Number(req.params.id) }).update({ key_hash: hashToken(key) });
+    if (!n) fail(404, 'Skolan finns inte.');
+    res.json({ key });
+  });
+  api.patch('/admin/schools/:id', admin, superOnly, async (req, res) => {
+    const name = cleanTitle(req.body?.name);
+    if (name.length < 2) fail(400, 'Ge skolan ett namn.');
+    const n = await db(t.schools).where({ id: Number(req.params.id) }).update({ name });
+    if (!n) fail(404, 'Skolan finns inte.');
+    res.json({ ok: true });
+  });
+  api.delete('/admin/schools/:id', admin, superOnly, async (req, res) => {
+    // Klasserna finns kvar, men utan skola
+    await db(t.schools).where({ id: Number(req.params.id) }).del();
+    res.status(204).end();
+  });
+
+  /* ---------- Klasskamp (skolans lärare eller huvudadmin) ---------- */
+  async function contestClassIds(req, schoolId, ids) {
+    const want = [...new Set((Array.isArray(ids) ? ids : []).map(Number).filter(Boolean))];
+    if (want.length < 2) fail(400, 'Välj minst två klasser.');
+    const ok = await db(t.classes).whereIn('id', want).where({ school_id: schoolId, solo: false }).select('id');
+    if (ok.length !== want.length) fail(400, 'Alla klasser måste höra till skolan.');
+    return want;
+  }
+  const endsAtOf = v => (v == null || v === '' ? null : Math.max(0, Math.floor(Number(v)) || 0) || null);
+  async function ownContest(req, id) {
+    const c = await db(t.contests).where({ id: Number(id) || 0 }).first();
+    if (!c || (!req.scope.super && Number(c.school_id) !== req.scope.schoolId)) fail(404, 'Klasskampen finns inte.');
+    return c;
+  }
+  api.get('/admin/contests', admin, async (req, res) => {
+    let q = db(t.contests).orderBy('id', 'desc');
+    if (!req.scope.super) q = q.where({ school_id: req.scope.schoolId });
+    const rows = await q;
+    res.json(await Promise.all(rows.map(async c => ({ ...(await contestView(db, t, c)), schoolId: Number(c.school_id) }))));
+  });
+  api.post('/admin/contests', admin, async (req, res) => {
+    const schoolId = req.scope.super ? Number(req.body?.schoolId) || 0 : req.scope.schoolId;
+    if (!(await db(t.schools).where({ id: schoolId }).first())) fail(400, 'Välj en skola.');
+    const metric = req.body?.metric || 'pairs';
+    if (!validMetric(metric)) fail(400, 'Okänd sorts kamp.');
+    const title = cleanTitle(req.body?.title) || `Skolans ${METRICS[metric].mountain}`;
+    const classIds = await contestClassIds(req, schoolId, req.body?.classIds);
+    const now = Date.now();
+    const id = await insertId(db, client, t.contests, {
+      school_id: schoolId, title, metric, active: req.body?.active !== false, starts_at: now, ends_at: endsAtOf(req.body?.endsAt), created_at: now
+    });
+    await db(t.contestClasses).insert(classIds.map(class_id => ({ contest_id: id, class_id })));
+    res.status(201).json(await contestView(db, t, await db(t.contests).where({ id }).first()));
+  });
+  api.patch('/admin/contests/:id', admin, async (req, res) => {
+    const c = await ownContest(req, req.params.id);
+    const patch = {};
+    if (req.body?.title != null) patch.title = cleanTitle(req.body.title) || c.title;
+    if (req.body?.active != null) patch.active = !!req.body.active;
+    if (req.body?.endsAt !== undefined) patch.ends_at = endsAtOf(req.body.endsAt);
+    if (Object.keys(patch).length) await db(t.contests).where({ id: c.id }).update(patch);
+    if (req.body?.classIds) {
+      const ids = await contestClassIds(req, Number(c.school_id), req.body.classIds);
+      await db.transaction(async trx => {
+        await trx(t.contestClasses).where({ contest_id: c.id }).del();
+        await trx(t.contestClasses).insert(ids.map(class_id => ({ contest_id: c.id, class_id })));
+      });
+    }
+    res.json(await contestView(db, t, await db(t.contests).where({ id: c.id }).first()));
+  });
+  api.delete('/admin/contests/:id', admin, async (req, res) => {
+    const c = await ownContest(req, req.params.id);
+    await db(t.contests).where({ id: c.id }).del();
+    res.status(204).end();
   });
 
   api.use((req, res) => res.status(404).json({ error: 'Okänt API-anrop' }));

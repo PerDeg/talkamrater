@@ -54,6 +54,15 @@ GET https://talkamrater.degerfalt.se/api/public/classes/{klasskod}?name={namn}&e
     "endsAt": 1791158400000,
     "everyone": { "contributed": 17, "players": 24, "allIn": false }
   },
+  "contest": {
+    "title": "Skolans bubbelberg", "unit": "bubbelpar", "mountain": "bubbelberg",
+    "ended": false, "endsAt": null, "total": 236,
+    "classes": [
+      { "name": "2A", "progress": 36, "goal": 200, "percent": 18, "mine": true },
+      { "name": "2B", "progress": 140, "goal": 200, "percent": 70, "mine": false }
+    ],
+    "text": "2B har byggt 70 % av sitt bubbelberg. Nu kör vi! 🏔️"
+  },
   "jar": { "total": 342, "goal": 400 },
   "me": {
     "name": "Edwin",
@@ -112,6 +121,16 @@ GET https://talkamrater.degerfalt.se/api/public/classes/{klasskod}?name={namn}&e
 | `endsAt` | ms sedan 1970 | När veckan tar slut (för "3 dagar kvar") |
 | `everyone` | objekt | **Alla med:** `contributed` = hur många elever som spelat minst en runda den här veckan, `players` = antal elever, `allIn` = `true` när alla har varit med (minst två elever). Visa t.ex. "17 av 24 har varit med". När alla är med får alla ett extra klistermärke i spelet. |
 
+**`contest`**: klasskampen klassen är med i, eller `null`. Läraren startar den på lärarsidan och väljer vilka klasser på skolan som är med. Varje klass bygger sitt eget berg mot ett eget mål som beror på hur många elever klassen har. Klasserna kommer i bokstavsordning och ska visas så, aldrig som en placering.
+| Fält | Betydelse |
+|---|---|
+| `title` | T.ex. "Skolans bubbelberg" |
+| `unit`, `mountain` | Vad bergen byggs av (`bubbelpar`, `rätta svar`, `rundor`, `stjärnor`) och bergets namn |
+| `ended`, `endsAt` | Om kampen är slut, och när den slutar (ms, eller `null` om den inte har något slutdatum). En avslutad kamp syns i en vecka till. |
+| `total` | Hela skolans berg tillsammans |
+| `classes[]` | `name`, `progress`, `goal`, `percent` (0–100) och `mine` (den egna klassen) |
+| `text` | En färdig hejande mening om en annan klass, som "2B har byggt 70 % av sitt bubbelberg. Nu kör vi! 🏔️" |
+
 **`jar`**: klassens stjärnburk: alla elevers stjärnor (`total`) mot lärarens mål (`goal`).
 
 **`me`**: bara med när `name` matchar en elev. Annars `null`, och då är `nameNotFound` `true` om ett namn skickades.
@@ -136,7 +155,7 @@ GET https://talkamrater.degerfalt.se/api/public/classes/{klasskod}?name={namn}&e
 | `mood`, `moodText` | `ägg`, `glad`, `hungrig` eller `överlycklig`, plus en färdig mening |
 | `wish` | Dagens önskan, eller `null`. `text` passar efter "Kan du …?". `have`/`need` visar hur långt eleven kommit. |
 
-**`me.nudge`**: det viktigaste husdjuret vill säga just nu, som en färdig mening (`text`) och en typ (`kind`). Ägg, en hemlig present, hunger och en önskan går först. Husdjuret har högst en önskan om dagen, och inte alla dagar. Annars växlar bubblan varannan timme mellan lärarens fokus, dagens utmaning, klassens uppdrag, "alla med" och ett minnestips.
+**`me.nudge`**: det viktigaste husdjuret vill säga just nu, som en färdig mening (`text`) och en typ (`kind`). Ägg, en hemlig present, hunger och en önskan går först. Husdjuret har högst en önskan om dagen, och inte alla dagar. Annars växlar bubblan varannan timme mellan lärarens fokus, dagens utmaning, klassens uppdrag, klasskampen, "alla med" och ett minnestips.
 
 | `kind` | Exempel på `text` |
 |---|---|
@@ -150,9 +169,10 @@ GET https://talkamrater.degerfalt.se/api/public/classes/{klasskod}?name={namn}&e
 | `tip` | Kom ihåg: 3 och 5 är kompisar till 8 🧠 |
 | `done` | Klassen klarade veckans uppdrag! 🎉 |
 | `allin` | Alla 24 i klassen har varit med den här veckan! 🌟 |
+| `contest` | 2B har byggt 70 % av sitt bubbelberg. Nu kör vi! 🏔️ (när klassen är med i en klasskamp) |
 | `happy` | Plutt mår toppen idag 💜 |
 
-**`events`**: klassens senaste stora händelser, nyast först. Använd `text` direkt. `type` är `medal`, `expert`, `daily`, `book`, `pet`, `mission` eller `allin` (alla i klassen har varit med den här veckan), och kan användas för egna ikoner. `at` är en tidpunkt i ms.
+**`events`**: klassens senaste stora händelser, nyast först. Använd `text` direkt. `type` är `medal`, `expert`, `daily`, `book`, `pet`, `mission`, `allin` (alla i klassen har varit med den här veckan) eller `contest` (en klass i klasskampen har nått 25, 50, 75 eller 100 % av sitt berg), och kan användas för egna ikoner. `at` är en tidpunkt i ms.
 
 **`playUrl`**: länk till spelet. Den öppnar *Gå med i klassen* med koden ifylld.
 

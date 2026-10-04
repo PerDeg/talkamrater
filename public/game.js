@@ -187,6 +187,22 @@
         un.insertAdjacentHTML('afterbegin', `🤝 Du hjälpte klassen med <b>${added} ${esc(m.unit)}</b> (${m.progress} av ${m.goal})<br>`);
       }
       if (net.classInfo && m.everyone) net.classInfo.mission.everyone = m.everyone;
+      // Klasskamp: hur mycket rundan byggde på klassens berg
+      const k = res.contest, ck = net.classInfo && net.classInfo.contest;
+      if (k) {
+        const mineBefore = ck ? (ck.classes.find(c => c.mine) || {}).progress : null;
+        const grew = mineBefore == null ? 0 : k.progress - mineBefore;
+        if (ck) { const me = ck.classes.find(c => c.mine); if (me) Object.assign(me, { progress: k.progress, percent: k.percent }); ck.total += Math.max(0, grew); }
+        if (current === 'done' && grew > 0) {
+          const un = $('#unlock'); un.hidden = false;
+          un.insertAdjacentHTML('beforeend', `<br>🏔️ Du byggde <b>${grew} ${esc(k.unit)}</b> på klassens ${esc(k.mountain)}. Nu är det på ${k.percent} %!`);
+        }
+        if (k.reached && k.reached.length) {
+          const pct = k.reached[k.reached.length - 1];
+          const txt = pct >= 100 ? `Vårt ${k.mountain} är klart!` : `Vårt ${k.mountain} är på ${pct} %!`;
+          setTimeout(() => { cheer(txt, true); rain(180); sfx.fanfare(); say(`Hurra! ${txt} Nu kör vi!`); }, 2200);
+        }
+      }
       if (res.completed) {
         setTimeout(() => { cheer('Klassen klarade veckans uppdrag!', true); rain(220); sfx.fanfare(); say('Hurra! Klassen klarade veckans uppdrag!'); }, 1500);
       } else if (res.allIn) {
@@ -1422,6 +1438,9 @@
     $('#ctAll').hidden = !all || all.players < 2;
     if (all && all.players >= 2) $('#ctAll').textContent = all.allIn ? `🌟 Alla ${all.players} är med den här veckan!` : `👥 ${all.contributed} av ${all.players} har varit med den här veckan`
       + (ci.pet && ci.pet.stage > 0 ? ` · ${ci.pet.icon} ${ci.pet.name} ${ci.pet.mood === 'längtar' ? 'längtar' : 'är glad'}` : '');
+    const cheerLine = contestCheer(ci.contest);
+    $('#ctContest').hidden = !cheerLine;
+    if (cheerLine) $('#ctContest').textContent = cheerLine;
     const ev = ci.events && ci.events[0];
     $('#ctEvent').hidden = !ev;
     if (ev) $('#ctEvent').innerHTML = `${esc(ev.avatar)} ${eventText(ev)}`;
@@ -2240,6 +2259,11 @@
       case 'daily': return `${n} har gjort dagens utmaning ${esc(e.detail)} dagar i rad! 🔥`;
       case 'book': return `${n} har samlat alla klistermärken! 📒`;
       case 'mission': return `🎉 <b>Klassen klarade veckans uppdrag!</b> Sista biten: ${n}`;
+      case 'contest': {
+        const [, pct, ...rest] = String(e.detail).split('|');
+        const what = { 25: 'en fjärdedel av', 50: 'halva', 75: 'tre fjärdedelar av', 100: 'hela' }[pct] || `${esc(pct)} % av`;
+        return `🏔️ <b>${esc(rest.join('|') || 'En klass')}</b> har byggt ${what} sitt berg! Nu kör vi!`;
+      }
       case 'allin': return `🌟 <b>Alla i klassen har varit med den här veckan!</b> Alla får ett extra klistermärke.`;
       case 'pet': return `<b>${esc(genitive(e.name))}</b> husdjur växte och blev ${esc((PET_STAGES[+e.detail] || [0, 'större'])[1].toLowerCase())}! ${PET_ICONS[+e.detail] || '🐾'}`;
       case 'record': {
@@ -2297,6 +2321,7 @@
         ? `🌟 <b>Alla ${all.players} har varit med!</b> Alla med-bonus: ett extra klistermärke till alla.`
         : `👥 <b>${all.contributed} av ${all.players}</b> har varit med den här veckan. När alla har spelat en runda får alla ett extra klistermärke!`;
     }
+    renderContest(c.contest);
     renderClassPet(c.pet);
     renderWall(c);
     // Stjärnburken
@@ -2334,6 +2359,32 @@
         <span class="medals" aria-label="${p.medals} medaljer">${PET_ICONS[petStage(p.petXp || 0)]} ${'🏅'.repeat(Math.min(p.medals || 0, 10))}${(p.experts || []).map(w => EXPERT_ICON[w] || '').join('')}</span>
       </div>`).join('');
     if (c.total >= c.goal || m.progress >= m.goal) rain(80);
+  }
+  // Klasskamp: varje klass bygger sitt eget berg mot ett eget mål. Bokstavsordning,
+  // ingen placering. Hejaropet visar hur det går för en annan klass.
+  function contestCheer(k) {
+    if (!k || !k.classes || !k.classes.length) return '';
+    const mine = k.classes.find(c => c.mine);
+    if (k.ended) return `🏔️ ${k.title} är slut! Tillsammans byggde skolan ${k.total} ${k.unit}.`;
+    const others = k.classes.filter(c => !c.mine && c.progress > 0);
+    if (others.length) {
+      const o = others[Math.floor(Date.now() / 7200000) % others.length];
+      return `🏔️ ${o.name} har byggt ${o.percent} % av sitt ${k.mountain}. Nu kör vi!`;
+    }
+    return mine ? `🏔️ Vårt ${k.mountain} är på ${mine.percent} %. Nu bygger vi!` : '';
+  }
+  function renderContest(k) {
+    $('#contestPanel').hidden = !k;
+    if (!k) return;
+    $('#contestTitle').textContent = k.title;
+    const left = k.endsAt ? Math.max(0, Math.ceil((k.endsAt - Date.now()) / 86400000)) : null;
+    $('#contestSub').textContent = k.ended ? 'Klar' : left != null ? (left <= 1 ? 'Sista dagen' : `${left} dagar kvar`) : 'Alla hjälps åt';
+    $('#mountains').innerHTML = k.classes.map(c => `<div class="mtn${c.mine ? ' mine' : ''}" aria-label="${esc(c.name)}: ${c.percent} procent av berget">
+        <span class="flag" aria-hidden="true">${c.percent >= 100 ? '🚩' : ''}</span>
+        <span class="peak" style="--fill:${c.percent}%" aria-hidden="true"></span>
+        <b>${esc(c.name)}</b><small>${c.percent} %</small></div>`).join('');
+    $('#contestText').textContent = contestCheer(k);
+    $('#contestTotal').textContent = `Hela skolan har byggt ${k.total} ${k.unit} tillsammans.`;
   }
   // Klassplutten växer av allas rundor och blir glad när många spelar
   function renderClassPet(p) {

@@ -3,6 +3,8 @@
 // Speglar konstanterna i public/game.js – håll dem i synk.
 
 export const PET_STAGES = [[0, 'Ägg', '🥚'], [10, 'Bebis', '🐣'], [40, 'Liten', '🐾'], [100, 'Stor', '💜'], [200, 'Jätte', '✨'], [400, 'Kung', '👑']];
+import { contestEventText } from './contest.js';
+
 export const TREATS = {
   glass: ['🍦', 'en glass'], pizza: ['🍕', 'en pizzabit'], banan: ['🍌', 'en banan'], tarta: ['🎂', 'en tårtbit'], kaka: ['🍪', 'en kaka'],
   popcorn: ['🍿', 'popcorn'], boll: ['⚽', 'en ny boll'], ballong: ['🎈', 'en ballong'], jordgubb: ['🍓', 'jordgubbar']
@@ -77,6 +79,7 @@ export function eventText(e) {
     case 'pet': return `${genitive(e.name)} husdjur blev kung 👑`;
     case 'mission': return 'Klassen klarade veckans uppdrag 🎉';
     case 'allin': return 'Alla i klassen har varit med den här veckan 🌟';
+    case 'contest': return contestEventText(e.detail);
     default: return `${e.name} gjorde något bra`;
   }
 }
@@ -102,7 +105,7 @@ function trickyTip(tricky) {
 // En enda försiktig mening från husdjuret, för en liten pratbubbla på andra sajter.
 // En hemlig present, hunger och en önskan går först. Annars växlar bubblan (varannan timme) mellan
 // lugnare saker: lärarens fokus, dagens utmaning, klassens uppdrag, ett minnestips.
-export function nudge({ pet, daily, mission, focus, tricky, gift = null, everyone = null, today = dayNumber(), now = new Date() }) {
+export function nudge({ pet, daily, mission, focus, tricky, gift = null, everyone = null, contest = null, today = dayNumber(), now = new Date() }) {
   const p = petView(pet, today);
   if (p.stage === 0) return { kind: 'egg', text: 'Ägget väntar på dig. Spela en runda så kläcks det! 🥚' };
   if (gift) { const t = TREATS[gift] || TREATS.glass; return { kind: 'gift', text: `Någon i klassen gav mig ${t[1]} ${t[0]} Kom och se! 🎁` }; }
@@ -116,6 +119,7 @@ export function nudge({ pet, daily, mission, focus, tricky, gift = null, everyon
   }
   if (mission && mission.progress < mission.goal) options.push({ kind: 'mission', text: `Klassen har ${mission.progress} av ${mission.goal} ${mission.unit}. Hjälper du till? 🤝` });
   if (mission && mission.progress >= mission.goal) options.push({ kind: 'done', text: 'Klassen klarade veckans uppdrag! 🎉' });
+  if (contest) options.push({ kind: 'contest', text: contest });
   if (everyone && everyone.allIn) options.push({ kind: 'allin', text: `Alla ${everyone.players} i klassen har varit med den här veckan! 🌟` });
   const tip = trickyTip(tricky);
   if (tip) options.push({ kind: 'tip', text: tip });

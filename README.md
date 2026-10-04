@@ -76,6 +76,15 @@ Den som spelar hemma kan skapa ett **eget konto**: namn, figur och en hemlig bil
 - Ett eget konto kan senare **gå med i en klass** med klasskoden. Allt följer med, och den egna koden slutar gälla.
 - Läraren ser egna konton i en egen lista på lärarsidan och kan ge en ny bildkod eller radera.
 
+## Skolor och klasskamp
+
+- **Skolor:** huvudadmin (den med `ADMIN_KEY`) skapar skolor på lärarsidan. Varje skola får en **lärarnyckel** som visas en gång. Med den loggar skolans lärare in på `/admin.html` och ser bara sin skolas klasser. En ny nyckel kan skapas när som helst, och då slutar den gamla gälla.
+- **Klasskamp:** skolans lärare startar en kamp, t.ex. *Skolans bubbelberg*, väljer vilka klasser som är med och kan pausa, avsluta eller ta bort den. Kampen kan byggas av bubbelpar, rätta svar, rundor eller stjärnor.
+  - Varje klass bygger sitt **eget berg mot ett eget mål** efter hur många elever klassen har, så att små och stora klasser har samma chans.
+  - Bergen visas i bokstavsordning, aldrig som en placering. Hejaropen handlar om de andra klasserna: *"2B har byggt 70 % av sitt bubbelberg. Nu kör vi!"*
+  - När en klass når 25, 50, 75 och 100 % syns det i alla klassers flöde, och klassen firar.
+  - Hela skolans berg tillsammans visas också.
+
 ## Klassen: inloggning utan lösenord
 
 1. Läraren eller föräldern skapar en klass på `/admin.html` och får en **klasskod**, t.ex. `SOL-4821`.
@@ -244,7 +253,7 @@ Huvudversionen är låst (`postgres:17-alpine`). Så här byter du till en ny:
 | `POST /api/events/:id/cheer` | Heja på en klasskompis |
 | `POST /api/me/gift` · `POST /api/me/gifts/seen` | Hemlig present till en klasskompis · markera fått presenter som sedda |
 | `POST /api/logout` | Logga ut |
-| `/api/admin/...` | Klasser, elever, ny bildkod, radera (kräver headern `X-Admin-Key`) |
+| `/api/admin/...` | Klasser, elever, skolor, klasskamper, ny bildkod, radera. Kräver headern `X-Admin-Key` med adminnyckeln eller en skolas lärarnyckel. |
 
 ## Utveckling
 

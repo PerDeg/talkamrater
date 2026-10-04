@@ -16,13 +16,13 @@
 <div class="app">
   <header class="topbar">
     <a class="brand" href="./"><span class="logo" aria-hidden="true"><span></span><span></span></span><span class="brand-name">Talkamrater</span></a>
-    <span class="pill">Lärarsida</span>
+    <span class="pill" id="whoami">Lärarsida</span>
   </header>
 
   <section class="panel" id="loginBox">
     <div class="label">Logga in som lärare eller förälder</div>
     <form id="loginForm" class="adm-form">
-      <label for="adminKey">Adminnyckel (ADMIN_KEY på servern)</label>
+      <label for="adminKey">Skolans lärarnyckel, eller adminnyckeln (ADMIN_KEY på servern)</label>
       <input class="textfield" id="adminKey" type="password" autocomplete="current-password">
       <button class="chunky" type="submit">Logga in</button>
       <p class="error" id="loginErr"></p>
@@ -30,11 +30,23 @@
   </section>
 
   <div id="main" hidden>
+    <section class="panel" id="schoolsBox" hidden>
+      <div class="label">Skolor <small>Varje skola får en egen lärarnyckel</small></div>
+      <form id="newSchool" class="adm-form inline two">
+        <div><label for="schoolName">Ny skola</label><input class="textfield" id="schoolName" placeholder="Ängsskolan" maxlength="64" required></div>
+        <button class="chunky coral" type="submit">Skapa skola</button>
+      </form>
+      <p class="error" id="schoolErr"></p>
+      <div class="adm-keybox" id="keyBox" hidden></div>
+      <div id="schools"></div>
+    </section>
+    <div id="contests"></div>
     <section class="panel">
       <div class="label">Ny klass</div>
       <form id="newClass" class="adm-form inline">
         <div><label for="className">Namn</label><input class="textfield" id="className" placeholder="Klass 2B" maxlength="24" required></div>
         <div><label for="classGoal">Stjärnburkens mål</label><input class="textfield" id="classGoal" type="number" min="10" value="500"></div>
+        <div id="classSchoolWrap" hidden><label for="classSchool">Skola</label><select id="classSchool" class="adm-select"></select></div>
         <button class="chunky coral" type="submit">Skapa klass</button>
       </form>
       <p class="error" id="newErr"></p>

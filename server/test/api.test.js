@@ -287,6 +287,64 @@ for (const [label, envFor] of targets) {
       assert.equal((await call('POST', '/me/join', { code: cls.body.code, name: 'Vera B' }, a2)).body.player.name, 'Vera B');
     });
 
+    test('skolor, lärarnycklar och klasskamp', async () => {
+      // Huvudadmin skapar en skola och får en lärarnyckel en gång
+      const sch = await call('POST', '/admin/schools', { name: 'Ängsskolan' }, ADMIN);
+      assert.equal(sch.status, 201);
+      const TEACH = { 'x-admin-key': sch.body.key };
+      assert.deepEqual((await call('GET', '/admin/me', null, TEACH)).body, { super: false, school: { id: sch.body.id, name: 'Ängsskolan' } });
+      assert.equal((await call('POST', '/admin/schools', { name: 'Fusk' }, TEACH)).status, 403);
+      assert.equal((await call('GET', '/admin/me', null, { 'x-admin-key': 'x'.repeat(40) })).status, 401);
+      // Läraren skapar klasser i sin skola och ser bara dem
+      const a = await call('POST', '/admin/classes', { name: '2A' }, TEACH);
+      const b = await call('POST', '/admin/classes', { name: '2B' }, TEACH);
+      const other = await call('POST', '/admin/classes', { name: 'Annan skola' }, ADMIN);
+      assert.equal(a.body.schoolId, sch.body.id);
+      const mine = (await call('GET', '/admin/classes', null, TEACH)).body;
+      assert.deepEqual(mine.map(c => c.name), ['2A', '2B']);
+      assert.equal((await call('PATCH', `/admin/classes/${other.body.id}`, { goal: 99 }, TEACH)).status, 404);
+      assert.equal((await call('DELETE', `/admin/classes/${other.body.id}`, null, TEACH)).status, 404);
+      assert.equal((await call('PATCH', `/admin/classes/${a.body.id}`, { schoolId: null }, TEACH)).status, 403);
+      // Elever i båda klasserna
+      const reg = async (code, name) => (await call('POST', `/classes/${code}/players`, { name, pin: [1, 2, 3] })).body;
+      const ea = await reg(a.body.code, 'Ella'), eb = await reg(b.body.code, 'Bo');
+      const authA = { authorization: `Bearer ${ea.token}` }, authB = { authorization: `Bearer ${eb.token}` };
+      // Kampen kräver klasser från skolan
+      assert.equal((await call('POST', '/admin/contests', { classIds: [a.body.id, other.body.id] }, TEACH)).status, 400);
+      assert.equal((await call('POST', '/admin/contests', { classIds: [a.body.id] }, TEACH)).status, 400);
+      const k = await call('POST', '/admin/contests', { metric: 'pairs', classIds: [b.body.id, a.body.id] }, TEACH);
+      assert.equal(k.status, 201);
+      assert.equal(k.body.title, 'Skolans bubbelberg');
+      assert.deepEqual(k.body.classes.map(c => c.name), ['2A', '2B']); // bokstavsordning
+      assert.equal(k.body.classes[0].goal, 200); // 40 per elev, minst 5 elever
+      // 2A bygger halva sitt berg: händelse i båda klassernas flöde, bara en gång
+      const r1 = await call('POST', '/me/rounds', { level: '9', mode: 'bubbles', stars: 3, score: 100, total: 100 }, authA);
+      assert.deepEqual(r1.body.contest.reached, [25, 50]);
+      assert.equal(r1.body.contest.percent, 50);
+      const r2 = await call('POST', '/me/rounds', { level: '9', mode: 'find', stars: 3, score: 5, total: 5 }, authA);
+      assert.deepEqual(r2.body.contest.reached, []);
+      const cb = (await call('GET', '/me/class', null, authB)).body;
+      assert.equal(cb.contest.title, 'Skolans bubbelberg');
+      assert.equal(cb.contest.total, 100);
+      assert.ok(cb.contest.classes.find(c => c.name === '2B').mine);
+      const ev = cb.events.filter(e => e.type === 'contest');
+      assert.equal(ev.length, 2);
+      // Publikt: hejande mening om den andra klassen
+      await call('PATCH', `/admin/classes/${b.body.id}`, { public: true }, TEACH);
+      const pub = (await call('GET', `/public/classes/${b.body.code}?name=Bo&events=5`)).body;
+      assert.equal(pub.contest.text, '2A har byggt 50 % av sitt bubbelberg. Nu kör vi! 🏔️');
+      assert.ok(pub.events.some(e => e.text === '2A har byggt halva sitt berg! 🏔️'));
+      // Läraren pausar kampen: den försvinner för eleverna
+      assert.equal((await call('PATCH', `/admin/contests/${k.body.id}`, { active: false }, TEACH)).body.active, false);
+      assert.equal((await call('GET', '/me/class', null, authB)).body.contest, null);
+      assert.equal((await call('GET', '/admin/contests', null, TEACH)).body.length, 1);
+      // Huvudadmin raderar skolan: klasserna finns kvar utan skola
+      assert.equal((await call('DELETE', `/admin/schools/${sch.body.id}`, null, ADMIN)).status, 204);
+      assert.equal((await call('GET', '/admin/me', null, TEACH)).status, 401);
+      const all = (await call('GET', '/admin/classes', null, ADMIN)).body;
+      assert.equal(all.find(c => c.name === '2A').schoolId, null);
+    });
+
     test('låser efter fem fel', async () => {
       const cls = await call('POST', '/admin/classes', { name: 'Låsklass' }, ADMIN);
       const reg = await call('POST', `/classes/${cls.body.code}/players`, { name: 'Testa', pin: [0, 0, 0] });
