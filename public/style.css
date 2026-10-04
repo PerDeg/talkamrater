@@ -617,6 +617,9 @@ details.friends summary { font-family: var(--display); font-weight: 800; font-si
 .contest-cheer { margin: 6px 0 0; font-weight: 800; font-size: 1.1rem; }
 .ct-contest { margin: 0; font-weight: 800; color: #F1ECFF; }
 
+.voicepick { margin-top: 12px; display: grid; gap: 6px; justify-items: center; text-align: center; }
+.voicepick .lead { font-weight: 800; }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition: none !important; }
   .cheer { animation: none; transform: translate(-50%, -50%); opacity: 1; }

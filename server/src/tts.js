@@ -23,40 +23,65 @@ export function speechText(raw) {
     .replace(/\s+/g, ' ').trim().slice(0, TTS_MAX);
 }
 
-export function createTts({ bin, model, cacheDir = path.join(os.tmpdir(), 'talkamrater-tts'), maxCacheFiles = 5000, log = console } = {}) {
-  if (!bin || !model || !fs.existsSync(bin) || !fs.existsSync(model)) return null;
+// Lite mer liv än Pipers standard: varierat tonfall och lite snabbare tal
+const STYLE = ['--length_scale', '0.92', '--noise_scale', '0.8', '--noise_w', '0.9', '--sentence_silence', '0.1'];
+
+// Hittar röster: alla .onnx-filer i en mapp, t.ex. lisa.onnx och nst.onnx
+export function findVoices(dir) {
+  try {
+    return Object.fromEntries(fs.readdirSync(dir).filter(f => f.endsWith('.onnx') && fs.existsSync(path.join(dir, f + '.json')))
+      .map(f => [f.replace(/\.onnx$/, '').toLowerCase().replace(/[^a-z0-9_-]/g, ''), path.join(dir, f)]));
+  } catch { return {}; }
+}
+
+// voices: { lisa: '/opt/piper/voices/lisa.onnx', nst: '…' }. En Piper-process per röst,
+// som startas första gången rösten behövs.
+export function createTts({ bin, voices = {}, model, defaultVoice, cacheDir = path.join(os.tmpdir(), 'talkamrater-tts'), maxCacheFiles = 5000, log = console } = {}) {
+  if (model) voices = { ...voices, standard: model };
+  voices = Object.fromEntries(Object.entries(voices).filter(([, m]) => m && fs.existsSync(m)));
+  if (!bin || !fs.existsSync(bin) || !Object.keys(voices).length) return null;
+  const fallback = voices[defaultVoice] ? defaultVoice : Object.keys(voices)[0];
   fs.mkdirSync(cacheDir, { recursive: true });
-  let proc = null, lines = null;
-  const queue = [];      // jobb som väntar: { text, file, resolve, reject }
-  let current = null;    // jobbet Piper arbetar med just nu
   const pending = new Map(); // samma mening som efterfrågas flera gånger samtidigt
 
-  function start() {
-    proc = spawn(bin, ['--model', model, '--json-input', '--output_dir', cacheDir, '--sentence_silence', '0.1'], { stdio: ['pipe', 'pipe', 'pipe'] });
-    lines = createInterface({ input: proc.stdout });
-    lines.on('line', line => {
-      if (!current) return;
-      const job = current; current = null;
-      if (path.resolve(line.trim()) === path.resolve(job.tmp)) {
-        fs.rename(job.tmp, job.file, err => (err ? job.reject(err) : job.resolve(job.file)));
-      } else job.reject(new Error('Oväntat svar från Piper'));
-      next();
-    });
-    proc.stderr.on('data', () => {}); // Piper loggar till stderr; tyst
-    proc.on('error', err => log.error('Piper kunde inte starta:', err.message));
-    proc.on('exit', code => {
-      proc = null;
-      if (current) { current.reject(new Error(`Piper avslutades (${code})`)); current = null; }
-      // Starta om vid nästa jobb
-      if (queue.length) setTimeout(next, 1000);
-    });
+  function worker(modelPath) {
+    let proc = null;
+    const queue = [];   // jobb som väntar: { text, file, tmp, resolve, reject }
+    let current = null; // jobbet Piper arbetar med just nu
+    function start() {
+      proc = spawn(bin, ['--model', modelPath, '--json-input', '--output_dir', cacheDir, ...STYLE], { stdio: ['pipe', 'pipe', 'pipe'] });
+      createInterface({ input: proc.stdout }).on('line', line => {
+        if (!current) return;
+        const job = current; current = null;
+        if (path.resolve(line.trim()) === path.resolve(job.tmp)) {
+          fs.rename(job.tmp, job.file, err => (err ? job.reject(err) : job.resolve(job.file)));
+        } else job.reject(new Error('Oväntat svar från Piper'));
+        next();
+      });
+      proc.stderr.on('data', () => {}); // Piper loggar till stderr; tyst
+      proc.on('error', err => log.error('Piper kunde inte starta:', err.message));
+      proc.on('exit', code => {
+        proc = null;
+        if (current) { current.reject(new Error(`Piper avslutades (${code})`)); current = null; }
+        // Starta om vid nästa jobb
+        if (queue.length) setTimeout(next, 1000);
+      });
+    }
+    function next() {
+      if (current || !queue.length) return;
+      if (!proc) start();
+      current = queue.shift();
+      proc.stdin.write(JSON.stringify({ text: current.text, output_file: current.tmp }) + '\n');
+    }
+    return {
+      add(job) {
+        if (queue.length >= 50) return job.reject(new Error('Talsyntesen är upptagen'));
+        queue.push(job); next();
+      },
+      close() { if (proc) proc.kill(); }
+    };
   }
-  function next() {
-    if (current || !queue.length) return;
-    if (!proc) start();
-    current = queue.shift();
-    proc.stdin.write(JSON.stringify({ text: current.text, output_file: current.tmp }) + '\n');
-  }
+  const workers = Object.fromEntries(Object.entries(voices).map(([id, m]) => [id, worker(m)]));
 
   let written = 0;
   function prune() {
@@ -68,18 +93,17 @@ export function createTts({ bin, model, cacheDir = path.join(os.tmpdir(), 'talka
     } catch { /* ignoreras */ }
   }
 
-  // Ger sökvägen till en WAV-fil för texten
-  function synth(raw) {
+  // Ger sökvägen till en WAV-fil för texten, med vald röst (eller standardrösten)
+  function synth(raw, voice) {
     const text = speechText(raw);
     if (!text) return Promise.reject(new Error('Ingen text'));
-    const key = crypto.createHash('sha1').update(model + '\n' + text).digest('hex');
+    const id = voices[voice] ? voice : fallback;
+    const key = crypto.createHash('sha1').update(voices[id] + '\n' + STYLE.join(' ') + '\n' + text).digest('hex');
     const file = path.join(cacheDir, key + '.wav');
     if (fs.existsSync(file)) return Promise.resolve(file);
     if (pending.has(key)) return pending.get(key);
-    if (queue.length >= 50) return Promise.reject(new Error('Talsyntesen är upptagen'));
     const p = new Promise((resolve, reject) => {
-      queue.push({ text, file, tmp: path.join(cacheDir, `${key}.${process.pid}.tmp.wav`), resolve, reject });
-      next();
+      workers[id].add({ text, file, tmp: path.join(cacheDir, `${key}.${process.pid}.tmp.wav`), resolve, reject });
     }).finally(() => {
       pending.delete(key);
       if (++written % 200 === 0) prune();
@@ -88,5 +112,5 @@ export function createTts({ bin, model, cacheDir = path.join(os.tmpdir(), 'talka
     return p;
   }
 
-  return { synth, close: () => { if (proc) proc.kill(); } };
+  return { synth, voices: Object.keys(voices), defaultVoice: fallback, close: () => Object.values(workers).forEach(w => w.close()) };
 }

@@ -2,16 +2,19 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { openDatabase } from './db.js';
 import { createApp } from './app.js';
-import { createTts } from './tts.js';
+import { createTts, findVoices } from './tts.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const env = process.env;
 
 const { db, t, client } = await openDatabase(env);
-// Talsyntes med Piper om den finns (installeras i Docker-avbildningen)
+// Talsyntes med Piper om den finns (installeras i Docker-avbildningen).
+// Rösterna ligger som <namn>.onnx i PIPER_VOICES, t.ex. lisa.onnx och nst.onnx.
 const tts = env.TTS === 'off' ? null : createTts({
   bin: env.PIPER_BIN || '/opt/piper/piper',
-  model: env.PIPER_MODEL || '/opt/piper/voice.onnx',
+  voices: findVoices(env.PIPER_VOICES || '/opt/piper/voices'),
+  model: env.PIPER_MODEL || undefined,
+  defaultVoice: env.TTS_VOICE || 'lisa',
   cacheDir: env.TTS_CACHE || undefined
 });
 const app = createApp({
@@ -27,7 +30,7 @@ const app = createApp({
 
 const port = Number(env.PORT || 3000);
 const server = app.listen(port, () => {
-  console.log(`Talkamrater lyssnar på port ${port} (databas: ${client}, talsyntes: ${tts ? 'Piper' : 'av'})`);
+  console.log(`Talkamrater lyssnar på port ${port} (databas: ${client}, talsyntes: ${tts ? `Piper (${tts.voices.join(', ')})` : 'av'})`);
   if (!env.ADMIN_KEY) console.log('OBS: ADMIN_KEY är inte satt, så adminsidan är avstängd.');
 });
 

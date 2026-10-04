@@ -159,16 +159,16 @@ export function createApp({ db, t, client, adminKey, publicDir, trustProxy = 'lo
   /* ---------- Öppna anrop ---------- */
   api.get('/health', async (req, res) => {
     await db.raw('select 1');
-    res.json({ ok: true, app: 'talkamrater', version: 2, tts: !!tts });
+    res.json({ ok: true, app: 'talkamrater', version: 2, tts: !!tts, voices: tts ? tts.voices : [] });
   });
 
-  // Talsyntes: GET /api/tts?t=Hurra! ger en WAV-fil. Samma text ger alltid samma
+  // Talsyntes: GET /api/tts?t=Hurra!&v=lisa ger en WAV-fil. Samma text ger alltid samma
   // ljud, så webbläsaren får spara det länge.
   const ttsLimit = rateLimiter({ windowMs: 60_000, max: 120 });
   api.get('/tts', ttsLimit, async (req, res) => {
     if (!tts) fail(404, 'Talsyntesen är inte installerad på servern.');
     let file;
-    try { file = await tts.synth(String(req.query.t || '')); }
+    try { file = await tts.synth(String(req.query.t || ''), String(req.query.v || '')); }
     catch (e) { fail(503, 'Talsyntesen svarar inte just nu.'); }
     res.set({ 'Content-Type': 'audio/wav', 'Cache-Control': 'public, max-age=2592000, immutable' });
     res.sendFile(file);

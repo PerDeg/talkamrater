@@ -66,7 +66,8 @@ Spelet läser upp hejarop och frågor på svenska.
 - **Serverns röst (standard):** servern har talsyntesen [Piper](https://github.com/rhasspy/piper) med en svensk röst. Spelet hämtar färdiga ljudfiler (`GET /api/tts?t=…`) och spelar dem som vanligt ljud. Det fungerar på iPhone, i hemskärmsappen och även när telefonen står på ljudlöst. Varje mening räknas bara fram en gång, sedan sparas den på servern och i telefonen.
 - **Telefonens röst (reserv):** saknas Piper, eller går servern inte att nå, används webbläsarens egen talsyntes. Den är opålitlig på mobiler.
 - **Testa ljudet** längst ner på startsidan spelar en ton och säger en mening, och visar vad som fungerar. Bra att trycka på om det är tyst.
-- Piper och rösten (`sv_SE-nst-medium`, ca 60 MB) laddas ner när Docker-avbildningen byggs. Bygg utan med `--build-arg PIPER=0`, byt röst med `--build-arg PIPER_VOICE=…`, eller stäng av med `TTS=off` i env-filen.
+- **Röstfigurer:** under *Vem ska heja på dig?* på startsidan väljer eleven 💜 **Plutt** (standard, en ljus och glad röst), 👩 **Lisa**, 👨 **Nils** eller 🤖 **Robot**. Servern har två riktiga röster, `lisa` och `nst`. Plutt är Lisa uppspelad lite fortare och ljusare, och Robot får sin metalliska ton i telefonen.
+- Piper och rösterna (ca 60 MB styck) laddas ner när Docker-avbildningen byggs. Bygg utan med `--build-arg PIPER=0`, välj röster med `--build-arg PIPER_VOICES="lisa"`, byt standardröst med `TTS_VOICE=nst` eller stäng av med `TTS=off` i env-filen.
 
 ## Eget konto utan klass
 

@@ -58,3 +58,17 @@ test('GET /api/tts ger en WAV-fil som får cachas', async () => {
     s2.close();
   } finally { server.close(); tts.close(); }
 });
+
+test('flera röster: var sin process, egen cache, okänd röst ger standardrösten', async () => {
+  const { findVoices } = await import('../src/tts.js');
+  const voices = findVoices(path.join(here, 'fixtures/voices'));
+  assert.deepEqual(Object.keys(voices).sort(), ['lisa', 'nst']);
+  const cacheDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tts-'));
+  const tts = createTts({ bin, voices, defaultVoice: 'lisa', cacheDir });
+  try {
+    assert.equal(tts.defaultVoice, 'lisa');
+    const [a, b, c] = await Promise.all([tts.synth('Hej!', 'lisa'), tts.synth('Hej!', 'nst'), tts.synth('Hej!', 'hackare')]);
+    assert.notEqual(a, b);
+    assert.equal(a, c);
+  } finally { tts.close(); }
+});

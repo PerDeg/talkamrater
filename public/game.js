@@ -312,6 +312,7 @@
       const h = await api('GET', 'health');
       net.online = !!(h && h.app === 'talkamrater');
       voiceState.server = net.online && !!h.tts;
+      voiceState.voices = (h && Array.isArray(h.voices) && h.voices.length) ? h.voices : (voiceState.server ? ['standard'] : []);
     } catch (e) { net.online = false; }
     if (net.online && net.token) {
       try {
@@ -473,30 +474,44 @@
   // 2. Annars telefonens egen talsyntes (Web Speech). Den är opålitlig på mobiler.
   const speechText = text => String(text).replaceAll(MINUS, ' minus ').replace(/(\d)\s*-\s*(\d)/g, '$1 minus $2')
     .replaceAll('+', ' plus ').replaceAll('=', ' är ').replace(/[^\p{L}\p{N}\s!?,.'-]/gu, ' ').replace(/\s+/g, ' ').trim().slice(0, 160);
-  const voiceState = { server: false, last: '', error: '' };
+  const voiceState = { server: false, voices: [], last: '', error: '' };
+  // Röstfigurer. Servern har två riktiga röster (lisa och nst). Plutt är Lisa
+  // uppspelad lite fortare och ljusare, Robot får en metallisk ton här i telefonen.
+  const VOICE_FIGS = [
+    { id: 'plutt', label: '💜 Plutt', voice: 'lisa', rate: 1.17, sample: n => `Hej ${n}! Jag är Plutt. Nu räknar vi!` },
+    { id: 'lisa', label: '👩 Lisa', voice: 'lisa', rate: 1.0, sample: n => `Hej ${n}! Jag heter Lisa. Vad bra du räknar!` },
+    { id: 'nils', label: '👨 Nils', voice: 'nst', rate: 1.04, sample: n => `Hej ${n}! Jag heter Nils. Kör hårt!` },
+    { id: 'robot', label: '🤖 Robot', voice: 'nst', rate: 0.96, robot: true, sample: n => `Bip bop. Hej ${n}. Jag är en räknerobot.` }
+  ];
+  // Plutt och Robot fungerar med vilken röst som helst, Lisa och Nils kräver sin röst
+  const figsAvailable = () => VOICE_FIGS.filter(f => f.id === 'plutt' || f.id === 'robot' || voiceState.voices.includes(f.voice));
+  const voiceFig = () => { const list = figsAvailable(); return list.find(f => f.id === prefs.voiceFig) || list[0] || VOICE_FIGS[0]; };
+  const serverVoiceOf = f => (voiceState.voices.includes(f.voice) ? f.voice : voiceState.voices[0] || '');
   const ttsCache = new Map(); // text -> Promise<AudioBuffer>
   let ttsSrc = null, sayId = 0;
   function decode(a, buf) {
     // Äldre Safari kan bara avkoda med callback
     return new Promise((res, rej) => { const p = a.decodeAudioData(buf, res, rej); if (p && p.then) p.then(res, rej); });
   }
-  function ttsBuffer(text) {
-    if (ttsCache.has(text)) return ttsCache.get(text);
-    const p = fetch('api/tts?t=' + encodeURIComponent(text))
+  function ttsBuffer(text, voice = serverVoiceOf(voiceFig())) {
+    const key = voice + '|' + text;
+    if (ttsCache.has(key)) return ttsCache.get(key);
+    const p = fetch('api/tts?t=' + encodeURIComponent(text) + (voice ? '&v=' + encodeURIComponent(voice) : ''))
       .then(r => { if (!r.ok) throw new Error('tts ' + r.status); return r.arrayBuffer(); })
       .then(buf => decode(audioContext(), buf));
-    p.catch(() => ttsCache.delete(text));
-    ttsCache.set(text, p);
+    p.catch(() => ttsCache.delete(key));
+    ttsCache.set(key, p);
     if (ttsCache.size > 120) ttsCache.delete(ttsCache.keys().next().value);
     return p;
   }
   // Hämta de vanligaste hejaropen i förväg, så att de kommer direkt
-  let warmed = false;
+  let warmed = '';
   function warmVoice() {
-    if (warmed || !voiceState.server || !prefs.voice || !audioContext()) return;
-    warmed = true;
+    const v = serverVoiceOf(voiceFig());
+    if (warmed === v || !voiceState.server || !prefs.voice || !audioContext()) return;
+    warmed = v;
     const list = [...CHEERS, ...nameCheers(), ...OOPS, ...Object.values(STREAKS)].map(speechText);
-    (async () => { for (const t of list) { try { await ttsBuffer(t); } catch (e) { return; } } })();
+    (async () => { for (const t of list) { if (warmed !== v) return; try { await ttsBuffer(t, v); } catch (e) { return; } } })();
   }
   function say(text) {
     if (!prefs.voice) return;
@@ -506,12 +521,25 @@
     stopVoiceOutput();
     const a = voiceState.server ? audioContext() : null;
     if (!a) return sayNative(clean);
-    ttsBuffer(clean).then(buf => {
+    const fig = voiceFig();
+    ttsBuffer(clean, serverVoiceOf(fig)).then(buf => {
       if (id !== sayId) return; // något nyare ska sägas
       if (a.state !== 'running') a.resume().catch(() => {});
       const src = a.createBufferSource(), g = a.createGain();
       g.gain.value = 1;
-      src.buffer = buf; src.connect(g).connect(a.destination);
+      src.buffer = buf;
+      src.playbackRate.value = fig.rate; // högre tempo = ljusare röst
+      if (fig.robot) {
+        // Ringmodulering: rösten gånger en låg ton ger en metallisk robotröst
+        const carrier = a.createOscillator(), ring = a.createGain(), dry = a.createGain();
+        carrier.type = 'sine'; carrier.frequency.value = 60;
+        ring.gain.value = 0; carrier.connect(ring.gain);
+        dry.gain.value = 0.35;
+        src.connect(ring).connect(g); src.connect(dry).connect(g);
+        carrier.start();
+        src.onended = () => { try { carrier.stop(); } catch (e) {} };
+      } else src.connect(g);
+      g.connect(a.destination);
       src.start();
       ttsSrc = src;
       voiceState.last = 'server';
@@ -538,7 +566,8 @@
       u.lang = 'sv-SE';
       const v = swedishVoice();
       if (v) u.voice = v;
-      u.rate = 1.05; u.pitch = 1.25;
+      const fig = voiceFig();
+      u.rate = 1.05; u.pitch = fig.id === 'plutt' ? 1.4 : fig.id === 'robot' ? 0.6 : 1.1;
       u.onstart = () => { voiceState.last = 'native'; };
       u.onerror = e => { voiceState.error = 'telefonens röst: ' + (e.error || 'fel'); };
       currentUtterance = u; // håll kvar referensen, annars kan Safari tappa meningen
@@ -560,6 +589,22 @@
   }
   function stopSpeech() { sayId++; stopVoiceOutput(); }
 
+  function renderVoicePick() {
+    const figs = figsAvailable();
+    $('#voicePickBox').hidden = !voiceState.server || !prefs.voice || figs.length < 2;
+    const row = $('#voicePick'); row.innerHTML = '';
+    const cur = voiceFig();
+    figs.forEach(f => {
+      const b = document.createElement('button');
+      b.className = 'chip'; b.textContent = f.label; b.setAttribute('aria-pressed', String(f.id === cur.id));
+      b.addEventListener('click', () => {
+        prefs.voiceFig = f.id; savePrefs(); unlockAudio();
+        renderVoicePick(); say(f.sample(nm())); warmVoice();
+      });
+      row.appendChild(b);
+    });
+  }
+
   // "Testa ljudet": spelar en ton och säger en mening, och visar vad som händer.
   // Bra för att felsöka på en telefon.
   async function soundTest() {
@@ -571,7 +616,7 @@
     prefs.sound = true; prefs.voice = true;
     sfx.fanfare();
     lines.push(`Ljud: ${a ? a.state : 'saknas'}${navigator.audioSession ? ` · läge ${navigator.audioSession.type}` : ''}${silentEl ? ' · tyst spår ' + (silentEl.paused ? 'pausat' : 'spelar') : ''}`);
-    lines.push(voiceState.server ? 'Röst: från servern (Piper)' : 'Röst: telefonens egen');
+    lines.push(voiceState.server ? `Röst: ${voiceFig().label.replace(/^\S+ /, '')} från servern (${voiceState.voices.join(', ')})` : 'Röst: telefonens egen');
     loadVoices();
     const sv = swedishVoice();
     lines.push(window.speechSynthesis ? `Telefonens röster: ${voices.length}, svensk: ${sv ? sv.name : 'ingen'}` : 'Telefonen har ingen talsyntes');
@@ -1391,6 +1436,7 @@
     if (acc) $('#whoLine').textContent = solo ? `${net.player.avatar} ${net.player.name} · din kod ${net.player.classCode}`
       : `${net.player.avatar} ${net.player.name} i ${net.player.className || 'klassen'}`;
 
+    renderVoicePick();
     $('#soundBtn').setAttribute('aria-pressed', String(prefs.sound));
     $('#soundBtn').textContent = prefs.sound ? '🔊' : '🔇';
     $('#voiceBtn').setAttribute('aria-pressed', String(prefs.voice));
