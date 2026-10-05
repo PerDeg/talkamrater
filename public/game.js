@@ -389,7 +389,7 @@
   /* ================= Ändringslogg ================= */
   // Det nyaste först. Höj APP_VERSION och lägg till en rad när något ändras i spelet.
   const CHANGELOG = [
-    ['1.17', '5 okt 2026', ['Tydligare sammanfattning efter en runda, en rad per sak.', 'En tydlig huvudknapp för att gå vidare, och Spela igen under.', 'Lärarens fokus står alltid överst i Idag, och läraren kan välja flera fokus och se vem som tränat.', 'Plutt hoppar själv i Plutts hopp, ingen känguru.', 'Talkamraterna hälsar alltid på Hem, och din figur är profilbilden uppe till höger.']],
+    ['1.17', '5 okt 2026', ['Tydligare sammanfattning efter en runda, en rad per sak.', 'En tydlig huvudknapp för att gå vidare, och Spela igen under.', 'Lärarens fokus står alltid överst i Idag, och läraren kan välja flera fokus och se vem som tränat.', 'Plutt hoppar själv i Plutts hopp, ingen känguru.', 'Talkamraterna hälsar alltid på Hem, och din figur är profilbilden uppe till höger.', 'Tallinjen och Plutts hopp har ett tal i mitten på de lättare nivåerna.']],
     ['1.16', '5 okt 2026', ['Klappa Plutt på Hem så säger han något.', 'Petar man för många gånger blir han sur, säger till fröken och tar till slut en tupplur.']],
     ['1.15', '5 okt 2026', ['Ändringslogg under Inställningar.', 'Testläge för vuxna: se hur en inbjudan, lärarens fokus eller en kompisutmaning ser ut, utan att röra riktiga elever.', 'Mer luft runt titeln på Hem, och stjärnan rymmer fyra siffror.', 'Mer luft längst ner, ovanför menyn.', 'Idag påminner om Kom ihåg-prov och obesvarade inbjudningar, och ger ett tips om dagen.']],
     ['1.14', '5 okt 2026', ['Plutts nivå syns på Hem, med en mätare till nästa nivå.', 'Idag-rutan har blivit solig och färgglad.']],
@@ -2468,8 +2468,8 @@
   ];
   // Plutts hopp har egna, svårare nivåer: redan första nivån blandar hoppstorlekar
   const JUMP_LEVELS = [
-    { name: 'Hopp om 1, 2 och 5', hint: 'Talen står i början och slutet' },
-    { name: 'Hopp om 2, 5 och 10', hint: 'Linjen börjar inte på 0' },
+    { name: 'Hopp om 1, 2 och 5', hint: 'Ett tal i mitten hjälper till' },
+    { name: 'Hopp om 2, 5 och 10', hint: 'Linjen börjar inte på 0, med ett tal i mitten' },
     { name: 'Hopp om 3 och 4', hint: 'Kluriga hopp' },
     { name: 'Två tal på linjen', hint: 'Räkna hoppen mellan dem' },
     { name: 'Stora hopp', hint: 'Hopp om 10, 20, 25 och 50' },
@@ -2553,6 +2553,8 @@
           const a = forJump ? 0 : rnd(0, 2), b = Math.min(n - 1, a + rnd(2, 4));
           labels = [a, b];
         } else labels = [0, n - 1];
+        // På de lättare nivåerna står ett tal i mitten också, som hjälp
+        if (lv >= 1 && lv <= 3 && n % 2 === 1) labels.push((n - 1) / 2);
       }
       return { start, step, n, labels: new Set(labels), end };
     }
@@ -2577,7 +2579,10 @@
       if (b == null) b = n - 1;
       const end = start + step * (n - 1);
       if (b >= n || end > (lv >= 4 ? 300 : 100) || (end > 99 && n > 8)) continue;
-      return { start, step, n, end, labels: new Set([a, b]), from: a, hops: b - a, steps };
+      const labels = [a, b];
+      // De två första nivåerna får ett tal i mitten, så att det inte blir för svårt
+      if (lv <= 1 && b - a >= 3) labels.push(a + Math.floor((b - a) / 2));
+      return { start, step, n, end, labels: new Set(labels), from: a, hops: b - a, steps };
     }
     return { start: 0, step: 2, n: 6, end: 10, labels: new Set([0, 5]), from: 0, hops: 5, steps: [1, 2, 5] };
   }
