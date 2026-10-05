@@ -45,6 +45,9 @@
   // Titlar efter stjärnor. Höga gränser: man ska inte kunna bli mattegeni på en eftermiddag.
   const TITLES = [[0,'Talspanare'],[30,'Talkompis'],[80,'Plusproffs'],[160,'Räknestjärna'],[300,'Mattehjälte'],[500,'Talkamratmästare'],[800,'Mattetrollkarl'],[1200,'Mattelegend'],[2000,'Mattegeni']];
   const titleFor = t => TITLES.filter(([min]) => t >= min).pop()[1];
+  // Varje nivå har ett eget märke, som man får när man når den
+  const TITLE_BADGES = ['🔍', '🤝', '➕', '🌟', '🦸', '🏅', '🧙', '🐉', '🧠'];
+  const tierFor = t => TITLES.reduce((n, [min], i) => (t >= min ? i : n), 0);
   // Titeln som en badge: stjärnorna i stjärnan, och hur långt det är till nästa titel
   let shownTier = null;
   function renderRank() {
@@ -57,9 +60,21 @@
     $('#rankName').textContent = name;
     $('#rankMeter').style.width = next ? `${Math.round(100 * (t - from) / (next[0] - from))}%` : '100%';
     $('#rankNext').textContent = next ? `${next[0] - t} ★ kvar till ${next[1]}` : 'Högsta titeln! 🏆';
-    badge.onclick = () => openSheet(`<h3>Dina titlar</h3><p>Varje stjärna du tar räknas. Titel ${tier + 1} av ${TITLES.length}.</p>
-      <div class="titles">${TITLES.map(([min, n], i) => `<div class="${i < tier ? 'got' : i === tier ? 'got cur' : ''}"><span>${i <= tier ? '⭐' : '🔒'} ${n}</span><span>${min} ★</span></div>`).join('')}</div>
-      <button class="chunky ghost" data-close>Stäng</button>`);
+    $('#rankLevel').textContent = `Nivå ${tier + 1} av ${TITLES.length}`;
+    // Resan: alla nivåer som en väg, med märket för varje nivå och var man är nu
+    badge.onclick = () => {
+      openSheet(`<h3>Din resa</h3><p>Varje stjärna du tar för dig framåt. Du är på nivå ${tier + 1} av ${TITLES.length}.</p>
+        <ol class="journey">${TITLES.map(([min, n], i) => {
+          const st = i < tier ? 'done' : i === tier ? 'here' : 'next'; // klassen blir jr-done osv.
+          const sub = st === 'done' ? 'Klar ✓' : st === 'here' ? (next ? `Du är här · ${next[0] - t} ★ kvar till nästa` : 'Du är här · högsta nivån! 🏆') : `${min} ★ · ${min - t} kvar`;
+          return `<li class="jr jr-${st}"><span class="jr-badge" aria-hidden="true">${TITLE_BADGES[i]}${st === 'next' ? '<i>🔒</i>' : ''}</span>
+            <span class="jr-txt"><small>Nivå ${i + 1}</small><b>${esc(n)}</b><em>${sub}</em>${st === 'here' && next ? `<span class="jr-meter"><i style="width:${Math.round(100 * (t - from) / (next[0] - from))}%"></i></span>` : ''}</span></li>`;
+        }).join('')}</ol>
+        <p class="jr-note">Varje nivå har ett eget märke. Du får det när du når nivån.</p>
+        <button class="chunky ghost" data-close>Stäng</button>`);
+      const here = $('#sheetBody .jr-here');
+      if (here) setTimeout(() => here.scrollIntoView({ block: 'center', behavior: 'smooth' }), 250);
+    };
     badge.setAttribute('aria-label', `Din titel: ${name}. ${t} stjärnor.${next ? ` ${next[0] - t} stjärnor kvar till ${next[1]}.` : ''}`);
     if (shownTier != null && tier > shownTier) { badge.classList.remove('up'); void badge.offsetWidth; badge.classList.add('up'); }
     shownTier = tier;
@@ -389,7 +404,7 @@
   /* ================= Ändringslogg ================= */
   // Det nyaste först. Höj APP_VERSION och lägg till en rad när något ändras i spelet.
   const CHANGELOG = [
-    ['1.17', '5 okt 2026', ['Tydligare sammanfattning efter en runda, en rad per sak.', 'En tydlig huvudknapp för att gå vidare, och Spela igen under.', 'Lärarens fokus står alltid överst i Idag, och läraren kan välja flera fokus och se vem som tränat.', 'Plutt hoppar själv i Plutts hopp, ingen känguru.', 'Talkamraterna hälsar alltid på Hem, och din figur är profilbilden uppe till höger.', 'Tallinjen och Plutts hopp har ett tal i mitten på de lättare nivåerna.']],
+    ['1.17', '5 okt 2026', ['Tydligare sammanfattning efter en runda, en rad per sak.', 'En tydlig huvudknapp för att gå vidare, och Spela igen under.', 'Lärarens fokus står alltid överst i Idag, och läraren kan välja flera fokus och se vem som tränat.', 'Plutt hoppar själv i Plutts hopp, ingen känguru.', 'Talkamraterna hälsar alltid på Hem, och din figur är profilbilden uppe till höger.', 'Tallinjen och Plutts hopp har ett tal i mitten på de lättare nivåerna.', 'Titeln visar vilken nivå du är på. Tryck på den så ser du hela resan, med ett eget märke för varje nivå.']],
     ['1.16', '5 okt 2026', ['Klappa Plutt på Hem så säger han något.', 'Petar man för många gånger blir han sur, säger till fröken och tar till slut en tupplur.']],
     ['1.15', '5 okt 2026', ['Ändringslogg under Inställningar.', 'Testläge för vuxna: se hur en inbjudan, lärarens fokus eller en kompisutmaning ser ut, utan att röra riktiga elever.', 'Mer luft runt titeln på Hem, och stjärnan rymmer fyra siffror.', 'Mer luft längst ner, ovanför menyn.', 'Idag påminner om Kom ihåg-prov och obesvarade inbjudningar, och ger ett tips om dagen.']],
     ['1.14', '5 okt 2026', ['Plutts nivå syns på Hem, med en mätare till nästa nivå.', 'Idag-rutan har blivit solig och färgglad.']],
@@ -3298,7 +3313,7 @@
     const rows = [];
     const row = (ic, t, sub = '', tone = '') => rows.push({ ic, t, s: sub, tone });
     if (medal) row(medal[0], `Du vann ${esc(medal[1])}!`, 'Den finns nu i klistermärkesboken', 'big');
-    if (newTitle !== oldTitle) row('⭐', `Ny titel: ${esc(newTitle)}`, '', 'big');
+    if (newTitle !== oldTitle) row(TITLE_BADGES[tierFor(save.total)], `Ny nivå: ${esc(newTitle)}!`, `Nivå ${tierFor(save.total) + 1} av ${TITLES.length} · du fick ett nytt märke`, 'big');
     if (daily) row('🔥', 'Dagens utmaning klar!', `${daily} ${daily === 1 ? 'dag' : 'dagar'} i rad`, 'big');
     const step = g.stepId ? stationById(g.stepId) : null;
     if (step && afterDone > beforeDone) {
