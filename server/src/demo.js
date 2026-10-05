@@ -31,8 +31,25 @@ export const SCENARIOS = {
   reset: 'Börja om med en ny testare'
 };
 
-export async function createDemo({ publicDir, tts = null }) {
-  const { db, t, client } = await openDatabase({ DB_CLIENT: 'sqlite', SQLITE_FILE: ':memory:', DB_TABLE_PREFIX: 'tk_' });
+// Helst en SQLite-databas i minnet. Finns inte SQLite (den är valfri i Docker-
+// avbildningen) används den vanliga databasen, men med egna tabeller (tk_demo_…)
+// som töms varje gång servern startar.
+async function openDemoDb(env) {
+  try {
+    await import('better-sqlite3');
+    return { ...(await openDatabase({ DB_CLIENT: 'sqlite', SQLITE_FILE: ':memory:', DB_TABLE_PREFIX: 'tk_' })), where: 'minnet' };
+  } catch (e) {
+    if (env.DB_CLIENT === undefined || /^sqlite/i.test(env.DB_CLIENT)) throw e;
+  }
+  const prefix = (env.DB_TABLE_PREFIX ?? 'tk_') + 'demo_';
+  const r = await openDatabase({ ...env, DB_TABLE_PREFIX: prefix });
+  await r.db(r.t.classes).del();
+  await r.db(r.t.schools).del();
+  return { ...r, where: `tabellerna ${prefix}*` };
+}
+
+export async function createDemo({ publicDir, tts = null, env = {} }) {
+  const { db, t, client, where } = await openDemoDb(env);
   const inner = createApp({ db, t, client, tts, adminKey: '', publicDir: null, loginPerMinute: 200 });
   const now = () => Date.now();
 
@@ -150,5 +167,5 @@ export async function createDemo({ publicDir, tts = null }) {
       setHeaders(res, file) { if (/\.(html|webmanifest)$|sw\.js$/.test(file)) res.set('Cache-Control', 'no-cache'); }
     }));
   }
-  return { router, db, close: () => db.destroy() };
+  return { router, db, where, close: () => db.destroy() };
 }

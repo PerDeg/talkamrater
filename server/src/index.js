@@ -30,7 +30,16 @@ const app = createApp({
 });
 
 // Testläget på /test/ med en egen databas i minnet. Stängs av med DEMO=off.
-const demo = env.DEMO === 'off' ? null : await createDemo({ publicDir: env.PUBLIC_DIR || path.resolve(here, '../../public'), tts });
+// Testläget får aldrig stoppa spelet: går det inte att starta körs spelet utan det.
+let demo = null;
+if (env.DEMO !== 'off') {
+  try {
+    demo = await createDemo({ publicDir: env.PUBLIC_DIR || path.resolve(here, '../../public'), tts, env });
+    console.log(`Testläget finns på /test/ (databas: ${demo.where})`);
+  } catch (e) {
+    console.error('Testläget kunde inte starta, spelet körs utan det:', e.message);
+  }
+}
 if (demo) {
   // Utan snedstreck skulle sidan hämta det riktiga spelets filer, så skicka vidare till /test/
   app.use('/test', (req, res, next) => (req.originalUrl.split('?')[0] === '/test' ? res.redirect(301, '/test/') : next()));

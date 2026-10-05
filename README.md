@@ -94,7 +94,7 @@ På `/test/` (länk under ⚙️ Inställningar) finns ett **testläge** med en 
 - **Läraren:** fokus på talkamraterna till 7, på minus från 10, eller inget fokus.
 - **Klassen:** klassens berg strax under 75 %, en hemlig present till Plutt och kompisar som hejar.
 
-Testläget sparar sina uppgifter i egna nycklar i webbläsaren och allt försvinner när servern startar om. Stäng av det med `DEMO=off` i env-filen.
+Testläget sparar sina uppgifter i egna nycklar i webbläsaren och allt försvinner när servern startar om. Databasen är helst en SQLite i minnet. Finns inte SQLite i avbildningen används den vanliga databasen men med egna tabeller (`tk_demo_…`), som töms vid varje start. Kan testläget inte starta körs spelet ändå, utan det. Stäng av det med `DEMO=off` i env-filen.
 
 ### Rösten
 
