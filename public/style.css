@@ -69,21 +69,29 @@ h1, h2, h3 { font-family: var(--display); line-height: 1.05; margin: 0; text-wra
 @keyframes enter { from { opacity: 0.4; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 
 /* Start */
-.hero { display: grid; grid-template-columns: auto 1fr; gap: 16px; align-items: center; margin-block: 6px 18px; }
-.hero h1 { font-size: clamp(2.2rem, 8vw, 3.4rem); font-weight: 800; }
+.hero { display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 14px; align-items: center; margin-block: 10px 20px; }
+/* Talkamraterna (eller avataren) får en egen ruta, så att lilla kompisen aldrig nuddar badgen */
+.hero-face { display: grid; place-items: center; width: 96px; min-height: 80px; }
+.hero-face .mascot { margin-right: 18px; }
+.hero-txt { display: grid; gap: 10px; justify-items: start; min-width: 0; }
+.hero h1 { font-size: clamp(2rem, 8vw, 3.4rem); font-weight: 800; line-height: 1; overflow-wrap: anywhere; }
 .hero p { margin: 4px 0 0; color: var(--ink-soft); font-weight: 700; }
 /* Titeln: en liten rad under hälsningen (stjärnan med antal, titel och mätare) */
-.rank { --tier: #8FA3C7; display: inline-flex; align-items: center; gap: 9px; margin-top: 6px; max-width: 100%; border: 0; font: inherit; text-align: left; cursor: pointer;
-  background: linear-gradient(160deg, #26336060, transparent 60%), var(--ink); color: var(--card); border-radius: 18px; padding: 5px 14px 5px 6px;
+.rank { --tier: #8FA3C7; display: inline-flex; align-items: center; gap: 10px; margin: 0; min-height: 58px; max-width: 100%; border: 0; font: inherit; text-align: left; cursor: pointer;
+  background: linear-gradient(160deg, #26336060, transparent 60%), var(--ink); color: var(--card); border-radius: 18px; padding: 6px 14px 6px 7px;
   box-shadow: inset 0 0 0 2px var(--tier), 0 4px 0 var(--shadow); }
 .rank[data-tier="1"] { --tier: #D9A06A; } .rank[data-tier="2"] { --tier: #C9D3E0; } .rank[data-tier="3"] { --tier: var(--sun); } .rank[data-tier="4"] { --tier: #4BD58F; }
 .rank[data-tier="5"] { --tier: #7FA6FF; } .rank[data-tier="6"] { --tier: #FF7FAE; } .rank[data-tier="7"] { --tier: #B7A4FF; } .rank[data-tier="8"] { --tier: #FFD54A; }
-.rank-star { flex: none; width: 42px; height: 42px; display: grid; place-items: center;
+.rank-star { flex: none; width: 52px; height: 52px; display: grid; place-items: center;
   background: radial-gradient(circle at 40% 35%, #FFF1B8, var(--sun) 45%, #E9A800);
   clip-path: polygon(50% 0, 61.8% 35.4%, 100% 38.2%, 69.1% 61.8%, 80.9% 100%, 50% 76.4%, 19.1% 100%, 30.9% 61.8%, 0 38.2%, 38.2% 35.4%);
   filter: drop-shadow(0 2px 0 rgba(0,0,0,0.3)); }
-.rank-star b { margin-top: 5px; font-family: var(--display); font-weight: 800; color: var(--ink); font-size: 0.78rem; font-variant-numeric: tabular-nums; }
-.rank-txt { display: grid; grid-template-columns: auto minmax(40px, 90px); column-gap: 10px; row-gap: 1px; align-items: center; min-width: 0; }
+.rank-star b { margin-top: 6px; font-family: var(--display); font-weight: 800; color: var(--ink); font-size: 0.9rem; line-height: 1; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+/* Fler siffror, mindre text: 2000 och mer får plats i stjärnan */
+.rank-star[data-len="3"] b { font-size: 0.78rem; }
+.rank-star[data-len="4"] b { font-size: 0.66rem; margin-top: 5px; }
+.rank-star[data-len="5"] b { font-size: 0.54rem; margin-top: 5px; }
+.rank-txt { display: grid; grid-template-columns: auto minmax(40px, 90px); column-gap: 10px; row-gap: 3px; align-items: center; min-width: 0; }
 .rank-txt > b { font-family: var(--display); font-size: 1.1rem; line-height: 1.1; color: var(--tier); }
 .rank-txt small { grid-column: 1 / -1; font-weight: 800; font-size: 0.72rem; color: #C9D3F2; }
 .rank-meter { height: 7px; background: rgba(255, 255, 255, 0.18); border-radius: 999px; overflow: hidden; }
@@ -913,6 +921,24 @@ body.on-start .tabbar { display: grid; grid-template-columns: repeat(4, 1fr); po
 .set-account { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; background: var(--sky-2); border-radius: 18px; padding: 12px 14px; }
 .settingsbox .danger { justify-self: center; color: var(--coral-deep); }
 .icon-btn.muted { opacity: 0.6; }
+.set-about { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 14px; border-top: 2px dashed var(--line); padding-top: 10px; }
+.set-about a { font-size: 0.95rem; }
+/* Ändringsloggen */
+.changelog { display: grid; gap: 10px; text-align: left; margin: 10px 0 14px; }
+.cl-ver { background: var(--sky-2); border-radius: 16px; padding: 10px 14px; }
+.cl-ver.now { background: #FFF6D6; box-shadow: inset 0 0 0 2px var(--sun); }
+.cl-ver header { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.cl-ver header b { font-family: var(--display); font-size: 1.15rem; }
+.cl-ver header small { color: var(--ink-soft); font-weight: 700; }
+.cl-ver ul { margin: 6px 0 0; padding-left: 20px; font-weight: 700; color: var(--ink-soft); }
+.cl-ver li + li { margin-top: 3px; }
+/* Testläget: en randig rad överst så att man aldrig tror att det är på riktigt */
+.demobar { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 8px 0 0; padding: 8px 8px 8px 14px; border-radius: 16px; font-weight: 700;
+  background: repeating-linear-gradient(-45deg, #FFE68A 0 14px, #FFD84D 14px 28px); color: var(--ink); box-shadow: 0 3px 0 rgba(0,0,0,0.12); }
+.demobar button { border: 0; border-radius: 999px; background: var(--ink); color: #fff; font: inherit; font-weight: 800; padding: 6px 14px; cursor: pointer; }
+.demo-group { display: grid; gap: 8px; text-align: left; margin: 12px 0; }
+.demo-group b { font-family: var(--display); font-size: 1.1rem; }
+.demo-group .chunky { text-align: left; }
 /* Fri träning */
 .free-head { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
 .free-head h2 { font-size: 1.3rem; }

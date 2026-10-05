@@ -51,6 +51,7 @@
     const badge = $('#rankBadge');
     badge.dataset.tier = tier;
     $('#rankStars').textContent = t;
+    $('.rank-star').dataset.len = Math.min(5, String(t).length);
     $('#rankName').textContent = name;
     $('#rankMeter').style.width = next ? `${Math.round(100 * (t - from) / (next[0] - from))}%` : '100%';
     $('#rankNext').textContent = next ? `${next[0] - t} ★ kvar till ${next[1]}` : 'Högsta titeln! 🏆';
@@ -124,10 +125,14 @@
   const EXPERT_ICON = { plus: '🎓', minus: '🧙', dubbel: '👯' };
 
   /* ================= Lagring ================= */
-  const GUEST_KEY = 'talkamrater-v1';
-  const ACCOUNT_KEY = 'talkamrater-account';
-  const PREFS_KEY = 'talkamrater-prefs';
-  const CLASS_KEY = 'talkamrater-class';
+  // Testläget (/test/) har en egen server-databas och egna nycklar här, så att
+  // det aldrig blandas ihop med det riktiga spelet på samma enhet
+  const DEMO = /\/test\/(index\.html)?$/.test(location.pathname);
+  const KP = DEMO ? 'talkamrater-test' : 'talkamrater';
+  const GUEST_KEY = KP + '-v1';
+  const ACCOUNT_KEY = KP + '-account';
+  const PREFS_KEY = KP + '-prefs';
+  const CLASS_KEY = KP + '-class';
   const ls = {
     get(k) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : null; } catch (e) { return null; } },
     set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} },
@@ -322,6 +327,7 @@
   }
 
   async function logout(expired) {
+    if (DEMO) return startDemo();
     if (net.token && !expired) { try { await api('POST', 'logout'); } catch (e) {} }
     ls.del(ACCOUNT_KEY);
     net.token = null; net.player = null; net.classInfo = null; net.buddy = null;
@@ -354,6 +360,7 @@
   }
 
   async function boot() {
+    if (DEMO) return bootDemo();
     const cached = ls.get(ACCOUNT_KEY);
     if (cached && cached.token && cached.player) {
       net.token = cached.token; net.player = cached.player;
@@ -390,13 +397,109 @@
     refreshClassInfo();
   }
 
+  /* ================= Ändringslogg ================= */
+  // Det nyaste först. Höj APP_VERSION och lägg till en rad när något ändras i spelet.
+  const CHANGELOG = [
+    ['1.15', '5 okt 2026', ['Ändringslogg under Inställningar.', 'Testläge för vuxna: se hur en inbjudan, lärarens fokus eller en kompisutmaning ser ut, utan att röra riktiga elever.', 'Mer luft runt titeln på Hem, och stjärnan rymmer fyra siffror.']],
+    ['1.14', '5 okt 2026', ['Plutts nivå syns på Hem, med en mätare till nästa nivå.', 'Idag-rutan har blivit solig och färgglad.']],
+    ['1.13', '5 okt 2026', ['🍓 i sidhuvudet och ⚙️ Inställningar för ljud, röst och konto.', '27 nya klistermärken, 60 totalt.', 'Tryck på en medalj så står det hur du får den.', 'Fri träning visar hur många stjärnor du tagit av max.', 'Klasskampen syns i Idag.']],
+    ['1.12', '5 okt 2026', ['Ny startsida med flikarna Hem, Träna, Plutt och Klassen.', 'Plutts korg med jordgubbar.', 'Svårare att bli expert: tre stjärnor på allt.']],
+    ['1.11', '5 okt 2026', ['Plutt växer i tio steg och får en garderob.', 'Glänsande klistermärken, och dela med klassen.']],
+    ['1.10', '5 okt 2026', ['Klistermärken i fyra nivåer, från vanliga till legendariska.', 'Byt dubbletter mot jordgubbar.']],
+    ['1.9', '5 okt 2026', ['Kompisutmaning med en kompis på skolan.', 'Nytt!-rutor när något nytt kommer.', 'Svårare Plutts hopp, och "Oj, hjälp!" när han ramlar.']],
+    ['1.8', '5 okt 2026', ['Fler utmaningar: tallinjen, Plutts hopp och hemliga ordet.', 'Titeln som en badge med stjärnan.']],
+    ['1.7', '4 okt 2026', ['Ny röst som hejar, och röstfigurer att välja mellan.', 'Eget konto utan klass.', 'Skolor och klasskamp där alla hejar på varandra.']],
+    ['1.6', '4 okt 2026', ['Längre väg till expert.', 'Klassens gemensamma uppdrag och lagkamp.']],
+    ['1.5', '3 okt 2026', ['Välkomstskärm, lärarens fokus och husdjurets önskningar.', 'Installera spelet som en app.']],
+    ['1.4', '3 okt 2026', ['Ljud och uppläsning fungerar på iPhone.']],
+    ['1.3', '3 okt 2026', ['Minus, dubblor, husdjur, dagens utmaning och kompisduell.']],
+    ['1.2', '3 okt 2026', ['Logga in med klassen och följ vägen till expert.']],
+    ['1.0', '2 okt 2026', ['Första versionen: träna talkamrater från 1 till 20.']]
+  ];
+  const APP_VERSION = CHANGELOG[0][0];
+  function openChangelog() {
+    openSheet(`<h3>Vad är nytt?</h3><p>Du har version ${APP_VERSION}.</p>
+      <div class="changelog">${CHANGELOG.map(([v, d, items], i) => `<section class="cl-ver${i === 0 ? ' now' : ''}"><header><b>Version ${v}</b><small>${d}</small></header><ul>${items.map(x => `<li>${esc(x)}</li>`).join('')}</ul></section>`).join('')}</div>
+      <div class="sh-actions"><button class="chunky" id="clBack">Tillbaka till inställningar</button></div>`);
+    $('#clBack').onclick = () => openSettings();
+  }
+  $('#changelogBtn').addEventListener('click', () => { sfx.select(); openChangelog(); });
+
+  /* ================= Testläget ================= */
+  // En påhittad klass med Alva, Sam och grannklassen. Knapparna låter servern
+  // skapa en viss situation, t.ex. en inbjudan från Alva, och sedan visas den
+  // precis som för en elev.
+  const DEMO_TESTS = [
+    ['Kompisutmaning', [['invite', '📩 Alva bjuder in dig'], ['sent', '⏳ Du väntar på svar från Sam'], ['active', '🤝 Pågående utmaning'],
+      ['almost', '🏁 Nästan klar (spela en runda)'], ['mateplays', '🦄 Alva spelar en runda']]],
+    ['Läraren', [['focus', '✏️ Träna på talkamraterna till 7'], ['focusminus', '✏️ Träna på minus från 10'], ['nofocus', '🧽 Inget fokus']]],
+    ['Klassen', [['contest', '🏔️ Klassens berg nästan på 75 %'], ['gift', '🎁 Hemlig present till Plutt'], ['cheer', '👏 Kompisar hejar på dig']]]
+  ];
+  async function startDemo() {
+    try {
+      const r = await api('POST', 'demo/start', { name: (save && save.name) || 'Testaren' });
+      ls.del(GUEST_KEY);
+      useAccount(r.token, r.player, r.progress);
+      net.classInfo = null; net.buddy = null;
+      await refreshClassInfo();
+      startTab = 'home';
+      renderStart(); show('start');
+    } catch (e) { cheer(e.message); }
+  }
+  async function bootDemo() {
+    $('#demoBar').hidden = false;
+    document.body.classList.add('demo');
+    renderStart();
+    try {
+      const h = await api('GET', 'health');
+      net.online = !!(h && h.app === 'talkamrater');
+      voiceState.server = net.online && !!h.tts;
+      voiceState.voices = (h && Array.isArray(h.voices) && h.voices.length) ? h.voices : (voiceState.server ? ['standard'] : []);
+    } catch (e) { net.online = false; return cheer('Testläget når inte servern'); }
+    const cached = ls.get(ACCOUNT_KEY);
+    if (cached && cached.token) {
+      net.token = cached.token;
+      try { const me = await api('GET', 'me'); useAccount(cached.token, me.player, me.progress); await refreshClassInfo(); renderStart(); return; }
+      catch (e) { /* servern har startat om: ny testare */ }
+    }
+    await startDemo();
+  }
+  function openDemo() {
+    openSheet(`<h3>🧪 Testläge</h3>
+      <p>Här är allt på låtsas: en egen klass med Alva och Sam och en grannklass. Inget sparas hos riktiga elever. Välj vad du vill se:</p>
+      ${DEMO_TESTS.map(([head, list]) => `<div class="demo-group"><b>${head}</b>${list.map(([id, label]) => `<button class="chunky ghost" data-test="${id}">${label}</button>`).join('')}</div>`).join('')}
+      <div class="sh-actions"><button class="chunky coral" data-test="reset">Börja om från början</button><a class="chunky" href="../">Lämna testläget</a><button class="textbtn" data-close>Stäng</button></div>`);
+    $$('#sheetBody [data-test]').forEach(b => b.addEventListener('click', () => runDemo(b.dataset.test)));
+  }
+  async function runDemo(id) {
+    closeSheet();
+    if (id === 'reset') { ls.del(ACCOUNT_KEY); return startDemo(); }
+    try {
+      const r = await api('POST', 'demo/scenario', { id });
+      // Hämta allt på nytt, precis som när en elev öppnar spelet
+      const me = await api('GET', 'me');
+      net.player = me.player;
+      ls.set(ACCOUNT_KEY, { token: net.token, player: net.player, progress: progressOf(save), dirty: false });
+      await refreshClassInfo();
+      await refreshBuddy();
+      if (current !== 'start') { stopGame(); show('start'); }
+      setTab(id === 'contest' ? 'class' : 'home');
+      renderStart();
+      cheer(r.text);
+    } catch (e) {
+      if (e.status === 401) return startDemo();
+      cheer(e.message);
+    }
+  }
+  $('#demoBtn').addEventListener('click', () => { sfx.select(); openDemo(); });
+
   /* ================= Installera som app (PWA) ================= */
   let installEvt = null;
   const standalone = () => (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true;
   const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   function renderInstall() {
     const card = $('#installCard');
-    const visible = net.online && !standalone() && !prefs.installHidden && (installEvt || isIOS);
+    const visible = !DEMO && net.online && !standalone() && !prefs.installHidden && (installEvt || isIOS);
     card.hidden = !visible;
     if (!visible) return;
     $('#installText').innerHTML = installEvt
@@ -413,7 +516,7 @@
     installEvt = null; renderInstall();
   });
   $('#installHide').addEventListener('click', () => { prefs.installHidden = true; savePrefs(); renderInstall(); });
-  if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+  if (!DEMO && 'serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
     navigator.serviceWorker.register('sw.js').catch(() => {});
   }
 
@@ -3419,6 +3522,11 @@
   function openSettings() {
     openSheet('');
     renderSettings(); renderVoicePick();
+    $('#appVersion').textContent = APP_VERSION;
+    // I testläget leder länken tillbaka till det riktiga spelet
+    $('#demoLink').href = DEMO ? '../' : 'test/';
+    $('#demoLink').textContent = DEMO ? '🚪 Lämna testläget' : '🧪 Testläge för vuxna';
+    $('#demoLink').hidden = !net.online; // testläget behöver servern
     $('#settingsBox').hidden = false;
   }
   $('#settingsBtn').addEventListener('click', () => { sfx.select(); openSettings(); });

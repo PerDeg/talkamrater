@@ -20,6 +20,7 @@
 <body>
 <canvas id="fx" aria-hidden="true"></canvas>
 <div class="app">
+  <div class="demobar" id="demoBar" hidden><span>🧪 <b>Testläge</b> · inget sparas på riktigt</span><button id="demoBtn">Testa…</button></div>
   <header class="topbar">
     <button class="brand" id="brand" aria-label="Till startsidan">
       <span class="logo" aria-hidden="true"><span></span><span></span></span>
@@ -65,8 +66,8 @@
     <!-- HEM: det man kan göra nu -->
     <div class="tabpane" data-pane="home">
       <div class="hero">
-        <div id="heroFace"></div>
-        <div>
+        <div class="hero-face" id="heroFace"></div>
+        <div class="hero-txt">
           <h1 id="hello">Hej!</h1>
           <button class="rank" id="rankBadge" data-tier="0">
             <span class="rank-star" aria-hidden="true"><b id="rankStars">0</b></span>
@@ -628,6 +629,10 @@
       <button class="textbtn" id="logoutBtn" hidden>Byt spelare</button>
     </div>
     <button class="textbtn danger" id="resetBtn">Nollställ allt</button>
+    <div class="set-about">
+      <button class="textbtn" id="changelogBtn">Version <span id="appVersion"></span> · Vad är nytt?</button>
+      <a class="textbtn" id="demoLink" href="test/">🧪 Testläge för vuxna</a>
+    </div>
     <button class="chunky" data-close>Klar</button>
   </div>
 </div></div>

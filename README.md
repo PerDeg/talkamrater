@@ -82,6 +82,20 @@ Startsidan har en meny längst ner med fyra flikar. I sidhuvudet syns jordgubbar
 
 När något nytt kommer till spelet visas en ruta högst upp på startsidan, t.ex. *"Nytt! Nu kan du träna på tallinjen"*, och när klassen får ett nytt veckouppdrag. Rutan försvinner när eleven har sett den, och det sparas med elevens framsteg. Nya nyheter läggs i listan `NEWS` i `public/game.js`.
 
+### Ändringslogg
+
+Under ⚙️ Inställningar står versionsnumret och **Vad är nytt?**, med alla versioner och vad som ändrats. Listan finns i `CHANGELOG` i `public/game.js`. Lägg till en ny version överst när något ändras i spelet.
+
+### Testläge för vuxna
+
+På `/test/` (länk under ⚙️ Inställningar) finns ett **testläge** med en randig gul rad överst. Det kör samma spel och samma serverkod, men mot en **egen databas i minnet**, så riktiga elever och klasser påverkas aldrig. Varje testare får en påhittad klass med Alva och Sam, en grannklass och en klasskamp. Knappen **Testa…** skapar en viss situation:
+
+- **Kompisutmaning:** Alva bjuder in dig, du väntar på svar från Sam, en pågående utmaning, en som nästan är klar (spela en runda så firar ni) och Alva spelar en runda.
+- **Läraren:** fokus på talkamraterna till 7, på minus från 10, eller inget fokus.
+- **Klassen:** klassens berg strax under 75 %, en hemlig present till Plutt och kompisar som hejar.
+
+Testläget sparar sina uppgifter i egna nycklar i webbläsaren och allt försvinner när servern startar om. Stäng av det med `DEMO=off` i env-filen.
+
 ### Rösten
 
 Spelet läser upp hejarop och frågor på svenska.

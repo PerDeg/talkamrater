@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { openDatabase } from './db.js';
 import { createApp } from './app.js';
 import { createTts, findVoices } from './tts.js';
+import { createDemo } from './demo.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const env = process.env;
@@ -28,12 +29,20 @@ const app = createApp({
   allowedOrigins: (env.ALLOWED_ORIGINS || '').split(',').map(s => s.trim().replace(/\/$/, '')).filter(Boolean)
 });
 
+// Testläget på /test/ med en egen databas i minnet. Stängs av med DEMO=off.
+const demo = env.DEMO === 'off' ? null : await createDemo({ publicDir: env.PUBLIC_DIR || path.resolve(here, '../../public'), tts });
+if (demo) {
+  // Utan snedstreck skulle sidan hämta det riktiga spelets filer, så skicka vidare till /test/
+  app.use('/test', (req, res, next) => (req.originalUrl.split('?')[0] === '/test' ? res.redirect(301, '/test/') : next()));
+  app.use('/test', demo.router);
+}
+
 const port = Number(env.PORT || 3000);
 const server = app.listen(port, () => {
   console.log(`Talkamrater lyssnar på port ${port} (databas: ${client}, talsyntes: ${tts ? `Piper (${tts.voices.join(', ')})` : 'av'})`);
   if (!env.ADMIN_KEY) console.log('OBS: ADMIN_KEY är inte satt, så adminsidan är avstängd.');
 });
 
-const stop = () => { if (tts) tts.close(); server.close(() => db.destroy().then(() => process.exit(0))); };
+const stop = () => { if (tts) tts.close(); server.close(() => Promise.all([db.destroy(), demo && demo.close()]).then(() => process.exit(0))); };
 process.on('SIGTERM', stop);
 process.on('SIGINT', stop);
