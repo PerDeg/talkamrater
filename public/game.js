@@ -400,7 +400,7 @@
   /* ================= Ändringslogg ================= */
   // Det nyaste först. Höj APP_VERSION och lägg till en rad när något ändras i spelet.
   const CHANGELOG = [
-    ['1.15', '5 okt 2026', ['Ändringslogg under Inställningar.', 'Testläge för vuxna: se hur en inbjudan, lärarens fokus eller en kompisutmaning ser ut, utan att röra riktiga elever.', 'Mer luft runt titeln på Hem, och stjärnan rymmer fyra siffror.']],
+    ['1.15', '5 okt 2026', ['Ändringslogg under Inställningar.', 'Testläge för vuxna: se hur en inbjudan, lärarens fokus eller en kompisutmaning ser ut, utan att röra riktiga elever.', 'Mer luft runt titeln på Hem, och stjärnan rymmer fyra siffror.', 'Mer luft längst ner, ovanför menyn.']],
     ['1.14', '5 okt 2026', ['Plutts nivå syns på Hem, med en mätare till nästa nivå.', 'Idag-rutan har blivit solig och färgglad.']],
     ['1.13', '5 okt 2026', ['🍓 i sidhuvudet och ⚙️ Inställningar för ljud, röst och konto.', '27 nya klistermärken, 60 totalt.', 'Tryck på en medalj så står det hur du får den.', 'Fri träning visar hur många stjärnor du tagit av max.', 'Klasskampen syns i Idag.']],
     ['1.12', '5 okt 2026', ['Ny startsida med flikarna Hem, Träna, Plutt och Klassen.', 'Plutts korg med jordgubbar.', 'Svårare att bli expert: tre stjärnor på allt.']],
