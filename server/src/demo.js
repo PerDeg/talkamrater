@@ -24,6 +24,7 @@ export const SCENARIOS = {
   mateplays: 'Alva spelar en runda (syns i kompisutmaningen och klasskampen)',
   focus: 'Läraren vill att du tränar talkamraterna till 7',
   focusminus: 'Läraren vill att du tränar minus från 10',
+  focusmany: 'Läraren vill att du tränar tre saker: talkamraterna till 7, minus från 10 och dubblorna upp till 5',
   nofocus: 'Läraren tar bort fokus',
   contest: 'Klassens berg är nästan på 75 %. Spela en runda så firar alla!',
   gift: 'En hemlig present till Plutt från klassen',
@@ -119,8 +120,9 @@ export async function createDemo({ publicDir, tts = null, env = {} }) {
         break;
       }
       case 'mateplays': await addRound(alva.id, 8, 0); break;
-      case 'focus': await db(t.players).where({ id: me.id }).update({ focus: 'p7' }); break;
-      case 'focusminus': await db(t.players).where({ id: me.id }).update({ focus: 'm10' }); break;
+      case 'focus': await db(t.players).where({ id: me.id }).update({ focus: 'p7', focus_at: now() }); break;
+      case 'focusminus': await db(t.players).where({ id: me.id }).update({ focus: 'm10', focus_at: now() }); break;
+      case 'focusmany': await db(t.players).where({ id: me.id }).update({ focus: 'p7,m10,d5', focus_at: now() }); break;
       case 'nofocus': await db(t.players).where({ id: me.id }).update({ focus: null }); break;
       case 'contest': {
         // Målet beror på klassens storlek. Fyll på så att berget hamnar strax under 75 %.

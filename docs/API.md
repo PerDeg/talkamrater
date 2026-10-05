@@ -165,7 +165,7 @@ GET https://talkamrater.degerfalt.se/api/public/classes/{klasskod}?name={namn}&e
 | `buddy` | Alva vill göra en kompisutmaning med dig! 🤝 (en inbjudan går före önskan) · Du och Alva har 25 av 40 rätta svar. Kör! 🤝 (pågående, i växlingen) |
 | `wish` | Kan du poppa alla bubbelpar som blir 9? Då får jag en glass 🍦 |
 | `daily` | Dagens utmaning väntar! Håll sviten på 3 dagar 🔥 |
-| `focus` | Den här veckan tränar vi talkamraterna till 7 ✏️ |
+| `focus` | Den här veckan tränar vi talkamraterna till 7 ✏️ · Den här veckan tränar vi talkamraterna till 7 och minus från 10 ✏️ (läraren kan välja flera fokus) |
 | `mission` | Klassen har 15 av 130 bubbelpar. Hjälper du till? 🤝 |
 | `tip` | Kom ihåg: 3 och 5 är kompisar till 8 🧠 |
 | `done` | Klassen klarade veckans uppdrag! 🎉 |

@@ -270,6 +270,22 @@ function migrations(t, client) {
     async down(knex) {
       await knex.schema.dropTableIfExists(t.buddies);
     }
+  }, {
+    // Flera fokus samtidigt ("p7,m10,d5") och när fokuset sattes, så att läraren
+    // kan se vem som tränat på det sedan dess
+    name: '009_focus_list',
+    async up(knex) {
+      if (client !== 'better-sqlite3') {
+        await knex.schema.alterTable(t.classes, tb => { tb.string('focus', 64).nullable().alter(); });
+        await knex.schema.alterTable(t.players, tb => { tb.string('focus', 64).nullable().alter(); });
+      }
+      await knex.schema.alterTable(t.classes, tb => { tb.bigInteger('focus_at').nullable(); });
+      await knex.schema.alterTable(t.players, tb => { tb.bigInteger('focus_at').nullable(); });
+    },
+    async down(knex) {
+      await knex.schema.alterTable(t.players, tb => { tb.dropColumn('focus_at'); });
+      await knex.schema.alterTable(t.classes, tb => { tb.dropColumn('focus_at'); });
+    }
   }];
 }
 

@@ -25,7 +25,7 @@ Startsidan har en meny längst ner med fyra flikar. I sidhuvudet syns jordgubbar
 
 | Flik | Innehåll |
 |---|---|
-| 🏠 **Hem** | Titeln, nyheter, listan **Idag** (nästa steg på vägen, lärarens fokus, Plutts önskan, kompisutmaning och obesvarade inbjudningar, Kom ihåg-prov, kluriga, klassens uppdrag, klasskampen, dubbletter, och ett tips om dagen om något man inte provat, t.ex. att utmana en kompis eller tallinjen), dagens utmaning och Plutt i litet format. |
+| 🏠 **Hem** | Titeln, nyheter, listan **Idag** (lärarens fokus alltid överst, nästa steg på vägen, Plutts önskan, kompisutmaning och obesvarade inbjudningar, Kom ihåg-prov, kluriga, klassens uppdrag, klasskampen, dubbletter, och ett tips om dagen om något man inte provat, t.ex. att utmana en kompis eller tallinjen), dagens utmaning och Plutt i litet format. |
 | ✏️ **Träna** | Plus, minus och dubblor: vägen till expert (kortet visar tydligt vilket räknesätt den gäller), kluriga, fri träning med alla tal och hur många stjärnor av max man har, fler utmaningar och spela två. |
 | Plutt (mini-Plutt som ikon) | Husdjuret och dess önskan, korgen med jordgubbar, garderoben med alla plagg (pris, låst eller ägt) och klistermärken per nivå. |
 | 👥 **Klassen** | Veckans uppdrag, kompisutmaning och att gå med i en klass. |
@@ -65,7 +65,7 @@ Startsidan har en meny längst ner med fyra flikar. I sidhuvudet syns jordgubbar
   - Man väljer talkamrater, tiokamrater, minus eller dubblor.
 - **Fler utmaningar** (nästa steg efter plus, minus och dubblor), var och en med nivåer som låses upp med minst ★★:
   - 📏 **Tallinjen:** Plutt-pilen pekar på ett streck. Vilket tal är det? Eller tryck på strecket där talet bor, t.ex. 46 mellan 40 och 60. Sex nivåer från 0–10 till tallinjer där bara några tal står ut.
-  - 🦘 **Plutts hopp:** hur stora är hoppen mellan strecken? Egna nivåer: blandade hopp om 1, 2 och 5, hopp om 3 och 4, stora hopp om 20, 25 och 50, och linjer där Plutt börjar mitt i. Rätt svar och Plutt studsar hela vägen till flaggan. Fel svar och han räknar fel, märker att det inte stämmer med talet som står där och ramlar ner.
+  - **Plutts hopp:** hur stora är hoppen mellan strecken? Egna nivåer: blandade hopp om 1, 2 och 5, hopp om 3 och 4, stora hopp om 20, 25 och 50, och linjer där Plutt börjar mitt i. Rätt svar och Plutt studsar hela vägen till flaggan. Fel svar och han räknar fel, märker att det inte stämmer med talet som står där och ramlar ner.
   - 🔤 **Hemliga ordet:** räkna ut talet, leta upp det i kodnyckeln och tryck på bokstaven. Bokstäverna blir ett ord, t.ex. KATT 🐱. Nivåer från plus upp till 10 till tiotal utan minnessiffra.
 - **Kluriga kamrater**: spelet minns svåra uppgifter i alla världar och låter eleven öva extra på dem.
 - **Belöningar**:
@@ -95,7 +95,7 @@ Under ⚙️ Inställningar står versionsnumret och **Vad är nytt?**, med alla
 På `/test/` (länk under ⚙️ Inställningar) finns ett **testläge** med en randig gul rad överst. Det kör samma spel och samma serverkod, men mot en **egen databas i minnet**, så riktiga elever och klasser påverkas aldrig. Varje testare får en påhittad klass med Alva och Sam, en grannklass och en klasskamp. Knappen **Testa…** skapar en viss situation:
 
 - **Kompisutmaning:** Alva bjuder in dig, du väntar på svar från Sam, en pågående utmaning, en som nästan är klar (spela en runda så firar ni) och Alva spelar en runda.
-- **Läraren:** fokus på talkamraterna till 7, på minus från 10, eller inget fokus.
+- **Läraren:** fokus på talkamraterna till 7, på minus från 10, tre fokus på en gång, eller inget fokus.
 - **Klassen:** klassens berg strax under 75 %, en hemlig present till Plutt och kompisar som hejar.
 
 Testläget sparar sina uppgifter i egna nycklar i webbläsaren och allt försvinner när servern startar om. Databasen är helst en SQLite i minnet. Finns inte SQLite i avbildningen används den vanliga databasen men med egna tabeller (`tk_demo_…`), som töms vid varje start. Kan testläget inte starta körs spelet ändå, utan det. Stäng av det med `DEMO=off` i env-filen.
@@ -151,7 +151,7 @@ Klassidan visar:
 - **Hemliga presenter**: den som klarar dagens utmaning skickar en godsak till en slumpad klasskompis husdjur. Mottagaren får aldrig veta vem den kom från.
 - **Klassens stjärnburk**, ett gemensamt mål som alla fyller tillsammans, och varje elevs stjärnor, klistermärken och medaljer. Listan är sorterad på namn, inte som en topplista.
 
-Lärarsidan visar för varje elev vad den kan bra, vad den behöver träna på, hur mycket den tränat och bidragit, och läraren kan sätta ett fokustal. För klassen visas "alla med", Klassplutten och kunskapsväggen.
+Lärarsidan visar för varje elev vad den kan bra, vad den behöver träna på, hur mycket den tränat och bidragit, och läraren kan sätta **fokus**: ett eller flera tal (högst sex) för hela klassen eller en elev. Fokus står alltid överst i elevens lista Idag, en rad per tal, och kommer oftare i blandade rundor. I kolumnen Fokus ser läraren för varje tal om eleven tränat på det sedan fokuset sattes (✅ 3 rundor, 27 rätt, eller ⏳ inte än), och för klassen hur många som tränat. För klassen visas "alla med", Klassplutten och kunskapsväggen.
 
 **Personuppgifter:** bara förnamn (eller smeknamn), figur och spelresultat sparas. Inga e-postadresser och inga lösenord.
 

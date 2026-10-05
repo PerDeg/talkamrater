@@ -22,11 +22,49 @@
     return d <= 0 ? 'idag' : d === 1 ? 'igår' : `${d} dagar sedan`;
   };
   const gameUrl = new URL('./', location.href).href;
-  // Fokusval: inget, plus 1–20, minus 1–20, dubblor 1–10
-  const focusOptions = (sel, noneLabel) => `<option value="">${noneLabel}</option>`
-    + [['p', 'Talkamrater till', 20], ['m', 'Minus från', 20], ['d', 'Dubblor upp till', 10]].map(([k, label, max]) =>
-      `<optgroup label="${label.split(' ')[0]}">${Array.from({ length: max }, (_, i) => i + 1)
-        .map(n => `<option value="${k}${n}" ${sel === k + n ? 'selected' : ''}>${label} ${n}</option>`).join('')}</optgroup>`).join('');
+  // Fokusval: ett eller flera tal (högst sex) bland plus 1–20, minus 1–20 och dubblor 1–10
+  const MAX_FOCUS = 6;
+  const FOCUS_GROUPS = [['p', 'Talkamrater till', 20], ['m', 'Minus från', 20], ['d', 'Dubblor upp till', 10]];
+  const focusList = f => String(f || '').split(',').map(x => x.trim()).filter(Boolean);
+  const focusShort = f => `${{ p: '+', m: '−', d: '2×' }[f[0]]}${f.slice(1)}`;
+  const focusName = f => `${{ p: 'Talkamrater till', m: 'Minus från', d: 'Dubblor upp till' }[f[0]]} ${f.slice(1)}`;
+  // En knapp som visar valet, och en ruta med alla tal att bocka i
+  function focusPicker(current, noneLabel, onSave) {
+    const box = document.createElement('details');
+    box.className = 'fpick';
+    let sel = focusList(current);
+    const summary = () => (sel.length ? sel.map(f => `<span class="fchip">${esc(focusShort(f))}</span>`).join('') : `<span class="muted">${esc(noneLabel)}</span>`);
+    box.innerHTML = `<summary>${summary()} <span class="fedit">Ändra</span></summary>
+      <div class="fpanel">
+        ${FOCUS_GROUPS.map(([k, label, max]) => `<div class="fgroup"><b>${label}</b><div class="fnums">${Array.from({ length: max }, (_, i) => i + 1)
+          .map(n => `<button type="button" class="fnum" data-f="${k}${n}" aria-pressed="${sel.includes(k + n)}">${n}</button>`).join('')}</div></div>`).join('')}
+        <p class="muted small fhint">Välj upp till ${MAX_FOCUS}. Sparas direkt.</p>
+        <button type="button" class="small-btn" data-clear>Inget fokus</button>
+      </div>`;
+    let timer = 0;
+    const save = () => {
+      $('summary', box).innerHTML = `${summary()} <span class="fedit">Ändra</span>`;
+      clearTimeout(timer);
+      timer = setTimeout(async () => {
+        try { await onSave(sel.join(',')); box.classList.add('saved'); setTimeout(() => box.classList.remove('saved'), 1200); }
+        catch (e) { alert(e.message); }
+      }, 500);
+    };
+    box.querySelectorAll('.fnum').forEach(b => b.addEventListener('click', () => {
+      const f = b.dataset.f;
+      if (sel.includes(f)) sel = sel.filter(x => x !== f);
+      else if (sel.length >= MAX_FOCUS) { $('.fhint', box).textContent = `Högst ${MAX_FOCUS} åt gången. Ta bort något först.`; return; }
+      else sel = [...sel, f];
+      b.setAttribute('aria-pressed', String(sel.includes(f)));
+      save();
+    }));
+    $('[data-clear]', box).addEventListener('click', () => { sel = []; box.querySelectorAll('.fnum').forEach(b => b.setAttribute('aria-pressed', 'false')); save(); });
+    return box;
+  }
+  // Har eleven tränat på fokuset? En rad per tal.
+  const focusDoneHTML = p => (p.focusDone || []).length
+    ? p.focusDone.map(f => `<div class="fdone ${f.rounds ? 'yes' : 'no'}" title="${esc(focusName(f.focus))}">${f.rounds ? '✅' : '⏳'} <b>${esc(focusShort(f.focus))}</b> ${f.rounds ? `${f.rounds} ${f.rounds === 1 ? 'runda' : 'rundor'}, ${f.answers} rätt` : 'inte än'}</div>`).join('')
+    : '<span class="muted">–</span>';
   const widgetUrl = code => new URL(`widget.html?klass=${encodeURIComponent(code)}`, location.href).href;
   const embedCode = code => `<!-- Plutt säger en mening från Talkamrater. Syns bara när eleven finns i klassen. -->
 <iframe src="${widgetUrl(code)}&namn=Edwin" title="Talkamrater" style="width:100%;max-width:420px;height:0;border:0;color-scheme:normal" loading="lazy"></iframe>
@@ -109,16 +147,18 @@
           </div>
         </div>
         <div class="adm-focus">
-          <label for="cf-${c.id}"><b>Veckans fokus för hela klassen</b></label>
-          <select id="cf-${c.id}" data-class-focus>${focusOptions(c.focus, 'Inget fokus')}</select>
-          <span class="muted">Visas överst i spelet och kommer oftare i blandade rundor. En elev kan få ett eget fokus nedan.</span>
+          <b>Fokus för hela klassen</b>
+          <div data-class-focus></div>
+          <span class="muted">Visas överst i elevens lista Idag och kommer oftare i blandade rundor. En elev kan få ett eget fokus nedan.
+            ${c.focus ? (() => { const n = c.players.filter(p => !p.focus && (p.focusDone || []).some(f => f.rounds)).length, all = c.players.filter(p => !p.focus).length;
+              return `<br><b>${n} av ${all}</b> elever har tränat på klassens fokus${c.focusAt ? ` sedan ${dateText(c.focusAt)}` : ' den senaste veckan'}.`; })() : ''}</span>
         </div>
         <p class="muted">Veckans uppdrag: <b>${esc(c.mission.title)}</b>
           · Alla med: <b>${c.everyone.contributed} av ${c.everyone.players}</b> har spelat den här veckan${c.everyone.allIn ? ' 🌟' : ''}
           · ${esc(c.pet.icon)} ${esc(c.pet.moodText)}</p>
         ${wallHTML(c)}
         <div class="tablewrap"><table>
-          <thead><tr><th>Elev</th><th>Kan bra</th><th>Behöver träna</th><th>Tränat</th><th>Bidrag i veckan</th><th>Eget fokus</th><th></th></tr></thead>
+          <thead><tr><th>Elev</th><th>Kan bra</th><th>Behöver träna</th><th>Tränat</th><th>Bidrag i veckan</th><th>Fokus</th><th></th></tr></thead>
           <tbody></tbody>
         </table></div>
         <p class="actions" style="margin-top:12px"><button class="small-btn danger" data-del-class>Radera klassen</button></p>`;
@@ -133,15 +173,14 @@
           <td class="tricky">${p.practice.length ? p.practice.map(esc).join('<br>') : '<span class="muted">–</span>'}</td>
           <td>${p.training.weekRounds} rundor, ${p.training.weekAnswers} rätt i veckan<div class="muted small">${p.training.rounds} rundor totalt</div></td>
           <td>${p.contribution} ${esc(c.mission.unit)}</td>
-          <td><select data-focus aria-label="Eget fokus för ${esc(p.name)}">${focusOptions(p.focus, c.focus ? 'Klassens fokus' : 'Inget')}</select></td>
+          <td class="fcell"><div class="fdone-list">${focusDoneHTML(p)}</div><div data-focus></div></td>
           <td><div class="actions">
             <button class="small-btn" data-reset>Ny bildkod</button>
             <button class="small-btn danger" data-del>Ta bort</button>
           </div></td>`;
-        $('[data-focus]', tr).addEventListener('change', async e => {
-          await api('PATCH', `admin/players/${p.id}`, { focus: e.target.value });
-          e.target.classList.add('saved'); setTimeout(() => e.target.classList.remove('saved'), 1200);
-        });
+        $('[data-focus]', tr).replaceWith(focusPicker(p.focus, c.focus ? 'Klassens fokus' : 'Inget eget', async v => {
+          await api('PATCH', `admin/players/${p.id}`, { focus: v });
+        }));
         confirmClick($('[data-reset]', tr), 'Säker? Klicka igen', async () => { await api('POST', `admin/players/${p.id}/reset-pin`); load(); });
         confirmClick($('[data-del]', tr), 'Radera allt?', async () => { await api('DELETE', `admin/players/${p.id}`); load(); });
         tb.appendChild(tr);
@@ -157,10 +196,9 @@
       });
       const schoolSel = $('[data-school]', el);
       if (schoolSel) schoolSel.addEventListener('change', async e => { await api('PATCH', `admin/classes/${c.id}`, { schoolId: Number(e.target.value) || null }); load(); });
-      $('[data-class-focus]', el).addEventListener('change', async e => {
-        await api('PATCH', `admin/classes/${c.id}`, { focus: e.target.value });
-        load();
-      });
+      $('[data-class-focus]', el).replaceWith(focusPicker(c.focus, 'Inget fokus', async v => {
+        await api('PATCH', `admin/classes/${c.id}`, { focus: v });
+      }));
       $('[data-public]', el).addEventListener('change', async e => {
         await api('PATCH', `admin/classes/${c.id}`, { public: e.target.checked });
         load();

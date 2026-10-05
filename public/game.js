@@ -6,6 +6,8 @@
   const pick = arr => arr[Math.floor(Math.random() * arr.length)];
   const shuffle = arr => { for (let i = arr.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [arr[i], arr[j]] = [arr[j], arr[i]]; } return arr; };
   const range = (a, b) => Array.from({ length: b - a + 1 }, (_, i) => a + i);
+  // Lilla Plutt som ikon (lila med ögon), i stället för en emoji
+  const MINI_PLUTT = '<span class="tb-plutt" aria-hidden="true"><i></i><i></i></span>';
   const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const genitive = n => (/[sxz]$/i.test(n) ? n : n + 's');
   const reduced = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -225,11 +227,7 @@
       const before = net.classInfo && net.classInfo.mission ? net.classInfo.mission.mine : null;
       if (net.classInfo) net.classInfo.mission = m;
       const added = before == null ? 0 : m.mine - before;
-      if (current === 'done' && added > 0) {
-        const un = $('#unlock');
-        un.hidden = false;
-        un.insertAdjacentHTML('afterbegin', `🤝 Du hjälpte klassen med <b>${added} ${esc(m.unit)}</b> (${m.progress} av ${m.goal})<br>`);
-      }
+      if (current === 'done' && added > 0) addDoneRow({ ic: '🤝', t: 'Du hjälpte klassen', s: `+${added} ${esc(m.unit)} · uppdraget är på ${m.progress} av ${m.goal}`, tone: 'class' });
       if (net.classInfo && m.everyone) net.classInfo.mission.everyone = m.everyone;
       // Kompisutmaning: hur långt ni har kommit, och firande när ni klarat den
       const bd = res.buddy;
@@ -237,10 +235,7 @@
         const was = net.buddy.challenge;
         net.buddy.challenge = bd;
         const grewB = was && was.id === bd.id ? bd.progress - was.progress : 0;
-        if (current === 'done' && grewB > 0) {
-          const un = $('#unlock'); un.hidden = false;
-          un.insertAdjacentHTML('beforeend', `<br>🤝 Kompisutmaningen med ${esc(bd.mate.name)}: <b>${Math.min(bd.progress, bd.goal)} av ${bd.goal}</b> ${esc(bd.unit)}`);
-        }
+        if (current === 'done' && grewB > 0) addDoneRow({ ic: '🤜', t: `Kompisutmaningen med ${esc(bd.mate.name)}`, s: `${Math.min(bd.progress, bd.goal)} av ${bd.goal} ${esc(bd.unit)}`, tone: 'class' });
         if (bd.justDone) claimBuddy(bd);
       }
       // Klasskamp: hur mycket rundan byggde på klassens berg
@@ -249,10 +244,7 @@
         const mineBefore = ck ? (ck.classes.find(c => c.mine) || {}).progress : null;
         const grew = mineBefore == null ? 0 : k.progress - mineBefore;
         if (ck) { const me = ck.classes.find(c => c.mine); if (me) Object.assign(me, { progress: k.progress, percent: k.percent }); ck.total += Math.max(0, grew); }
-        if (current === 'done' && grew > 0) {
-          const un = $('#unlock'); un.hidden = false;
-          un.insertAdjacentHTML('beforeend', `<br>🏔️ Du byggde <b>${grew} ${esc(k.unit)}</b> på klassens ${esc(k.mountain)}. Nu är det på ${k.percent} %!`);
-        }
+        if (current === 'done' && grew > 0) addDoneRow({ ic: '🏔️', t: `Klassens ${esc(k.mountain)}`, s: `+${grew} ${esc(k.unit)} · nu på ${k.percent} %`, tone: 'class' });
         if (k.reached && k.reached.length) {
           const pct = k.reached[k.reached.length - 1];
           const txt = pct >= 100 ? `Vårt ${k.mountain} är klart!` : `Vårt ${k.mountain} är på ${pct} %!`;
@@ -302,10 +294,7 @@
     try {
       const t = pick(TREATS);
       const r = await api('POST', 'me/gift', { treat: t[0] });
-      if (r && r.sent && current === 'done') {
-        const un = $('#unlock'); un.hidden = false;
-        un.insertAdjacentHTML('beforeend', `<br>🎁 Du skickade ${t[2]} ${t[1]} som hemlig present till en klasskompis husdjur!`);
-      }
+      if (r && r.sent && current === 'done') addDoneRow({ ic: '🎁', t: 'Hemlig present skickad', s: `${t[2]} ${t[1]} till en klasskompis husdjur`, tone: 'class' });
     } catch (e) {}
   }
   // Alla med-bonus: när hela klassen har spelat under veckan får alla ett extra klistermärke
@@ -400,6 +389,7 @@
   /* ================= Ändringslogg ================= */
   // Det nyaste först. Höj APP_VERSION och lägg till en rad när något ändras i spelet.
   const CHANGELOG = [
+    ['1.17', '5 okt 2026', ['Tydligare sammanfattning efter en runda, en rad per sak.', 'En tydlig huvudknapp för att gå vidare, och Spela igen under.', 'Lärarens fokus står alltid överst i Idag, och läraren kan välja flera fokus och se vem som tränat.', 'Plutt hoppar själv i Plutts hopp, ingen känguru.']],
     ['1.16', '5 okt 2026', ['Klappa Plutt på Hem så säger han något.', 'Petar man för många gånger blir han sur, säger till fröken och tar till slut en tupplur.']],
     ['1.15', '5 okt 2026', ['Ändringslogg under Inställningar.', 'Testläge för vuxna: se hur en inbjudan, lärarens fokus eller en kompisutmaning ser ut, utan att röra riktiga elever.', 'Mer luft runt titeln på Hem, och stjärnan rymmer fyra siffror.', 'Mer luft längst ner, ovanför menyn.', 'Idag påminner om Kom ihåg-prov och obesvarade inbjudningar, och ger ett tips om dagen.']],
     ['1.14', '5 okt 2026', ['Plutts nivå syns på Hem, med en mätare till nästa nivå.', 'Idag-rutan har blivit solig och färgglad.']],
@@ -433,7 +423,7 @@
   const DEMO_TESTS = [
     ['Kompisutmaning', [['invite', '📩 Alva bjuder in dig'], ['sent', '⏳ Du väntar på svar från Sam'], ['active', '🤝 Pågående utmaning'],
       ['almost', '🏁 Nästan klar (spela en runda)'], ['mateplays', '🦄 Alva spelar en runda']]],
-    ['Läraren', [['focus', '✏️ Träna på talkamraterna till 7'], ['focusminus', '✏️ Träna på minus från 10'], ['nofocus', '🧽 Inget fokus']]],
+    ['Läraren', [['focus', '✏️ Träna på talkamraterna till 7'], ['focusminus', '✏️ Träna på minus från 10'], ['focusmany', '✏️ Tre fokus på en gång'], ['nofocus', '🧽 Inget fokus']]],
     ['Klassen', [['contest', '🏔️ Klassens berg nästan på 75 %'], ['gift', '🎁 Hemlig present till Plutt'], ['cheer', '👏 Kompisar hejar på dig']]]
   ];
   async function startDemo() {
@@ -964,8 +954,8 @@
     streak: { make: () => ({}), text: () => 'Få 5 rätt i rad', go: () => inWorld('plus', () => startMix(1))() },
     stars3: { make: () => ({}), text: () => 'Få tre stjärnor på en runda', go: () => inWorld('plus', () => startMix(0))() },
     daily: { make: () => ({}), ok: () => !dailyDone(), text: () => 'Klara dagens utmaning', go: () => startDaily() },
-    focus: { make: () => ({ n: focusN() }), ok: () => !!teacherFocus(), text: w => `Träna ${focusText(teacherFocus())} en gång`,
-      go: () => startFocus() }
+    focus: { make: () => ({ f: pick(teacherFocuses()) }), ok: () => !!teacherFocus(), text: w => `Träna ${focusText(w.f || teacherFocus())} en gång`,
+      go: w => startFocus(w.f || teacherFocus()) }
   };
   const treatOf = w => TREATS.find(t => t[0] === (w && w.treat)) || TREATS[0];
   const wishDay = () => { const d = today(); return (d * 7 + (save.pet.born || 0)) % 3 !== 0; }; // två dagar av tre
@@ -1671,9 +1661,13 @@
   function renderToday() {
     const items = [];
     const w = W(), all = stations(w.id), next = all.find(s => !s.done);
+    // Lärarens fokus står alltid överst, ett per tal
+    for (const f of teacherFocuses().slice(0, 3)) {
+      const done = focusTrainedToday(f);
+      items.push({ ic: done ? '✅' : '✏️', t: done ? `Bra! Du har tränat ${focusText(f)}` : `Läraren vill att du tränar ${focusText(f)}`,
+        s: done ? 'Träna gärna en gång till' : 'Veckans fokus', go: 'Träna', fn: () => startFocus(f), focus: true });
+    }
     if (next) items.push({ main: true, ic: '🗺️', t: 'Vägen till expert', s: `${w.tab}: ${stepName(next)}`, go: 'Fortsätt', fn: () => (next.open ? openStation(next) : openRoad()) });
-    const f = teacherFocus();
-    if (f) items.push({ ic: '✏️', t: 'Veckans fokus', s: focusText(f), go: 'Träna', fn: startFocus });
     const wish = currentWish();
     if (wish) items.push({ ic: treatOf(wish)[1], t: `${petName()} har en önskan`, s: WISH_TYPES[wish.type].text(wish), go: 'Hjälp', fn: () => WISH_TYPES[wish.type].go(wish) });
     const c = net.buddy && net.buddy.challenge;
@@ -1704,7 +1698,7 @@
     const box = $('#todoList'); box.innerHTML = '';
     [...items.slice(0, tip ? 5 : 6), ...(tip ? [tip] : [])].forEach(it => {
       const b = document.createElement('button');
-      b.className = 'todo-row' + (it.main ? ' main' : '') + (it.tip ? ' tip' : '');
+      b.className = 'todo-row' + (it.main ? ' main' : '') + (it.tip ? ' tip' : '') + (it.focus ? ' focus' : '');
       b.innerHTML = `<span class="ti" aria-hidden="true">${it.ic}</span><span><b>${esc(it.t)}</b><small>${esc(it.s)}</small></span><span class="tg">${it.go}</span>`;
       b.addEventListener('click', () => { sfx.select(); it.fn(); });
       box.appendChild(b);
@@ -1845,16 +1839,15 @@
     $('#settingsBtn').classList.toggle('muted', !prefs.sound);
   }
 
-  // Lärarens fokus, t.ex. "p7" = talkamraterna till 7
-  const teacherFocus = () => {
-    const f = net.player && net.player.focus;
-    return /^[pmd]\d{1,2}$/.test(f || '') ? f : null;
-  };
-  const focusN = () => { const f = teacherFocus(); return f ? +f.slice(1) : 0; };
+  // Lärarens fokus: ett eller flera tal, t.ex. "p7,m10" = talkamraterna till 7 och minus från 10
+  const teacherFocuses = () => String((net.player && net.player.focus) || '').split(',').map(x => x.trim()).filter(f => /^[pmd]\d{1,2}$/.test(f));
+  const teacherFocus = () => teacherFocuses()[0] || null;
   const focusWorld = f => ({ p: 'plus', m: 'minus', d: 'dubbel' })[f[0]];
   const focusText = f => (f[0] === 'p' ? `talkamraterna till ${f.slice(1)}` : f[0] === 'm' ? `minus från ${f.slice(1)}` : `dubblorna upp till ${f.slice(1)}`);
-  function startFocus() {
-    const f = teacherFocus(); if (!f) return;
+  const focusListText = list => (list.length < 2 ? list.map(focusText).join('') : `${list.slice(0, -1).map(focusText).join(', ')} och ${focusText(list[list.length - 1])}`);
+  const focusTrainedToday = f => (save.dates['f-' + f] || 0) === today();
+  function startFocus(f = teacherFocus()) {
+    if (!f) return;
     roadContext = false;
     startFindLevel(focusWorld(f), +f.slice(1), true);
   }
@@ -1866,9 +1859,9 @@
     box.hidden = false;
     const ci = net.classInfo;
     $('#ctName').textContent = net.player.className || 'Klassen';
-    const f = teacherFocus();
-    $('#ctFocus').hidden = !f;
-    if (f) $('#ctFocusText').textContent = `Veckans fokus: ${focusText(f)}`;
+    const fl = teacherFocuses();
+    $('#ctFocus').hidden = !fl.length;
+    if (fl.length) $('#ctFocusText').textContent = `Läraren vill att du tränar ${focusListText(fl)}`;
     const fresh = ci ? ci.myCheers - (prefs.seenCheers[net.player.id] || 0) : 0;
     $('#cheerBadge').hidden = fresh <= 0;
     $('#cheerBadge').textContent = fresh > 0 ? `👏 ${fresh} ${fresh === 1 ? 'nytt hejarop' : 'nya hejarop'}` : '';
@@ -1905,7 +1898,7 @@
       go: 'Öppna boken', action: () => openBook() },
     { id: 'buddy1', icon: '🤝', title: 'Kompisutmaning', text: 'Utmana en kompis på skolan. Klarar ni målet tillsammans får ni varsin kompisbricka!',
       go: 'Utmana en kompis', when: () => canBuddy(), action: () => openBuddy() },
-    { id: 'jump2', icon: '🦘', title: 'Svårare hopp för Plutt', text: 'Plutts hopp har nya nivåer med hopp om 3, 4, 20 och 25, och linjer som börjar mitt i.',
+    { id: 'jump2', icon: MINI_PLUTT, title: 'Svårare hopp för Plutt', text: 'Plutts hopp har nya nivåer med hopp om 3, 4, 20 och 25, och linjer som börjar mitt i.',
       go: 'Hjälp Plutt', action: () => openExtra('jump') },
     { id: 'extras1', icon: '📏', title: 'Nu kan du träna på tallinjen', text: 'Hitta var talen bor, hjälp Plutt att hoppa rätt och knäck hemliga ord.',
       go: 'Testa nu', action: () => openExtra('line') }
@@ -1929,7 +1922,7 @@
     const n = currentNews();
     $('#newsCard').hidden = !n || needsWelcome();
     if (!n) return;
-    $('#newsIcon').textContent = n.icon;
+    $('#newsIcon').innerHTML = n.icon;
     $('#newsTitle').textContent = n.title;
     $('#newsText').textContent = n.text;
     $('#newsGo').textContent = n.go;
@@ -2113,7 +2106,7 @@
   /* ================= Spel: Hitta kamraten / prov ================= */
   function startFindLevel(w, n, isFocus, extra = {}) {
     const Wd = WORLDS[w];
-    startFind({ kind: 'train', world: w, n, focus: !!isFocus || teacherFocus() === `${w[0]}${n}`, level: `${Wd.prefix}${n}`, mode: 'find',
+    startFind({ kind: 'train', world: w, n, focus: !!isFocus || teacherFocuses().includes(`${w[0]}${n}`), level: `${Wd.prefix}${n}`, mode: 'find',
       label: isFocus ? `Fokus: ${Wd.level(n)}` : Wd.level(n), qs: allQs(w, n), beads: true, retry: true,
       ...extra, again: () => startFindLevel(w, n, isFocus, extra) });
   }
@@ -2140,8 +2133,9 @@
   function startMix(i) {
     const w = W(), m = w.mixes[i];
     const qs = randQs(w.id, 12, m.lo, m.hi);
-    const f = teacherFocus();
-    if (f && focusWorld(f) === w.id) for (let k = 0; k < qs.length; k += 3) qs[k] = rndQ(w.id, +f.slice(1), +f.slice(1));
+    // Lärarens fokus kommer oftare: var tredje fråga, och fokusen turas om
+    const fs = teacherFocuses().filter(f => focusWorld(f) === w.id);
+    if (fs.length) for (let k = 0, j = 0; k < qs.length; k += 3, j++) { const n = +fs[j % fs.length].slice(1); qs[k] = rndQ(w.id, n, n); }
     startFind({ kind: 'mix', world: w.id, level: m.key, mixIndex: i, mode: 'find', label: m.label, qs, beads: true, retry: true });
   }
   function startTricky() {
@@ -2481,7 +2475,7 @@
   const EXTRAS = {
     line: { title: 'Tallinjen', icon: '📏', prefix: 'nl', mode: 'line', levels: LINE_LEVELS, count: 8,
       talk: 'Varje streck på tallinjen är ett tal. Kan du hitta var talen bor?' },
-    jump: { title: 'Plutts hopp', icon: '🦘', prefix: 'nj', mode: 'jump', levels: JUMP_LEVELS, count: 6,
+    jump: { title: 'Plutts hopp', icon: MINI_PLUTT, prefix: 'nj', mode: 'jump', levels: JUMP_LEVELS, count: 6,
       talk: 'Säg hur stora hoppen är mellan strecken. Svarar du rätt studsar jag hela vägen. Annars ramlar jag!' },
     word: { title: 'Hemliga ordet', icon: '🔤', prefix: 'w', mode: 'word', levels: WORD_LEVELS,
       talk: 'Räkna ut talet, leta upp det i kodnyckeln och få fram bokstaven. Vilket ord blir det?' }
@@ -3226,6 +3220,8 @@
       if (s.moments[1].done) save.path['o-' + s.id] = 1;
     }));
     const shined = g.station && g.station.kind === 'recall' && r.passed;
+    // Lärarens fokus: kom ihåg att eleven tränat på det idag
+    if (g.focus && g.kind === 'train' && g.n) save.dates[`f-${g.world[0]}${g.n}`] = today();
     save.total += r.stars;
     save.rounds++;
 
@@ -3283,69 +3279,71 @@
     $$('#bigStars span').forEach((s, i) => { s.className = i < r.stars ? 'on' : ''; s.style.animationDelay = (0.25 + i * 0.25) + 's'; });
     $('#doneStats').textContent = r.stats;
 
-    const notes = [];
-    if (newTitle !== oldTitle) notes.push(`Ny titel! Nu är du <b>${newTitle}</b>`);
-    if (medal) notes.push(`Du vann <b>${medal[1]}</b> ${medal[0]}`);
-    if (daily) notes.push(`🔥 Dagens utmaning klar! <b>${daily} ${daily === 1 ? 'dag' : 'dagar'} i rad</b>`);
+    // Sammanfattningen: en rad per sak, med ikon, rubrik och en kort förklaring
+    const rows = [];
+    const row = (ic, t, sub = '', tone = '') => rows.push({ ic, t, s: sub, tone });
+    if (medal) row(medal[0], `Du vann ${esc(medal[1])}!`, 'Den finns nu i klistermärkesboken', 'big');
+    if (newTitle !== oldTitle) row('⭐', `Ny titel: ${esc(newTitle)}`, '', 'big');
+    if (daily) row('🔥', 'Dagens utmaning klar!', `${daily} ${daily === 1 ? 'dag' : 'dagar'} i rad`, 'big');
     const step = g.stepId ? stationById(g.stepId) : null;
     if (step && afterDone > beforeDone) {
       const n = step.moments.filter(m => m.done).length;
-      notes.push(step.done ? `🎉 <b>${esc(step.name)}</b> är klart! Alla tre momenten.${next ? ` Nästa: <b>${esc(stepName(next))}</b>` : ''}`
-        : `✓ Moment klart! <b>${n} av 3</b> för ${esc(step.name)}. Nästa: <b>${esc(nextMoment(step).label)}</b>`);
-    } else if (afterDone > beforeDone && next && g.kind !== 'daily') notes.push(`Ett steg till på vägen till expert! Nästa: <b>${esc(stepName(next))}</b>`);
-    if (shined) notes.push(`✨ Du kom ihåg! <b>${esc(ALL_MEDALS[g.station.id.slice(2)][1])}</b> glänser nu.`);
-    if (step && r.passed === false && g.kind === 'numtest') notes.push('Öva lite till i <b>Lära</b> eller <b>Öva</b>, sen provar du igen. Du är nära!');
-    if (r.newRecord) notes.push('Nytt rekord!');
+      if (step.done) row('🎉', `${esc(step.name)} är klart!`, next ? `Nästa: ${esc(stepName(next))}` : 'Alla tre momenten');
+      else row('✅', `Moment klart: ${n} av 3`, `${esc(step.name)} · nästa: ${esc(nextMoment(step).label)}`);
+    } else if (afterDone > beforeDone && next && g.kind !== 'daily') row('🗺️', 'Ett steg till på vägen', `Nästa: ${esc(stepName(next))}`);
+    if (shined) row('✨', `${esc(ALL_MEDALS[g.station.id.slice(2)][1])} glänser nu`, 'Du kom ihåg!');
+    if (step && r.passed === false && g.kind === 'numtest') row('💡', 'Du är nära!', 'Öva lite till i Lära eller Öva, sen provar du igen.');
+    if (r.newRecord) row('🏆', 'Nytt rekord!');
     if (g.skillStart) {
       // Pärlorna: säg till när de försvinner eller kommer tillbaka, men max två rader
       const label = k => (k[0] === 'p' ? `talkamraterna till ${k.slice(1)}` : k[0] === 'm' ? `minus från ${k.slice(1)}` : `dubblorna till ${k.slice(1)}`);
       const was = g.skillStart.g || 0, now = save.skill.g || 0;
-      const beadNotes = [];
-      if (was < 7 && now >= 7) beadNotes.push('💪 Du har svarat rätt så många gånger att pärlorna försvinner. De kommer tillbaka om du behöver dem!');
-      else if (was >= 4 && now < 4) beadNotes.push('Pärlorna är tillbaka som hjälp ett tag. Det är helt okej!');
+      const beadRows = [];
+      if (was < 7 && now >= 7) beadRows.push(['💪', 'Pärlorna försvinner', 'Du har svarat rätt så många gånger. De kommer tillbaka om du behöver dem.']);
+      else if (was >= 4 && now < 4) beadRows.push(['🔵', 'Pärlorna är tillbaka', 'Som hjälp ett tag. Det är helt okej!']);
       if (now < 7) {
         for (const [k, v] of Object.entries(save.skill)) {
           if (k === 'g') continue;
           const before = g.skillStart[k] || 0;
-          if (before < 7 && v >= 7) beadNotes.push(`💪 Pärlorna för ${label(k)} har försvunnit. Du kan dem!`);
+          if (before < 7 && v >= 7) beadRows.push(['💪', 'Du kan dem!', `Pärlorna för ${label(k)} har försvunnit.`]);
         }
       }
-      notes.push(...beadNotes.slice(0, 2));
+      beadRows.slice(0, 2).forEach(x => row(...x));
     }
-    if (r.notes) notes.push(...r.notes);
-    if (wishNote) notes.push(`${wishNote.t[1]} ${esc(petName())} fick ${wishNote.t[2]}! Önskan uppfylld.`);
+    if (r.notes) r.notes.forEach(n => rows.push(noteRow(n)));
+    if (wishNote) row(wishNote.t[1], 'Önskan uppfylld!', `${esc(petName())} fick ${wishNote.t[2]}`, 'pet');
     wishNote = null;
-    if (grew) notes.push(`🍓 ${esc(petName())} <b>växte och blev ${PET_STAGES[grew][1].toLowerCase()}!</b>`);
-    else if (food) notes.push(`🍓 ${esc(petName())} åt ${food} ${food === 1 ? 'stjärnfrukt' : 'stjärnfrukter'}. Mums!`);
-    if (!r.passed && g.missed && g.missed.length) {
-      notes.push(`Öva lite extra på: <b>${g.missed.slice(0, 4).map(equationText).join(', ')}</b>`);
-    }
-    $('#unlock').hidden = !notes.length;
-    $('#unlock').innerHTML = notes.join('<br>');
+    const pst = petStage(save.pet.xp), pnext = PET_STAGES[pst + 1];
+    if (grew) row('🎉', `${esc(petName())} växte!`, `Nu är ${esc(petName())} ${PET_STAGES[grew][1].toLowerCase()}`, 'pet');
+    else if (food) row('🍓', `${esc(petName())} fick ${food} ${food === 1 ? 'jordgubbe' : 'jordgubbar'}`, pnext ? `${pnext[0] - save.pet.xp} kvar till nästa nivå` : 'Mums!', 'pet');
+    if (!r.passed && g.missed && g.missed.length) row('🧩', 'Öva lite extra på', g.missed.slice(0, 4).map(equationText).join(', '));
+    // Klistermärken blir en rad bland de andra, inte en egen stor ruta
+    for (const p of prizes) row(p.e, p.isNew ? 'Nytt klistermärke!' : 'Ett klistermärke till', p.isNew ? prizeText(p) : `${prizeText(p)} · byt dubbletter mot jordgubbar`, p.rarity === 3 ? 'legend' : 'sticker');
+    renderDoneRows(rows);
 
-    $('#reward').hidden = !prizes.length && !medal;
-    if (medal) { $('#rewardEm').textContent = medal[0]; $('#rewardText').textContent = `${medal[1]}! Och ett klistermärke: ${prizes[0].e} ${prizes[0].name}`; }
-    else if (prizes.length === 2) { $('#rewardEm').textContent = prizes[0].e + prizes[1].e; $('#rewardText').textContent = `Två klistermärken: ${prizeText(prizes[0])} och ${prizeText(prizes[1])}!`; }
-    else if (prizes.length) { $('#rewardEm').textContent = prizes[0].e; $('#rewardText').textContent = prizes[0].isNew ? `Nytt klistermärke: ${prizeText(prizes[0])}!` : `En till ${prizeText(prizes[0])}. Byt dubbletter mot jordgubbar i boken!`; }
-    $('#reward').classList.toggle('legend', prizes.some(p => p.rarity === 3));
+    $('#reward').hidden = true;
     if (prizes.some(p => p.shiny)) setTimeout(() => { cheer('GLÄNSANDE! ✨', true); rain(200); sfx.streak(); say('Wow! Ett glänsande klistermärke!'); }, 3600);
     const best = prizes.reduce((m, p) => Math.max(m, p.rarity), -1);
     if (best >= 2) setTimeout(() => { cheer(best === 3 ? 'LEGENDARISKT!' : 'Sällsynt!', true); rain(best === 3 ? 260 : 120); sfx.streak(); say(best === 3 ? 'Wow! Ett legendariskt klistermärke!' : 'Ett sällsynt klistermärke!'); }, 1800);
     renderBerries();
 
     lastStart = g;
-    $('#againBtn').textContent = r.passed ? 'Spela igen' : 'Försök igen';
+    // Knapparna: en tydlig huvudknapp (vidare när det gick bra, försök igen annars),
+    // en knapp för det andra, och Hem längst ner
     const fromRoad = roadContext || !!g.station;
-    if (g.extra) {
-      $('#otherBtn').textContent = 'Välj nivå';
-      $('#otherBtn').onclick = () => openExtra(g.extra);
-    } else if (step && !step.done) {
-      $('#otherBtn').textContent = r.passed ? 'Nästa moment' : `Till ${step.name}`;
-      $('#otherBtn').onclick = () => openStep(stationById(step.id));
-    } else {
-      $('#otherBtn').textContent = fromRoad ? 'Vägen till expert' : 'Till start';
-      $('#otherBtn').onclick = () => (fromRoad ? openRoad(wid) : goHome());
-    }
+    let goText, goFn;
+    if (g.extra) { goText = 'Välj nivå'; goFn = () => openExtra(g.extra); }
+    else if (step && !step.done) { goText = r.passed ? 'Nästa moment' : `Till ${step.name}`; goFn = () => openStep(stationById(step.id)); }
+    else if (fromRoad) { goText = 'Vägen till expert'; goFn = () => openRoad(wid); }
+    else { goText = 'Till Hem'; goFn = () => goHome(); }
+    const ok = !!r.passed;
+    $('#otherBtn').innerHTML = `${esc(goText)} <span aria-hidden="true">➜</span>`;
+    $('#otherBtn').onclick = goFn;
+    $('#againBtn').innerHTML = `<span aria-hidden="true">🔁</span> ${ok ? 'Spela igen' : 'Försök igen'}`;
+    $('#otherBtn').className = 'chunky ' + (ok ? 'sun' : 'ghost');
+    $('#againBtn').className = 'chunky ' + (ok ? 'ghost' : 'sun');
+    $('.done-actions').classList.toggle('retry-first', !ok);
+    $('#doneHome').hidden = goText === 'Till Hem';
 
     if (r.passed) {
       sfx.fanfare(); rain(); setTimeout(() => rain(80), 700);
@@ -3378,7 +3376,25 @@
     else if (g.kind === 'tricky') startTricky();
     else if (g.kind === 'daily') startDaily();
   });
-  $('#bookBtn').addEventListener('click', () => openBook());
+  $('#doneHome').addEventListener('click', () => goHome());
+  // Raderna i sammanfattningen efter en runda
+  const doneRowHTML = x => `<div class="done-row${x.tone ? ' dr-' + x.tone : ''}"><span class="dr-ic" aria-hidden="true">${x.ic}</span><span class="dr-txt"><b>${x.t}</b>${x.s ? `<small>${x.s}</small>` : ''}</span></div>`;
+  function renderDoneRows(rows) {
+    const box = $('#unlock');
+    box.innerHTML = rows.map(doneRowHTML).join('');
+    box.hidden = !rows.length;
+  }
+  // Rader som kommer från servern lite senare, t.ex. klassens uppdrag
+  function addDoneRow(x) {
+    const box = $('#unlock');
+    box.insertAdjacentHTML('beforeend', doneRowHTML(x));
+    box.hidden = false;
+  }
+  // Gamla textrader, t.ex. "🔤 Ordet var <b>ÄGG</b> 🥚": första tecknet blir ikonen
+  function noteRow(html) {
+    const m = /^([^\s\p{L}\p{N}<]+)\s+([\s\S]*)$/u.exec(html);
+    return m ? { ic: m[1], t: m[2], s: '' } : { ic: '⭐', t: html, s: '' };
+  }
 
   /* ================= Diplom ================= */
   function showDiploma(wid, celebrateNow) {

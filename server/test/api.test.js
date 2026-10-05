@@ -207,6 +207,21 @@ for (const [label, envFor] of targets) {
       assert.equal(edw.focus, 'm10');
       assert.ok(edw.training.weekRounds >= 1);
 
+      // Flera fokus samtidigt, och läraren ser vem som tränat på dem
+      const fa = { authorization: `Bearer ${fresh.body.token}` };
+      assert.equal((await call('PATCH', `/admin/players/${id}`, { focus: 'p7,m10,p7,d5' }, ADMIN)).body.label, 'talkamraterna till 7, minus från 10 och dubblorna upp till 5');
+      assert.equal((await call('PATCH', `/admin/players/${id}`, { focus: ['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7'] }, ADMIN)).status, 400);
+      assert.equal((await call('PATCH', `/admin/players/${id}`, { focus: ['p7', 'm10'] }, ADMIN)).body.focus, 'p7,m10');
+      assert.equal((await call('GET', '/me', null, fa)).body.player.focus, 'p7,m10');
+      await call('POST', '/me/rounds', { level: '7', mode: 'find', stars: 3, score: 9, total: 10 }, fa);
+      await call('POST', '/me/rounds', { level: '7', mode: 'bubbles', stars: 2, score: 4, total: 5 }, fa);
+      await call('POST', '/me/rounds', { level: '9', mode: 'find', stars: 3, score: 9, total: 10 }, fa);
+      const fEdw = (await call('GET', '/admin/classes', null, ADMIN)).body.find(c => c.code === code).players.find(p => p.name === 'Edwin');
+      assert.deepEqual(fEdw.focusDone.map(f => [f.focus, f.rounds, f.answers]), [['p7', 2, 13], ['m10', 0, 0]]);
+      // Tar läraren bort elevens eget fokus gäller klassens igen
+      await call('PATCH', `/admin/players/${id}`, { focus: '' }, ADMIN);
+      assert.equal((await call('GET', '/me', null, fa)).body.player.focus, 'p7');
+
       // Publik klassstatus: av tills läraren slår på den
       assert.equal((await call('GET', `/public/classes/${code}?name=Edwin`)).status, 404);
       assert.equal((await call('PATCH', `/admin/classes/${cls.body.id}`, { public: true }, ADMIN)).status, 200);

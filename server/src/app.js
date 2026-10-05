@@ -3,7 +3,7 @@ import { insertId } from './db.js';
 import { newToken, hashToken, validPin, hashPin, checkPin, safeEqual, newClassCode, normalizeCode, rateLimiter } from './auth.js';
 import { emptyProgress, sanitizeProgress, mergeProgress, summarize } from './progress.js';
 import { classMission, celebrateMission, classPulse, celebrateAllIn } from './mission.js';
-import { petView, eventText, medalIcons, nudge, validFocus, focusLabel, classPetView, TREATS } from './display.js';
+import { petView, eventText, medalIcons, nudge, validFocus, focusLabel, focusString, parseFocus, focusLevel, classPetView, TREATS } from './display.js';
 import { weekStart, missionFor } from './mission.js';
 import { BUDDY_GOALS, buddyMates, currentBuddy, createBuddy, buddyAction, checkBuddy, buddyNudge } from './buddy.js';
 import { METRICS, validMetric, contestView, contestForClass, celebrateContest, contestCheer } from './contest.js';
@@ -544,6 +544,27 @@ export function createApp({ db, t, client, adminKey, publicDir, trustProxy = 'lo
       .select('player_id', db.raw('count(*) as n'), db.raw('sum(score) as score'), db.raw('sum(stars) as stars'),
         db.raw("sum(case when mode = 'bubbles' then total else 0 end) as pairs"));
     const weekOf = id => week.find(w => Number(w.player_id) === Number(id)) || {};
+    // Lärarens fokus: vem har tränat på det sedan det sattes (eller den senaste veckan)
+    const focusOf = p => {
+      const c = classes.find(k => Number(k.id) === Number(p.class_id));
+      const own = parseFocus(p.focus);
+      const list = own.length ? own : parseFocus(c?.focus);
+      const at = Number(own.length ? p.focus_at : c?.focus_at) || Date.now() - 7 * 86400000;
+      return { list, since: at, own: own.length > 0 };
+    };
+    const focusInfo = Object.fromEntries(players.map(p => [p.id, focusOf(p)]));
+    const levels = [...new Set(Object.values(focusInfo).flatMap(f => f.list.map(focusLevel)))];
+    const sinceMin = Math.min(...Object.values(focusInfo).map(f => f.since), Date.now());
+    const focusRounds = levels.length && players.length ? await db(t.rounds).whereIn('player_id', players.map(p => p.id))
+      .whereIn('level', levels).andWhere('created_at', '>=', sinceMin).select('player_id', 'level', 'score', 'created_at') : [];
+    const focusDone = p => {
+      const f = focusInfo[p.id];
+      return f.list.map(item => {
+        const rs = focusRounds.filter(r => Number(r.player_id) === Number(p.id) && r.level === focusLevel(item) && Number(r.created_at) >= f.since);
+        return { focus: item, label: focusLabel(item), rounds: rs.length, answers: rs.reduce((n, r) => n + Number(r.score || 0), 0),
+          lastAt: rs.length ? Math.max(...rs.map(r => Number(r.created_at))) : null };
+      });
+    };
     const pulses = {};
     for (const c of classes) {
       const n = players.filter(p => Number(p.class_id) === Number(c.id)).length;
@@ -555,7 +576,7 @@ export function createApp({ db, t, client, adminKey, publicDir, trustProxy = 'lo
       const pulse = pulses[c.id];
       const progressList = mine.map(p => { try { return sanitizeProgress(p.data ? JSON.parse(p.data) : {}); } catch { return sanitizeProgress({}); } });
       return {
-        id: Number(c.id), name: c.name, code: c.code, goal: Number(c.goal), public: !!c.public, focus: c.focus || '', solo: !!c.solo,
+        id: Number(c.id), name: c.name, code: c.code, goal: Number(c.goal), public: !!c.public, focus: c.focus || '', focusAt: c.focus_at ? Number(c.focus_at) : null, solo: !!c.solo,
         schoolId: c.school_id ? Number(c.school_id) : null,
         mission: { title: m.title(m.goal), unit: m.unit },
         everyone: pulse.everyone, pet: classPetView({ rounds: pulse.rounds, players: pulse.n, recent: pulse.recent }),
@@ -570,6 +591,7 @@ export function createApp({ db, t, client, adminKey, publicDir, trustProxy = 'lo
           return {
             id: Number(p.id), name: p.name, avatar: p.avatar, hasPin: !!p.pin_hash,
             lastSeen: p.last_seen ? Number(p.last_seen) : null, focus: p.focus || '',
+            focusSince: focusInfo[p.id].since, focusDone: focusDone(p),
             strong: groupLevels(skill.filter(([, v]) => v >= 7).map(([k]) => k)),
             practice: [
               ...Object.entries(prog.tricky).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]).slice(0, 4).map(([k]) => pairText(k)),
@@ -587,10 +609,11 @@ export function createApp({ db, t, client, adminKey, publicDir, trustProxy = 'lo
   api.patch('/admin/players/:id', admin, async (req, res) => {
     await ownPlayer(req, req.params.id);
     const focus = req.body?.focus ?? '';
-    if (!validFocus(focus)) fail(400, 'Okänt fokus. Använd t.ex. p7, m10 eller d6.');
-    const n = await db(t.players).where({ id: Number(req.params.id) }).update({ focus: focus || null });
+    if (!validFocus(focus)) fail(400, 'Okänt fokus. Använd t.ex. p7, m10 eller d6 (högst sex).');
+    const value = focusString(focus);
+    const n = await db(t.players).where({ id: Number(req.params.id) }).update({ focus: value, focus_at: value ? Date.now() : null });
     if (!n) fail(404, 'Spelaren finns inte.');
-    res.json({ ok: true, focus: focus || null, label: focusLabel(focus) });
+    res.json({ ok: true, focus: value, label: focusLabel(value) });
   });
 
   api.post('/admin/classes', admin, async (req, res) => {
@@ -617,8 +640,9 @@ export function createApp({ db, t, client, adminKey, publicDir, trustProxy = 'lo
     if (req.body?.goal != null) patch.goal = Math.max(10, Math.min(100000, Math.floor(Number(req.body.goal)) || 500));
     if (req.body?.public != null) patch.public = !!req.body.public;
     if (req.body?.focus != null) {
-      if (!validFocus(req.body.focus)) fail(400, 'Okänt fokus. Använd t.ex. p7, m10 eller d6.');
-      patch.focus = req.body.focus || null;
+      if (!validFocus(req.body.focus)) fail(400, 'Okänt fokus. Använd t.ex. p7, m10 eller d6 (högst sex).');
+      patch.focus = focusString(req.body.focus);
+      patch.focus_at = patch.focus ? Date.now() : null;
     }
     if (!Object.keys(patch).length) fail(400, 'Inget att ändra.');
     const n = await db(t.classes).where({ id: Number(req.params.id) }).update(patch);

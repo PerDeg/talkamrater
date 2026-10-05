@@ -88,14 +88,29 @@ export function eventText(e) {
   }
 }
 
-// Lärarens fokus, t.ex. "p7" → "talkamraterna till 7"
-export function focusLabel(f) {
-  const m = /^([pmd])(\d{1,2})$/.exec(f || '');
-  if (!m) return null;
-  const n = Number(m[2]);
-  return m[1] === 'p' ? `talkamraterna till ${n}` : m[1] === 'm' ? `minus från ${n}` : `dubblorna upp till ${n}`;
+// Lärarens fokus: ett eller flera tal, t.ex. "p7,m10,d5"
+// p = talkamraterna till, m = minus från, d = dubblorna upp till
+export const MAX_FOCUS = 6;
+const focusItemOk = f => (/^[pm]\d{1,2}$/.test(f) && +f.slice(1) >= 1 && +f.slice(1) <= 20) || (/^d\d{1,2}$/.test(f) && +f.slice(1) >= 1 && +f.slice(1) <= 10);
+export function parseFocus(f) {
+  const list = Array.isArray(f) ? f : String(f ?? '').split(',');
+  return [...new Set(list.map(x => String(x).trim()).filter(Boolean))];
 }
-export const validFocus = f => f === null || f === '' || (/^[pm](\d{1,2})$/.test(f) && +f.slice(1) >= 1 && +f.slice(1) <= 20) || (/^d(\d{1,2})$/.test(f) && +f.slice(1) >= 1 && +f.slice(1) <= 10);
+export const validFocus = f => f === null || f === undefined || (parseFocus(f).length <= MAX_FOCUS && parseFocus(f).every(focusItemOk));
+// Som det sparas i databasen: "p7,m10" eller null
+export const focusString = f => parseFocus(f).filter(focusItemOk).slice(0, MAX_FOCUS).join(',') || null;
+const itemLabel = f => {
+  const n = Number(f.slice(1));
+  return f[0] === 'p' ? `talkamraterna till ${n}` : f[0] === 'm' ? `minus från ${n}` : `dubblorna upp till ${n}`;
+};
+// "talkamraterna till 7, minus från 10 och dubblorna upp till 5"
+export function focusLabel(f) {
+  const items = parseFocus(f).filter(focusItemOk).map(itemLabel);
+  if (!items.length) return null;
+  return items.length === 1 ? items[0] : `${items.slice(0, -1).join(', ')} och ${items[items.length - 1]}`;
+}
+// Vilken nivå rundorna sparas med för ett fokus: p7 → "7", m10 → "m10", d5 → "d5"
+export const focusLevel = f => (f[0] === 'p' ? f.slice(1) : f);
 
 function trickyTip(tricky) {
   const top = Object.entries(tricky || {}).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1])[0];
