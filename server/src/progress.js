@@ -46,7 +46,7 @@ export function sanitizeProgress(p) {
       ? src.stickers.filter(s => typeof s === 'string' && s.length > 0 && s.length <= 16).slice(0, 5000)
       : [],
     path: intMap(src.path, 1000),
-    records: intMap(src.records, 10000),
+    records: intMap(src.records, 1e6), // rekord, kompisbrickor, ägda kläder och korgens jordgubbar (bEarn/bSpent)
     // Kluriga kamrater: "8:3" (plus), "m8:3" (minus), "d6:6" (dubblor)
     tricky: intMap(src.tricky, 99, /^[md]?\d{1,2}:\d{1,2}$/),
     // Hur säker eleven är per tal och värld (0–10), t.ex. "p8", "m12", "d6", och

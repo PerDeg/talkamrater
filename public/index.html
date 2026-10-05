@@ -63,22 +63,22 @@
 
   <!-- START -->
   <section class="screen" id="start">
-    <div class="hero">
-      <div id="heroFace"></div>
-      <div>
-        <h1 id="hello">Hej Edwin!</h1>
-        <p>Vilka tal är kompisar? Ta dig hela vägen till expert!</p>
-        <div class="rank" id="rankBadge" data-tier="0">
-          <span class="rank-star" aria-hidden="true"><b id="rankStars">0</b></span>
-          <span class="rank-txt">
-            <small>Din titel · nivå <span id="rankLevel">1</span></small>
-            <b id="rankName">Talspanare</b>
-            <span class="rank-meter" aria-hidden="true"><i id="rankMeter"></i></span>
-            <small id="rankNext"></small>
-          </span>
+    <!-- HEM: det man kan göra nu -->
+    <div class="tabpane" data-pane="home">
+      <div class="hero">
+        <div id="heroFace"></div>
+        <div>
+          <h1 id="hello">Hej!</h1>
+          <button class="rank" id="rankBadge" data-tier="0">
+            <span class="rank-star" aria-hidden="true"><b id="rankStars">0</b></span>
+            <span class="rank-txt">
+              <b id="rankName">Talspanare</b>
+              <span class="rank-meter" aria-hidden="true"><i id="rankMeter"></i></span>
+              <small id="rankNext"></small>
+            </span>
+          </button>
         </div>
       </div>
-    </div>
 
     <div class="panel news" id="newsCard" hidden>
       <span class="news-ic" id="newsIcon" aria-hidden="true"></span>
@@ -86,6 +86,128 @@
       <div class="news-actions"><button class="chunky sun" id="newsGo"></button><button class="textbtn" id="newsHide">Okej, jag har sett det</button></div>
     </div>
 
+      <div class="panel today">
+        <div class="label">Idag <small id="todaySub"></small></div>
+        <div class="todo" id="todoList"></div>
+      </div>
+
+    <div class="panel daily" id="dailyCard">
+      <div class="daily-top">
+        <div>
+          <span class="kicker">Dagens utmaning</span>
+          <h2 id="dailyTitle">Tiokamratmåndag</h2>
+        </div>
+        <span class="flame" id="dailyStreak">Starta en ny svit!</span>
+      </div>
+      <p id="dailyText"></p>
+      <button class="chunky coral" id="dailyBtn">Kör!</button>
+    </div>
+
+      <button class="panel homepet" id="homePet" aria-label="Till husdjuret">
+        <span class="hp-view" id="homePetView"></span>
+        <span class="hp-txt"><b id="homePetName">Plutt</b><small id="homePetMood"></small></span>
+        <span class="hp-go" aria-hidden="true">›</span>
+      </button>
+
+    <div class="panel installcard" id="installCard" hidden>
+      <span class="install-icon" aria-hidden="true"><img src="icon-192.png" alt="" width="48" height="48"></span>
+      <div><b>Installera spelet</b><p id="installText"></p></div>
+      <div class="install-actions"><button class="chunky" id="installBtn" hidden>Installera</button><button class="textbtn" id="installHide">Inte nu</button></div>
+    </div>
+
+      <details class="panel settings">
+        <summary>⚙️ Inställningar</summary>
+    <div class="foot">
+      <label class="namefield" id="nameField" for="nameInput">Vem spelar? <input id="nameInput" maxlength="16" autocomplete="off"></label>
+      <span class="who" id="whoLine" hidden></span>
+      <button class="textbtn" id="logoutBtn" hidden>Byt spelare</button>
+      <button class="textbtn" id="soundTest">Testa ljudet</button>
+      <button class="textbtn" id="resetBtn">Nollställ allt</button>
+    </div>
+    <div class="voicepick" id="voicePickBox" hidden>
+      <span class="lead">Vem ska heja på dig?</span>
+      <div class="chips" id="voicePick"></div>
+    </div>
+    <p class="sound-status" id="soundStatus" hidden></p>
+      </details>
+    </div>
+
+    <!-- TRÄNA: räknesätt, vägen, fri träning och fler utmaningar -->
+    <div class="tabpane" data-pane="train" hidden>
+      <div class="worldtabs" id="worldTabs" role="group" aria-label="Välj räknesätt"></div>
+    <div class="panel road-cta">
+      <div class="label"><span id="roadLabel">Vägen till expert</span> <small id="roadCount">Steg 0 av 27</small></div>
+      <div class="next" id="roadNext">Nästa: <span>Talet 1</span></div>
+      <div class="meter"><i id="roadMeter"></i></div>
+      <button class="chunky sun" id="openRoad">Fortsätt resan</button>
+    </div>
+
+    <div class="panel tricky-panel" id="trickyPanel" hidden>
+      <p id="trickyText">Några talkamrater har varit kluriga.</p>
+      <button class="chunky coral" id="trickyBtn">Öva kluriga</button>
+    </div>
+
+      <details class="panel freepanel" id="freePanel">
+        <summary><span id="freeTitle">Fri träning</span> <small>Välj ett tal, eller blandat</small></summary>
+        <div class="numgrid" id="numgrid"></div>
+        <div class="mixrow">
+          <button class="chunky" id="mixA">Blandat 1–10</button>
+          <button class="chunky coral" id="mixB">Blandat 1–20</button>
+        </div>
+      </details>
+
+    <div class="panel extras" id="extrasCard">
+      <div class="label">Fler utmaningar <small>Nästa steg efter plus, minus och dubblor</small></div>
+      <div class="extra-row">
+        <button class="extra-btn" data-extra="line"><span class="ex-ic" aria-hidden="true">📏</span><b>Tallinjen</b><small>Var bor talet?</small><span class="ex-lv" data-lv="line"></span></button>
+        <button class="extra-btn" data-extra="jump"><span class="ex-ic" aria-hidden="true">🦘</span><b>Plutts hopp</b><small>Hur stora är hoppen?</small><span class="ex-lv" data-lv="jump"></span></button>
+        <button class="extra-btn" data-extra="word"><span class="ex-ic" aria-hidden="true">🔤</span><b>Hemliga ordet</b><small>Räkna fram bokstäverna</small><span class="ex-lv" data-lv="word"></span></button>
+      </div>
+    </div>
+
+      <div class="panel duelcard">
+        <div class="label">Spela två</div>
+        <p>Två på samma skärm. Tävla i duell eller hjälps åt i lagkamp mot klockan.</p>
+        <button class="chunky coral" id="openDuel">Spela med en kompis</button>
+      </div>
+    </div>
+
+    <!-- PLUTT: husdjuret, korgen, garderoben och klistermärkena -->
+    <div class="tabpane" data-pane="pet" hidden>
+    <div class="panel petpanel">
+      <button class="petstage" id="petBtn" aria-label="Klappa husdjuret"><span id="petView"></span></button>
+      <div class="petinfo">
+        <div class="label"><span class="petname"><span id="petName">Plutt</span></span> <small id="petStageName">Ägg</small></div>
+        <p id="petMood"></p>
+        <div class="meter"><i id="petMeter"></i></div>
+        <small class="petnext" id="petNext"></small>
+        <span class="petbtns"><button class="textbtn" id="petWardrobe">👕 Garderob</button><button class="textbtn" id="petRename">Byt namn</button></span>
+      </div>
+      <div class="wish" id="petWish" hidden>
+        <span class="wish-icon" id="wishIcon" aria-hidden="true">🍦</span>
+        <div class="wish-body"><b id="wishText"></b><div class="meter"><i id="wishMeter"></i></div><small id="wishCount"></small></div>
+        <button class="chunky sun" id="wishBtn">Hjälp Plutt!</button>
+      </div>
+    </div>
+
+      <div class="panel basketcard">
+        <div class="label">🍓 Plutts korg <small>Från bytta dubbletter</small></div>
+        <p id="basketText"></p>
+        <div class="bk-actions">
+          <button class="chunky sun" id="basketFeed">Mata</button>
+          <button class="chunky coral" id="basketWardrobe">👕 Garderoben</button>
+        </div>
+      </div>
+
+      <div class="panel stickercard">
+        <div class="label">Klistermärken <small id="stickerCount">0 av 33</small></div>
+        <p id="stickerText">Samla alla klistermärken och medaljerna från vägen.</p>
+        <button class="chunky" id="openBook">Klistermärkesboken</button>
+      </div>
+    </div>
+
+    <!-- KLASSEN -->
+    <div class="tabpane" data-pane="class" hidden>
     <div class="panel classtop" id="classTop" hidden>
       <div class="ct-head">
         <span class="kicker">Klassens uppdrag · <span id="ctName">Klassen</span></span>
@@ -118,98 +240,16 @@
       </div>
     </div>
 
-    <div class="panel daily" id="dailyCard">
-      <div class="daily-top">
-        <div>
-          <span class="kicker">Dagens utmaning</span>
-          <h2 id="dailyTitle">Tiokamratmåndag</h2>
-        </div>
-        <span class="flame" id="dailyStreak">Starta en ny svit!</span>
-      </div>
-      <p id="dailyText"></p>
-      <button class="chunky coral" id="dailyBtn">Kör!</button>
+      <p class="stats noclass" id="noClassText" hidden>Gå med i en klass för att se klassens uppdrag, heja på varandra och göra kompisutmaningar.</p>
     </div>
-
-    <div class="panel petpanel">
-      <button class="petstage" id="petBtn" aria-label="Klappa husdjuret"><span id="petView"></span></button>
-      <div class="petinfo">
-        <div class="label"><span class="petname"><span id="petName">Plutt</span></span> <small id="petStageName">Ägg</small></div>
-        <p id="petMood"></p>
-        <div class="meter"><i id="petMeter"></i></div>
-        <small class="petnext" id="petNext"></small>
-        <span class="petbtns"><button class="textbtn" id="petWardrobe">👕 Garderob</button><button class="textbtn" id="petRename">Byt namn</button></span>
-      </div>
-      <div class="wish" id="petWish" hidden>
-        <span class="wish-icon" id="wishIcon" aria-hidden="true">🍦</span>
-        <div class="wish-body"><b id="wishText"></b><div class="meter"><i id="wishMeter"></i></div><small id="wishCount"></small></div>
-        <button class="chunky sun" id="wishBtn">Hjälp Plutt!</button>
-      </div>
-    </div>
-
-    <div class="worldtabs" id="worldTabs" role="group" aria-label="Välj värld"></div>
-
-    <div class="panel road-cta">
-      <div class="label"><span id="roadLabel">Vägen till expert</span> <small id="roadCount">Steg 0 av 27</small></div>
-      <div class="next" id="roadNext">Nästa: <span>Talet 1</span></div>
-      <div class="meter"><i id="roadMeter"></i></div>
-      <button class="chunky sun" id="openRoad">Fortsätt resan</button>
-    </div>
-
-    <div class="panel tricky-panel" id="trickyPanel" hidden>
-      <p id="trickyText">Några talkamrater har varit kluriga.</p>
-      <button class="chunky coral" id="trickyBtn">Öva kluriga</button>
-    </div>
-
-    <div class="panel">
-      <div class="label"><span id="freeTitle">Fri träning</span> <small>★ = dina bästa stjärnor</small></div>
-      <div class="numgrid" id="numgrid"></div>
-      <div class="mixrow">
-        <button class="chunky" id="mixA">Blandat 1–10</button>
-        <button class="chunky coral" id="mixB">Blandat 1–20</button>
-      </div>
-    </div>
-
-    <div class="cardrow">
-      <div class="panel">
-        <div class="label">Spela två</div>
-        <p>Två på samma skärm. Tävla i duell eller hjälps åt i lagkamp mot klockan.</p>
-        <button class="chunky coral" id="openDuel">Spela med en kompis</button>
-      </div>
-      <div class="panel">
-        <div class="label">Klistermärken <small id="stickerCount">0 av 30</small></div>
-        <p id="stickerText">Samla alla klistermärken och medaljerna från vägen.</p>
-        <button class="chunky sun" id="openBook">Titta i boken</button>
-      </div>
-    </div>
-
-    <div class="panel extras" id="extrasCard">
-      <div class="label">Fler utmaningar <small>Nästa steg efter plus, minus och dubblor</small></div>
-      <div class="extra-row">
-        <button class="extra-btn" data-extra="line"><span class="ex-ic" aria-hidden="true">📏</span><b>Tallinjen</b><small>Var bor talet?</small><span class="ex-lv" data-lv="line"></span></button>
-        <button class="extra-btn" data-extra="jump"><span class="ex-ic" aria-hidden="true">🦘</span><b>Plutts hopp</b><small>Hur stora är hoppen?</small><span class="ex-lv" data-lv="jump"></span></button>
-        <button class="extra-btn" data-extra="word"><span class="ex-ic" aria-hidden="true">🔤</span><b>Hemliga ordet</b><small>Räkna fram bokstäverna</small><span class="ex-lv" data-lv="word"></span></button>
-      </div>
-    </div>
-
-    <div class="panel installcard" id="installCard" hidden>
-      <span class="install-icon" aria-hidden="true"><img src="icon-192.png" alt="" width="48" height="48"></span>
-      <div><b>Installera spelet</b><p id="installText"></p></div>
-      <div class="install-actions"><button class="chunky" id="installBtn" hidden>Installera</button><button class="textbtn" id="installHide">Inte nu</button></div>
-    </div>
-
-    <div class="foot">
-      <label class="namefield" id="nameField" for="nameInput">Vem spelar? <input id="nameInput" maxlength="16" autocomplete="off"></label>
-      <span class="who" id="whoLine" hidden></span>
-      <button class="textbtn" id="logoutBtn" hidden>Byt spelare</button>
-      <button class="textbtn" id="soundTest">Testa ljudet</button>
-      <button class="textbtn" id="resetBtn">Nollställ allt</button>
-    </div>
-    <div class="voicepick" id="voicePickBox" hidden>
-      <span class="lead">Vem ska heja på dig?</span>
-      <div class="chips" id="voicePick"></div>
-    </div>
-    <p class="sound-status" id="soundStatus" hidden></p>
   </section>
+
+  <nav class="tabbar" id="tabbar" aria-label="Meny">
+    <button data-tab="home" aria-current="page"><span class="tb-ic" aria-hidden="true">🏠</span>Hem<i class="dot" hidden></i></button>
+    <button data-tab="train"><span class="tb-ic" aria-hidden="true">✏️</span>Träna<i class="dot" hidden></i></button>
+    <button data-tab="pet"><span class="tb-ic" aria-hidden="true">💜</span>Plutt<i class="dot" hidden></i></button>
+    <button data-tab="class"><span class="tb-ic" aria-hidden="true">👥</span>Klassen<i class="dot" hidden></i></button>
+  </nav>
 
   <!-- VÄGEN TILL EXPERT -->
   <section class="screen" id="road" hidden>
@@ -249,7 +289,8 @@
     <h2 class="mode-title"><span id="wdTitle">Plutts</span> <em>garderob</em></h2>
     <div class="panel wd-top">
       <div class="wd-pet" id="wdPet"></div>
-      <div class="wd-info"><b id="wdStage"></b><p id="wdText"></p><button class="textbtn" id="wdBook">Till klistermärkesboken</button></div>
+      <div class="wd-info"><b id="wdStage"></b><p id="wdText"></p>
+        <div class="wd-actions"><button class="chunky sun" id="wdFeed" hidden>Mata</button><button class="textbtn" id="wdBook">Byt dubbletter i boken</button></div></div>
     </div>
     <div class="wd-grid" id="wdGrid"></div>
   </section>
@@ -512,8 +553,7 @@
       <div class="medal-row" id="medalRow"></div>
       <div class="label">Klistermärkesboken <small id="bookCount"></small></div>
       <div class="tradebox" id="tradeBox"></div>
-      <div class="raritykey" id="rarityKey"></div>
-      <div class="book" id="bookGrid"></div>
+      <div id="bookGrid"></div>
     </div>
   </section>
 
@@ -579,6 +619,7 @@
     <div class="panel" id="joinBody"></div>
   </section>
 </div>
+<div class="sheet" id="sheet" hidden><div class="sheet-card" role="dialog" aria-modal="true"><div id="sheetBody"></div></div></div>
 <script src="game.js"></script>
 </body>
 </html>
