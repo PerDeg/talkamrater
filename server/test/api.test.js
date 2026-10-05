@@ -345,6 +345,63 @@ for (const [label, envFor] of targets) {
       assert.equal(all.find(c => c.name === '2A').schoolId, null);
     });
 
+    test('kompisutmaning: bjuda in, avbryta, svara, klara och hämta bricka', async () => {
+      const sch = await call('POST', '/admin/schools', { name: 'Kompisskolan' }, ADMIN);
+      const T = { 'x-admin-key': sch.body.key };
+      const a = await call('POST', '/admin/classes', { name: '1A' }, T);
+      const b = await call('POST', '/admin/classes', { name: '1B' }, T);
+      const other = await call('POST', '/admin/classes', { name: 'Annan' }, ADMIN);
+      const reg = async (code, name) => (await call('POST', `/classes/${code}/players`, { name, pin: [1, 2, 3] })).body;
+      const ida = await reg(a.body.code, 'Ida'), olle = await reg(b.body.code, 'Olle'), sam = await reg(a.body.code, 'Sam'), ute = await reg(other.body.code, 'Ute');
+      const H = p => ({ authorization: `Bearer ${p.token}` });
+      // Kompisar: hela skolan, egen klass först, aldrig andra skolor
+      const list = (await call('GET', '/me/buddies', null, H(ida))).body;
+      assert.deepEqual(list.mates.map(m => m.name), ['Sam', 'Olle']);
+      assert.equal(list.challenge, null);
+      assert.equal((await call('POST', '/me/challenge', { toId: ute.player.id, metric: 'answers' }, H(ida))).status, 400);
+      assert.equal((await call('POST', '/me/challenge', { toId: olle.player.id, metric: 'hack' }, H(ida))).status, 400);
+      // Ida bjuder in Olle och ångrar sig
+      let c = (await call('POST', '/me/challenge', { toId: olle.player.id, metric: 'answers' }, H(ida))).body.challenge;
+      assert.equal(c.status, 'pending'); assert.equal(c.role, 'from'); assert.equal(c.mate.name, 'Olle');
+      assert.equal((await call('POST', '/me/challenge', { toId: sam.player.id, metric: 'answers' }, H(ida))).status, 400); // bara en åt gången
+      assert.equal((await call('POST', '/me/challenge', { toId: olle.player.id, metric: 'pairs' }, H(sam))).status, 400); // Olle är upptagen
+      assert.equal((await call('POST', `/me/challenge/${c.id}/cancel`, null, H(olle))).status, 400); // mottagaren svarar i stället
+      assert.equal((await call('POST', `/me/challenge/${c.id}/cancel`, null, H(ida))).body.challenge, null);
+      assert.equal((await call('GET', '/me/buddies', null, H(olle))).body.challenge, null);
+      // Ny inbjudan som Olle tackar ja till
+      c = (await call('POST', '/me/challenge', { toId: olle.player.id, metric: 'answers' }, H(ida))).body.challenge;
+      const inv = (await call('GET', '/me/buddies', null, H(olle))).body.challenge;
+      assert.equal(inv.role, 'to'); assert.equal(inv.mate.name, 'Ida');
+      await call('PATCH', `/admin/classes/${b.body.id}`, { public: true }, T);
+      assert.equal((await call('GET', `/public/classes/${b.body.code}?name=Olle`)).body.me.nudge.kind, 'egg'); // ägget går före
+      const acc = (await call('POST', `/me/challenge/${inv.id}/accept`, null, H(olle))).body.challenge;
+      assert.equal(acc.status, 'active'); assert.equal(acc.goal, 40);
+      // Båda spelar: 25 + 20 rätt klarar 40
+      let r = await call('POST', '/me/rounds', { level: '8', mode: 'find', stars: 2, score: 25, total: 25 }, H(ida));
+      assert.equal(r.body.buddy.progress, 25); assert.equal(r.body.buddy.justDone, false);
+      r = await call('POST', '/me/rounds', { level: '8', mode: 'find', stars: 2, score: 20, total: 20 }, H(olle));
+      assert.equal(r.body.buddy.justDone, true); assert.equal(r.body.buddy.progress, 45);
+      assert.equal(r.body.buddy.mine, 20); assert.equal(r.body.buddy.theirs, 25);
+      const feedA = (await call('GET', '/me/class', null, H(ida))).body.events.filter(e => e.type === 'buddy');
+      const feedB = (await call('GET', '/me/class', null, H(olle))).body.events.filter(e => e.type === 'buddy');
+      assert.equal(feedA.length, 1); assert.equal(feedB.length, 1);
+      assert.ok((await call('GET', `/public/classes/${b.body.code}?name=Olle&events=3`)).body.events.some(e => e.text === 'Ida och Olle klarade en kompisutmaning 🤝'));
+      // Brickan hämtas en gång var
+      const done = (await call('GET', '/me/buddies', null, H(ida))).body.challenge;
+      assert.equal(done.status, 'done'); assert.equal(done.claimed, false);
+      assert.equal((await call('POST', `/me/challenge/${done.id}/claim`, null, H(ida))).body.already, false);
+      assert.equal((await call('POST', `/me/challenge/${done.id}/claim`, null, H(ida))).body.already, true);
+      assert.equal((await call('GET', '/me/buddies', null, H(ida))).body.challenge.claimed, true);
+      assert.equal((await call('POST', `/me/challenge/${done.id}/seen`, null, H(ida))).body.challenge, null);
+      assert.equal((await call('GET', '/me/buddies', null, H(olle))).body.challenge.status, 'done');
+      // Nej tack
+      c = (await call('POST', '/me/challenge', { toId: sam.player.id, metric: 'rounds' }, H(ida))).body.challenge;
+      assert.equal((await call('POST', `/me/challenge/${c.id}/decline`, null, H(sam))).body.challenge, null);
+      assert.equal((await call('GET', '/me/buddies', null, H(ida))).body.challenge.status, 'declined');
+      assert.equal((await call('POST', `/me/challenge/${c.id}/seen`, null, H(ida))).body.challenge, null);
+      assert.equal((await call('POST', `/me/challenge/${c.id}/accept`, null, H(ute))).status, 404);
+    });
+
     test('låser efter fem fel', async () => {
       const cls = await call('POST', '/admin/classes', { name: 'Låsklass' }, ADMIN);
       const reg = await call('POST', `/classes/${cls.body.code}/players`, { name: 'Testa', pin: [0, 0, 0] });

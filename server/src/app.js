@@ -5,6 +5,7 @@ import { emptyProgress, sanitizeProgress, mergeProgress, summarize } from './pro
 import { classMission, celebrateMission, classPulse, celebrateAllIn } from './mission.js';
 import { petView, eventText, medalIcons, nudge, validFocus, focusLabel, classPetView, TREATS } from './display.js';
 import { weekStart, missionFor } from './mission.js';
+import { BUDDY_GOALS, buddyMates, currentBuddy, createBuddy, buddyAction, checkBuddy, buddyNudge } from './buddy.js';
 import { METRICS, validMetric, contestView, contestForClass, celebrateContest, contestCheer } from './contest.js';
 
 // Händelser som kan visas i klassens flöde. Texten byggs i spelet utifrån typ + detalj.
@@ -303,7 +304,8 @@ export function createApp({ db, t, client, adminKey, publicDir, trustProxy = 'lo
       const mine = view.classes.find(c => c.mine);
       contest = { title: view.title, unit: view.unit, mountain: view.mountain, progress: mine.progress, goal: mine.goal, percent: mine.percent, reached };
     }
-    res.json({ mission: { ...mission, everyone: pulse.everyone }, completed, allIn, contest });
+    const buddy = await checkBuddy(db, t, client, req.player);
+    res.json({ mission: { ...mission, everyone: pulse.everyone }, completed, allIn, contest, buddy });
   });
 
   api.get('/me/class', auth, async (req, res) => {
@@ -373,6 +375,25 @@ export function createApp({ db, t, client, adminKey, publicDir, trustProxy = 'lo
     res.json({ seen: Number(n) || 0 });
   });
 
+  // Kompisutmaning
+  api.get('/me/buddies', auth, async (req, res) => {
+    res.json({
+      mates: await buddyMates(db, t, req.player),
+      challenge: await currentBuddy(db, t, req.player.id),
+      goals: Object.entries(BUDDY_GOALS).map(([id, g]) => ({ id, unit: g.unit, goal: g.goal, title: g.title(g.goal) }))
+    });
+  });
+  api.post('/me/challenge', auth, async (req, res) => {
+    const r = await createBuddy(db, t, client, req.player, req.body?.toId, String(req.body?.metric || ''));
+    if (r.error) fail(400, r.error);
+    res.status(201).json({ challenge: await currentBuddy(db, t, req.player.id) });
+  });
+  api.post('/me/challenge/:id/:action', auth, async (req, res) => {
+    const r = await buddyAction(db, t, req.player.id, req.params.id, req.params.action);
+    if (r.error) fail(r.status || 400, r.error);
+    res.json({ ...r, challenge: await currentBuddy(db, t, req.player.id) });
+  });
+
   api.post('/me/events', auth, async (req, res) => {
     const type = String(req.body?.type || '');
     const detail = String(req.body?.detail ?? '').trim().slice(0, 32);
@@ -435,6 +456,7 @@ export function createApp({ db, t, client, adminKey, publicDir, trustProxy = 'lo
         pet: petView(p.pet),
         nudge: nudge({
           pet: p.pet, daily: p.daily, mission, focus: row.focus || c.focus, tricky: p.tricky, everyone: pulse.everyone, contest: contestCheer(contest),
+          buddy: await (async () => { const v = await currentBuddy(db, t, row.id); const text = buddyNudge(v); return text ? { text, invite: v.status === 'pending' } : null; })(),
           gift: (await db(t.gifts).where({ to_id: row.id, seen: false }).orderBy('created_at').first())?.treat || null
         })
       };

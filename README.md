@@ -53,7 +53,7 @@ Spelet fungerar på två sätt:
   - Man väljer talkamrater, tiokamrater, minus eller dubblor.
 - **Fler utmaningar** (nästa steg efter plus, minus och dubblor), var och en med nivåer som låses upp med minst ★★:
   - 📏 **Tallinjen:** Plutt-pilen pekar på ett streck. Vilket tal är det? Eller tryck på strecket där talet bor, t.ex. 46 mellan 40 och 60. Sex nivåer från 0–10 till tallinjer där bara några tal står ut.
-  - 🦘 **Plutts hopp:** hur stora är hoppen mellan strecken? Rätt svar och Plutt studsar hela vägen till flaggan. Fel svar och han räknar fel, märker att det inte stämmer med talet som står där och ramlar ner.
+  - 🦘 **Plutts hopp:** hur stora är hoppen mellan strecken? Egna nivåer: blandade hopp om 1, 2 och 5, hopp om 3 och 4, stora hopp om 20, 25 och 50, och linjer där Plutt börjar mitt i. Rätt svar och Plutt studsar hela vägen till flaggan. Fel svar och han räknar fel, märker att det inte stämmer med talet som står där och ramlar ner.
   - 🔤 **Hemliga ordet:** räkna ut talet, leta upp det i kodnyckeln och tryck på bokstaven. Bokstäverna blir ett ord, t.ex. KATT 🐱. Nivåer från plus upp till 10 till tiotal utan minnessiffra.
 - **Kluriga kamrater**: spelet minns svåra uppgifter i alla världar och låter eleven öva extra på dem.
 - **Belöningar**:
@@ -62,6 +62,10 @@ Spelet fungerar på två sätt:
   - Stjärnor, titlar, 30 klistermärken och 13 medaljer.
 
 - **Första gången** väljer man mellan att gå med i sin klass, skapa ett eget konto eller bara skriva sitt namn och spela på enheten. Inget namn är förvalt.
+
+### Nyheter
+
+När något nytt kommer till spelet visas en ruta högst upp på startsidan, t.ex. *"Nytt! Nu kan du träna på tallinjen"*, och när klassen får ett nytt veckouppdrag. Rutan försvinner när eleven har sett den, och det sparas med elevens framsteg. Nya nyheter läggs i listan `NEWS` i `public/game.js`.
 
 ### Rösten
 
@@ -107,6 +111,7 @@ Klassidan visar:
 
 - **Veckans uppdrag**: ett gemensamt mål som byts varje måndag, t.ex. "Poppa 130 bubbelpar tillsammans". Målet anpassas efter klassens storlek.
 - **Händer i klassen**: ett flöde med medaljer, nya experter, titlar, sviter, husdjur som växer och rekord. Kompisarna kan **heja** 👏, och den som får hejarop ser det nästa gång spelet öppnas. Bara fasta händelsetyper finns, inga fritexter.
+- **Kompisutmaning**: bjud in en kompis på skolan (eller i klassen om den inte hör till en skola) till ett mål, t.ex. *Svara rätt på 40 frågor tillsammans* på tre dagar. En utmaning åt gången. En obesvarad inbjudan kan tas tillbaka och gäller i två dagar. Klarar de målet får båda en **kompisbricka** 🤝 (syns i klistermärkesboken), extra mat till husdjuret och en rad i klassflödet.
 - **Alla med**: hur många i klassen som spelat den här veckan ("17 av 24"). När alla har varit med får alla ett extra klistermärke.
 - **Klassplutten**: klassens gemensamma husdjur. Den växer av allas rundor och är gladast när många har spelat de senaste dagarna.
 - **Kunskapsväggen**: för varje tal, hur många i klassen som kan det. Inga namn, bara en bild av vad klassen kan och var man kan hjälpa varandra.
@@ -256,6 +261,7 @@ Huvudversionen är låst (`postgres:17-alpine`). Så här byter du till en ny:
 | `GET /api/me/class` | Klassidan: elever, stjärnburk, veckans uppdrag, händelser |
 | `POST /api/me/events` | Ny händelse i flödet `{type, detail}` |
 | `POST /api/events/:id/cheer` | Heja på en klasskompis |
+| `GET /api/me/buddies` · `POST /api/me/challenge` · `POST /api/me/challenge/:id/{accept,decline,cancel,seen,claim}` | Kompisutmaning: kompisar och aktuell utmaning, bjud in, svara, avbryt, hämta bricka |
 | `POST /api/me/gift` · `POST /api/me/gifts/seen` | Hemlig present till en klasskompis · markera fått presenter som sedda |
 | `POST /api/logout` | Logga ut |
 | `/api/admin/...` | Klasser, elever, skolor, klasskamper, ny bildkod, radera. Kräver headern `X-Admin-Key` med adminnyckeln eller en skolas lärarnyckel. |

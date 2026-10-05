@@ -62,6 +62,7 @@ export const tableNames = prefix => ({
   schools: `${prefix}schools`,
   contests: `${prefix}contests`,
   contestClasses: `${prefix}contest_classes`,
+  buddies: `${prefix}buddy_challenges`,
   cheers: `${prefix}cheers`
 });
 
@@ -241,6 +242,33 @@ function migrations(t, client) {
       await knex.schema.dropTableIfExists(t.contests);
       await knex.schema.alterTable(t.classes, tb => { tb.dropForeign(['school_id']); tb.dropColumn('school_id'); });
       await knex.schema.dropTableIfExists(t.schools);
+    }
+  }, {
+    // Kompisutmaning: två elever på samma skola klarar ett mål tillsammans
+    name: '008_buddy',
+    async up(knex) {
+      await knex.schema.createTable(t.buddies, tb => {
+        cs(tb);
+        tb.increments('id').primary();
+        tb.integer('from_id').unsigned().notNullable().references('id').inTable(t.players).onDelete('CASCADE');
+        tb.integer('to_id').unsigned().notNullable().references('id').inTable(t.players).onDelete('CASCADE');
+        tb.string('metric', 16).notNullable();
+        tb.integer('goal').notNullable();
+        tb.string('status', 12).notNullable();
+        tb.bigInteger('created_at').notNullable();
+        tb.bigInteger('accepted_at').nullable();
+        tb.bigInteger('ends_at').nullable();
+        tb.bigInteger('done_at').nullable();
+        tb.boolean('claimed_from').notNullable().defaultTo(false);
+        tb.boolean('claimed_to').notNullable().defaultTo(false);
+        tb.boolean('seen_from').notNullable().defaultTo(false);
+        tb.boolean('seen_to').notNullable().defaultTo(false);
+        tb.index(['from_id', 'status']);
+        tb.index(['to_id', 'status']);
+      });
+    },
+    async down(knex) {
+      await knex.schema.dropTableIfExists(t.buddies);
     }
   }];
 }

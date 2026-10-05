@@ -80,6 +80,12 @@
       </div>
     </div>
 
+    <div class="panel news" id="newsCard" hidden>
+      <span class="news-ic" id="newsIcon" aria-hidden="true"></span>
+      <div class="news-txt"><span class="news-tag">Nytt!</span><b id="newsTitle"></b><p id="newsText"></p></div>
+      <div class="news-actions"><button class="chunky sun" id="newsGo"></button><button class="textbtn" id="newsHide">Okej, jag har sett det</button></div>
+    </div>
+
     <div class="panel classtop" id="classTop" hidden>
       <div class="ct-head">
         <span class="kicker">Klassens uppdrag · <span id="ctName">Klassen</span></span>
@@ -96,6 +102,11 @@
       <p class="ct-contest" id="ctContest" hidden></p>
       <p class="ct-event" id="ctEvent" hidden></p>
       <button class="chunky sun" id="openClass">Till klassen</button>
+    </div>
+
+    <div class="panel buddycard" id="buddyCard" hidden>
+      <div class="label">🤝 Kompisutmaning <small id="buddySub"></small></div>
+      <div id="buddyBody"></div>
     </div>
 
     <div class="panel joincard" id="joinCard" hidden>
@@ -230,6 +241,24 @@
       <summary>Titta på alla kamrater först</summary>
       <div class="pairs" id="pairs"></div>
     </details>
+  </section>
+
+  <!-- KOMPISUTMANING: välj mål och kompis -->
+  <section class="screen" id="buddy" hidden>
+    <button class="chunky ghost back" data-home>← Hem</button>
+    <h2 class="mode-title">Kompis<em>utmaning</em></h2>
+    <div class="buddy-row">
+      <div class="mascot happy" aria-hidden="true"><div class="eyes"><i></i><i></i></div><div class="mouth"></div></div>
+      <p class="speech" aria-live="polite"></p>
+    </div>
+    <div class="panel formstack">
+      <span class="lead">Vad ska ni klara tillsammans på tre dagar?</span>
+      <div class="chips" id="buddyGoals"></div>
+      <span class="lead">Vem vill du utmana?</span>
+      <div class="matelist" id="buddyMates"></div>
+      <p class="error" id="buddyErr"></p>
+      <button class="chunky coral" id="buddySend" disabled>Skicka inbjudan</button>
+    </div>
   </section>
 
   <!-- FLER UTMANINGAR: välj nivå -->

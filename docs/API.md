@@ -155,13 +155,14 @@ GET https://talkamrater.degerfalt.se/api/public/classes/{klasskod}?name={namn}&e
 | `mood`, `moodText` | `ägg`, `glad`, `hungrig` eller `överlycklig`, plus en färdig mening |
 | `wish` | Dagens önskan, eller `null`. `text` passar efter "Kan du …?". `have`/`need` visar hur långt eleven kommit. |
 
-**`me.nudge`**: det viktigaste husdjuret vill säga just nu, som en färdig mening (`text`) och en typ (`kind`). Ägg, en hemlig present, hunger och en önskan går först. Husdjuret har högst en önskan om dagen, och inte alla dagar. Annars växlar bubblan varannan timme mellan lärarens fokus, dagens utmaning, klassens uppdrag, klasskampen, "alla med" och ett minnestips.
+**`me.nudge`**: det viktigaste husdjuret vill säga just nu, som en färdig mening (`text`) och en typ (`kind`). Ägg, en hemlig present, hunger, en inbjudan till kompisutmaning och en önskan går först. Husdjuret har högst en önskan om dagen, och inte alla dagar. Annars växlar bubblan varannan timme mellan lärarens fokus, dagens utmaning, klassens uppdrag, klasskampen, en pågående kompisutmaning, "alla med" och ett minnestips.
 
 | `kind` | Exempel på `text` |
 |---|---|
 | `egg` | Ägget väntar på dig. Spela en runda så kläcks det! 🥚 |
 | `gift` | Någon i klassen gav mig 🍦 Kom och se! 🎁 (en hemlig present väntar, försvinner när eleven öppnar spelet) |
 | `hungry` | Jag är hungrig! Spelar vi en runda? 🍓 |
+| `buddy` | Alva vill göra en kompisutmaning med dig! 🤝 (en inbjudan går före önskan) · Du och Alva har 25 av 40 rätta svar. Kör! 🤝 (pågående, i växlingen) |
 | `wish` | Kan du poppa alla bubbelpar som blir 9? Då får jag en glass 🍦 |
 | `daily` | Dagens utmaning väntar! Håll sviten på 3 dagar 🔥 |
 | `focus` | Den här veckan tränar vi talkamraterna till 7 ✏️ |
@@ -172,7 +173,7 @@ GET https://talkamrater.degerfalt.se/api/public/classes/{klasskod}?name={namn}&e
 | `contest` | 2B har byggt 70 % av sitt bubbelberg. Nu kör vi! 🏔️ (när klassen är med i en klasskamp) |
 | `happy` | Plutt mår toppen idag 💜 |
 
-**`events`**: klassens senaste stora händelser, nyast först. Använd `text` direkt. `type` är `medal`, `expert`, `daily`, `book`, `pet`, `mission`, `allin` (alla i klassen har varit med den här veckan) eller `contest` (en klass i klasskampen har nått 25, 50, 75 eller 100 % av sitt berg), och kan användas för egna ikoner. `at` är en tidpunkt i ms.
+**`events`**: klassens senaste stora händelser, nyast först. Använd `text` direkt. `type` är `medal`, `expert`, `daily`, `book`, `pet`, `mission`, `allin` (alla i klassen har varit med den här veckan), `buddy` (två elever klarade en kompisutmaning, t.ex. "Edwin och Alva klarade en kompisutmaning 🤝") eller `contest` (en klass i klasskampen har nått 25, 50, 75 eller 100 % av sitt berg), och kan användas för egna ikoner. `at` är en tidpunkt i ms.
 
 **`playUrl`**: länk till spelet. Den öppnar *Gå med i klassen* med koden ifylld.
 

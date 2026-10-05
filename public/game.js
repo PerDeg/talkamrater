@@ -138,7 +138,7 @@
   let save = loadGuest();
 
   /* ================= Server och synk ================= */
-  const net = { online: false, token: null, player: null, timer: 0, inflight: false, classInfo: null };
+  const net = { online: false, token: null, player: null, timer: 0, inflight: false, classInfo: null, buddy: null };
 
   async function api(method, path, body) {
     const ctl = new AbortController();
@@ -204,6 +204,18 @@
         un.insertAdjacentHTML('afterbegin', `🤝 Du hjälpte klassen med <b>${added} ${esc(m.unit)}</b> (${m.progress} av ${m.goal})<br>`);
       }
       if (net.classInfo && m.everyone) net.classInfo.mission.everyone = m.everyone;
+      // Kompisutmaning: hur långt ni har kommit, och firande när ni klarat den
+      const bd = res.buddy;
+      if (bd && net.buddy) {
+        const was = net.buddy.challenge;
+        net.buddy.challenge = bd;
+        const grewB = was && was.id === bd.id ? bd.progress - was.progress : 0;
+        if (current === 'done' && grewB > 0) {
+          const un = $('#unlock'); un.hidden = false;
+          un.insertAdjacentHTML('beforeend', `<br>🤝 Kompisutmaningen med ${esc(bd.mate.name)}: <b>${Math.min(bd.progress, bd.goal)} av ${bd.goal}</b> ${esc(bd.unit)}`);
+        }
+        if (bd.justDone) claimBuddy(bd);
+      }
       // Klasskamp: hur mycket rundan byggde på klassens berg
       const k = res.contest, ck = net.classInfo && net.classInfo.contest;
       if (k) {
@@ -282,7 +294,7 @@
   async function logout(expired) {
     if (net.token && !expired) { try { await api('POST', 'logout'); } catch (e) {} }
     ls.del(ACCOUNT_KEY);
-    net.token = null; net.player = null; net.classInfo = null;
+    net.token = null; net.player = null; net.classInfo = null; net.buddy = null;
     save = loadGuest();
     goHome();
     if (expired) cheer('Logga in igen');
@@ -294,6 +306,7 @@
     if (!net.player || !net.online || isSolo()) return null;
     try {
       net.classInfo = await api('GET', 'me/class');
+      refreshBuddy();
       receiveGifts(net.classInfo.gifts || []);
       if (net.classInfo.mission && net.classInfo.mission.everyone && net.classInfo.mission.everyone.allIn) allInBonus(net.classInfo.mission);
       const seen = prefs.seenCheers[net.player.id] || 0;
@@ -1455,6 +1468,8 @@
 
     renderVoicePick();
     renderExtrasCard();
+    renderNews();
+    renderBuddyCard();
     $('#soundBtn').setAttribute('aria-pressed', String(prefs.sound));
     $('#soundBtn').textContent = prefs.sound ? '🔊' : '🔇';
     $('#voiceBtn').setAttribute('aria-pressed', String(prefs.voice));
@@ -1510,6 +1525,174 @@
     if (ev) $('#ctEvent').innerHTML = `${esc(ev.avatar)} ${eventText(ev)}`;
     $('#classTop').classList.toggle('is-done', done);
   }
+
+  /* ================= Nyheter ================= */
+  // "Nytt! Nu kan du träna på …" visas tills eleven har sett det. Det som är sett
+  // sparas i framstegen (dates['n-<id>']) så att det gäller på alla enheter.
+  // Lägg nya nyheter först i listan; bara en visas åt gången.
+  const NEWS = [
+    { id: 'buddy1', icon: '🤝', title: 'Kompisutmaning', text: 'Utmana en kompis på skolan. Klarar ni målet tillsammans får ni varsin kompisbricka!',
+      go: 'Utmana en kompis', when: () => canBuddy(), action: () => openBuddy() },
+    { id: 'jump2', icon: '🦘', title: 'Svårare hopp för Plutt', text: 'Plutts hopp har nya nivåer med hopp om 3, 4, 20 och 25, och linjer som börjar mitt i.',
+      go: 'Hjälp Plutt', action: () => openExtra('jump') },
+    { id: 'extras1', icon: '📏', title: 'Nu kan du träna på tallinjen', text: 'Hitta var talen bor, hjälp Plutt att hoppa rätt och knäck hemliga ord.',
+      go: 'Testa nu', action: () => openExtra('line') }
+  ];
+  function currentNews() {
+    // Nytt veckouppdrag för klassen: "Nu har vi ett nytt uppdrag!"
+    const m = net.classInfo && net.classInfo.mission;
+    if (m && net.player && !isSolo()) {
+      const wk = dayNumber(new Date(m.start));
+      if ((save.dates['n-mission'] || 0) < wk) {
+        return { id: 'mission', value: wk, icon: '🎯', title: 'Nu har vi ett nytt uppdrag!', text: `${m.title}. Hela klassen hjälps åt!`, go: 'Till klassen', action: () => openClass() };
+      }
+    }
+    return NEWS.find(n => !save.dates['n-' + n.id] && (!n.when || n.when())) || null;
+  }
+  function seeNews(n) {
+    save.dates['n-' + n.id] = n.value || today();
+    persist();
+  }
+  function renderNews() {
+    const n = currentNews();
+    $('#newsCard').hidden = !n || needsWelcome();
+    if (!n) return;
+    $('#newsIcon').textContent = n.icon;
+    $('#newsTitle').textContent = n.title;
+    $('#newsText').textContent = n.text;
+    $('#newsGo').textContent = n.go;
+    $('#newsGo').onclick = () => { seeNews(n); sfx.select(); n.action(); };
+    $('#newsHide').onclick = () => { seeNews(n); sfx.select(); renderNews(); };
+  }
+
+  /* ================= Kompisutmaning ================= */
+  // Bjud in en kompis på skolan till ett gemensamt mål. En utmaning åt gången.
+  const canBuddy = () => !!(net.player && !isSolo() && net.online);
+  const BUDDY_XP = 15;
+  async function refreshBuddy() {
+    if (!canBuddy()) { net.buddy = null; return null; }
+    try {
+      net.buddy = await api('GET', 'me/buddies');
+      const c = net.buddy.challenge;
+      if (c && c.status === 'done' && !c.claimed) claimBuddy(c);
+      if (current === 'start') renderBuddyCard();
+      return net.buddy;
+    } catch (e) { return null; }
+  }
+  async function buddyDo(action, c) {
+    try {
+      const r = await api('POST', `me/challenge/${c.id}/${action}`);
+      if (net.buddy) net.buddy.challenge = r.challenge;
+      renderBuddyCard();
+      return r;
+    } catch (e) { cheer(e.message); return null; }
+  }
+  // Klarad utmaning: kompisbricka och mat till husdjuret (en gång per elev)
+  async function claimBuddy(c) {
+    if (c.claiming) return;
+    c.claiming = true;
+    const r = await buddyDo('claim', c);
+    if (!r || r.already) return;
+    save.records.buddies = (save.records.buddies || 0) + 1;
+    const grew = feedPet(BUDDY_XP);
+    persist();
+    setTimeout(() => {
+      cheer(`Kompisbricka! 🤝`, true); rain(200); sfx.fanfare();
+      say(`Hurra! Du och ${c.mate.name} klarade kompisutmaningen! Ni får varsin kompisbricka.`);
+      if (grew) setTimeout(() => cheer(`${petName()} växte!`, true), 1600);
+    }, 900);
+  }
+  const daysLeftText = ms => { const d = Math.max(0, Math.ceil((ms - Date.now()) / 86400000)); return d <= 1 ? 'sista dagen' : `${d} dagar kvar`; };
+  function renderBuddyCard() {
+    const card = $('#buddyCard');
+    card.hidden = !canBuddy() || !net.buddy;
+    if (card.hidden) return;
+    const c = net.buddy.challenge, body = $('#buddyBody'), sub = $('#buddySub');
+    card.classList.toggle('done', !!c && c.status === 'done');
+    const mate = c ? `<span class="bd-mates"><span class="em" aria-hidden="true">${esc(myFace())}</span>+<span class="em" aria-hidden="true">${esc(c.mate.avatar)}</span> ${esc(c.mate.name)}${c.mate.className ? ` <small>(${esc(c.mate.className)})</small>` : ''}</span>` : '';
+    if (!c) {
+      sub.textContent = 'Klara ett mål tillsammans';
+      body.innerHTML = `<p>Utmana en kompis på skolan. Klarar ni målet på tre dagar får ni varsin kompisbricka och extra mat till ${esc(petName())}.</p>
+        <div class="bd-row"><button class="chunky sun" id="bdNew">Utmana en kompis</button></div>`;
+      $('#bdNew').onclick = openBuddy;
+    } else if (c.status === 'pending' && c.role === 'from') {
+      sub.textContent = 'Väntar på svar';
+      body.innerHTML = `${mate}<p>${esc(c.title)}. Väntar på att ${esc(c.mate.name)} ska svara …</p>
+        <div class="bd-row"><button class="textbtn" id="bdCancel">Ta tillbaka inbjudan</button></div>`;
+      $('#bdCancel').onclick = () => buddyDo('cancel', c);
+    } else if (c.status === 'pending') {
+      sub.textContent = 'Du har fått en inbjudan!';
+      body.innerHTML = `${mate}<p>${esc(c.mate.name)} vill göra en kompisutmaning med dig: <b>${esc(c.title)}</b> på tre dagar.</p>
+        <div class="bd-row"><button class="chunky coral" id="bdYes">Ja, vi kör!</button><button class="textbtn" id="bdNo">Nej tack</button></div>`;
+      $('#bdYes').onclick = async () => { if (await buddyDo('accept', c)) { sfx.fanfare(); cheer('Nu kör ni!', true); say(`Nu kör du och ${c.mate.name}!`); } };
+      $('#bdNo').onclick = () => buddyDo('decline', c);
+    } else if (c.status === 'active') {
+      sub.textContent = daysLeftText(c.endsAt);
+      body.innerHTML = `${mate}<p>${esc(c.title)}</p>
+        <div class="meter"><i style="width:${Math.min(100, 100 * c.progress / c.goal)}%"></i></div>
+        <div class="bd-split"><span>Du: ${c.mine}</span><span>${c.progress} av ${c.goal} ${esc(c.unit)}</span><span>${esc(c.mate.name)}: ${c.theirs}</span></div>
+        <div class="bd-row"><button class="textbtn" id="bdQuit">Avsluta utmaningen</button></div>`;
+      let armed = false;
+      $('#bdQuit').onclick = e => { if (!armed) { armed = true; e.target.textContent = 'Säker? Tryck igen'; return; } buddyDo('cancel', c); };
+    } else if (c.status === 'done') {
+      sub.textContent = 'Klart! 🎉';
+      body.innerHTML = `${mate}<p>Ni klarade det! ${c.progress} ${esc(c.unit)} tillsammans. Ni fick varsin kompisbricka 🤝</p>
+        <div class="bd-row"><button class="chunky sun" id="bdAgain">Ny utmaning</button><button class="textbtn" id="bdOk">Okej!</button></div>`;
+      $('#bdAgain').onclick = openBuddy;
+      $('#bdOk').onclick = () => buddyDo('seen', c);
+    } else {
+      sub.textContent = c.status === 'declined' ? 'Inte den här gången' : 'Tiden tog slut';
+      body.innerHTML = `${mate}<p>${c.status === 'declined' ? `${esc(c.mate.name)} kunde inte den här gången. Utmana någon annan!`
+        : c.progress ? `Ni kom till ${c.progress} av ${c.goal} ${esc(c.unit)}. Bra kämpat, försök igen!` : `${esc(c.mate.name)} hann inte svara. Försök igen!`}</p>
+        <div class="bd-row"><button class="chunky sun" id="bdAgain">Ny utmaning</button><button class="textbtn" id="bdOk">Okej!</button></div>`;
+      $('#bdAgain').onclick = async () => { await buddyDo('seen', c); openBuddy(); };
+      $('#bdOk').onclick = () => buddyDo('seen', c);
+    }
+  }
+  const B = { goal: 'answers', mate: null };
+  async function openBuddy() {
+    stopGame();
+    show('buddy');
+    talk('Välj ett mål och en kompis. Ni hjälps åt, och klarar ni det får ni varsin kompisbricka!', 'happy');
+    $('#buddyErr').textContent = '';
+    $('#buddyMates').innerHTML = '<p class="stats">Hämtar kompisar …</p>';
+    const d = await refreshBuddy();
+    if (current !== 'buddy') return;
+    if (!d) { $('#buddyMates').innerHTML = '<p class="error">Kommer inte åt servern just nu.</p>'; return; }
+    if (d.challenge && ['pending', 'active'].includes(d.challenge.status)) { goHome(); cheer('Du har redan en kompisutmaning'); return; }
+    const goals = $('#buddyGoals'); goals.innerHTML = '';
+    d.goals.forEach(g => {
+      const b = document.createElement('button');
+      b.className = 'chip'; b.textContent = g.title; b.setAttribute('aria-pressed', String(g.id === B.goal));
+      b.onclick = () => { B.goal = g.id; $$('#buddyGoals .chip').forEach(x => x.setAttribute('aria-pressed', String(x === b))); sfx.select(); };
+      goals.appendChild(b);
+    });
+    const list = $('#buddyMates'); list.innerHTML = '';
+    if (!d.mates.length) list.innerHTML = '<p class="stats">Det finns inga kompisar att utmana än.</p>';
+    let grp = null;
+    B.mate = null;
+    d.mates.forEach(m => {
+      const g = m.sameClass ? 'Din klass' : m.className;
+      if (g !== grp) { grp = g; list.insertAdjacentHTML('beforeend', `<span class="grp">${esc(g)}</span>`); }
+      const b = document.createElement('button');
+      b.className = 'mate-pick'; b.disabled = m.busy; b.setAttribute('aria-pressed', 'false');
+      b.innerHTML = `<span class="em" aria-hidden="true">${esc(m.avatar)}</span><b>${esc(m.name)}</b><small>${m.busy ? 'Har redan en utmaning' : m.sameClass ? 'Din klass' : esc(m.className)}</small>`;
+      b.onclick = () => { B.mate = m.id; $$('#buddyMates .mate-pick').forEach(x => x.setAttribute('aria-pressed', String(x === b))); $('#buddySend').disabled = false; sfx.select(); };
+      list.appendChild(b);
+    });
+    $('#buddySend').disabled = true;
+  }
+  $('#buddySend').addEventListener('click', async () => {
+    if (!B.mate) return;
+    $('#buddySend').disabled = true;
+    try {
+      const r = await api('POST', 'me/challenge', { toId: B.mate, metric: B.goal });
+      net.buddy = { ...(net.buddy || {}), challenge: r.challenge };
+      goHome();
+      cheer('Inbjudan skickad! 🤝', true); sfx.fanfare();
+      say(`Inbjudan skickad till ${r.challenge.mate.name}!`);
+    } catch (e) { $('#buddyErr').textContent = e.message; $('#buddySend').disabled = false; }
+  });
 
   // Första gången: välj namn eller gå med i klassen. Inget förvalt namn.
   function needsWelcome() { return !net.player && !save.name && !ls.get(ACCOUNT_KEY); }
@@ -1907,6 +2090,15 @@
     { name: 'Mitt i', hint: 'T.ex. mellan 40 och 60' },
     { name: 'Klurigt', hint: 'Bara några tal står ut' }
   ];
+  // Plutts hopp har egna, svårare nivåer: redan första nivån blandar hoppstorlekar
+  const JUMP_LEVELS = [
+    { name: 'Hopp om 1, 2 och 5', hint: 'Talen står i början och slutet' },
+    { name: 'Hopp om 2, 5 och 10', hint: 'Linjen börjar inte på 0' },
+    { name: 'Hopp om 3 och 4', hint: 'Kluriga hopp' },
+    { name: 'Två tal på linjen', hint: 'Räkna hoppen mellan dem' },
+    { name: 'Stora hopp', hint: 'Hopp om 10, 20, 25 och 50' },
+    { name: 'Mitt i linjen', hint: 'Plutt startar mitt på linjen' }
+  ];
   const WORD_LEVELS = [
     { name: 'Plus upp till 10', hint: 'Korta ord' },
     { name: 'Plus upp till 20', hint: 'Ord med fyra bokstäver' },
@@ -1917,7 +2109,7 @@
   const EXTRAS = {
     line: { title: 'Tallinjen', icon: '📏', prefix: 'nl', mode: 'line', levels: LINE_LEVELS, count: 8,
       talk: 'Varje streck på tallinjen är ett tal. Kan du hitta var talen bor?' },
-    jump: { title: 'Plutts hopp', icon: '🦘', prefix: 'nj', mode: 'jump', levels: LINE_LEVELS, count: 6,
+    jump: { title: 'Plutts hopp', icon: '🦘', prefix: 'nj', mode: 'jump', levels: JUMP_LEVELS, count: 6,
       talk: 'Säg hur stora hoppen är mellan strecken. Svarar du rätt studsar jag hela vägen. Annars ramlar jag!' },
     word: { title: 'Hemliga ordet', icon: '🔤', prefix: 'w', mode: 'word', levels: WORD_LEVELS,
       talk: 'Räkna ut talet, leta upp det i kodnyckeln och få fram bokstaven. Vilket ord blir det?' }
@@ -1991,6 +2183,23 @@
     return { start: 0, step: 1, n: 11, labels: new Set([0, 10]), end: 10 };
   }
   const tickVal = (L, i) => L.start + i * L.step;
+  // Tallinjer för Plutts hopp. from = strecket där Plutt börjar (det första talet som står ut).
+  function makeJumpLine(lv) {
+    for (let guard = 0; guard < 300; guard++) {
+      let step, start, n, a = 0, b;
+      if (lv === 0) { step = pick([1, 2, 5]); start = pick([0, 10, 20]); n = rnd(6, 11); }
+      else if (lv === 1) { step = pick([2, 5, 10]); start = 10 * rnd(1, 6); n = rnd(5, 9); }
+      else if (lv === 2) { step = pick([3, 4]); start = step * rnd(0, 6); n = rnd(5, 8); }
+      else if (lv === 3) { step = pick([2, 3, 4, 5, 10]); start = 10 * rnd(0, 5); n = rnd(6, 9); b = rnd(2, 4); }
+      else if (lv === 4) { step = pick([10, 20, 25, 50]); start = step * rnd(0, 4); n = rnd(5, 7); b = rnd(2, 3); }
+      else { step = pick([2, 3, 4, 5, 10, 20, 25]); start = step * rnd(0, 8); n = rnd(7, 9); a = rnd(1, 3); b = a + rnd(2, 4); }
+      if (b == null) b = n - 1;
+      const end = start + step * (n - 1);
+      if (b >= n || end > (lv >= 4 ? 300 : 100) || (end > 99 && n > 8)) continue;
+      return { start, step, n, end, labels: new Set([a, b]), from: a };
+    }
+    return { start: 0, step: 2, n: 6, end: 10, labels: new Set([0, 5]), from: 0 };
+  }
 
   // Ritar tallinjen som SVG. Plutt är en liten figur i samma SVG, så att han kan studsa.
   const NL = { w: 700, h: 230, x0: 45, x1: 655, y: 150 };
@@ -2143,15 +2352,18 @@
 
   /* ---------- Plutts hopp ---------- */
   function nextJump() {
-    const L = makeLine(G.lv, true);
+    const L = makeJumpLine(G.lv);
     G.L = L;
     const svg = drawLine(L);
     G.svg = svg;
-    placeJumper(svg, L, 0, 0, '');
+    placeJumper(svg, L, L.from, 0, '');
     $('#lineQ').textContent = 'Hur stora är hoppen mellan strecken?';
     talk(G.idx === 0 ? 'Titta på talen som står ut och räkna hur stort varje hopp är!' : pick(['Hur långt ska jag hoppa?', 'Hjälp mig att hoppa rätt!', 'Hur stora är hoppen nu?']));
-    const set = new Set([L.step]);
-    for (const c of shuffle([1, 2, 3, 4, 5, 10, 20].filter(v => v !== L.step).sort((a, b) => Math.abs(a - L.step) - Math.abs(b - L.step)).slice(0, 4))) {
+    // Svarsalternativ som ligger nära: ett mer, ett mindre, dubbelt, hälften
+    const s0 = L.step, near = [s0 - 1, s0 + 1, s0 * 2, s0 / 2, s0 + 5, s0 - 5, 1, 2, 3, 4, 5, 10, 20, 25, 50]
+      .filter(c => Number.isInteger(c) && c > 0 && c !== s0);
+    const set = new Set([s0]);
+    for (const c of shuffle([...new Set(near)].sort((x, y) => Math.abs(x - s0) - Math.abs(y - s0)).slice(0, 5))) {
       if (set.size >= 4) break;
       set.add(c);
     }
@@ -2201,11 +2413,12 @@
     const L = G.L, svg = G.svg, g = G;
     $$('#lineAnswers .ans').forEach(x => { x.disabled = true; });
     btn.classList.add('picked');
-    placeJumper(svg, L, 0, 0, tickVal(L, 0));
+    const f = L.from, base = tickVal(L, f);
+    placeJumper(svg, L, f, 0, base);
     // Plutt hoppar med elevens hoppstorlek och jämför med talen som står ut
     let failAt = -1;
-    for (let i = 1; i < L.n; i++) {
-      const count = tickVal(L, 0) + i * v;
+    for (let i = f + 1; i < L.n; i++) {
+      const count = base + (i - f) * v;
       if (!(await hop(svg, L, i - 1, i, count, L.n > 8 ? 240 : 300))) return;
       if (L.labels.has(i) && count !== tickVal(L, i)) { failAt = i; break; }
     }
@@ -2223,10 +2436,10 @@
     $(`.tick[data-i="${failAt}"] .lbl`, svg).classList.add('bad');
     lineWrong();
     G.tries++;
-    talk(`Oj! Jag räknade ${tickVal(L, 0) + failAt * v}, men här står ${tickVal(L, failAt)}!`, 'oops');
+    talk(`Oj! Jag räknade ${base + (failAt - f) * v}, men här står ${tickVal(L, failAt)}!`, 'oops');
     await fall(svg, L, failAt);
     if (G !== g) return;
-    $('#lineExplain').textContent = `Hoppen var inte ${v}. Från ${tickVal(L, 0)} till ${tickVal(L, failAt)} är det ${failAt} hopp.`;
+    $('#lineExplain').textContent = `Hoppen var inte ${v}. Från ${base} till ${tickVal(L, failAt)} är det ${failAt - f} hopp.`;
     btn.classList.remove('picked'); btn.classList.add('wrong');
     if (G.tries >= 2) {
       // Visa rätt svar och gå vidare
@@ -2237,7 +2450,7 @@
       renderProgress($('#lineProgress'), G.idx, G.total, -1, G.marks);
       return lineNext(2600);
     }
-    placeJumper(svg, L, 0, 0, '');
+    placeJumper(svg, L, f, 0, '');
     G.locked = false;
     $$('#lineAnswers .ans').forEach(x => { if (!x.classList.contains('wrong')) x.disabled = false; });
   }
@@ -2809,6 +3022,8 @@
     $('#medalRow').innerHTML = WORLD_IDS.map(w => Object.entries(WORLDS[w].medals).map(([k, [e, name]]) => (save.path[k]
       ? `<div class="slot${save.path['s-' + k] ? ' shine' : ''}"><div><div class="em">${e}</div><small>${name}${save.path['s-' + k] ? ' ✨' : ''}</small></div></div>`
       : `<div class="slot missing" title="${name}">?</div>`)).join('')).join('');
+    const nb = save.records.buddies || 0;
+    if (nb) $('#medalRow').insertAdjacentHTML('beforeend', `<div class="slot"><div><div class="em">🤝</div><small>Kompisbricka${nb > 1 ? ` <span class="x">×${nb}</span>` : ''}</small></div></div>`);
     const g = $('#bookGrid'); g.innerHTML = '';
     STICKERS.forEach(([e, name]) => {
       g.insertAdjacentHTML('beforeend', counts[e]
@@ -2833,6 +3048,7 @@
         const what = { 25: 'en fjärdedel av', 50: 'halva', 75: 'tre fjärdedelar av', 100: 'hela' }[pct] || `${esc(pct)} % av`;
         return `🏔️ <b>${esc(rest.join('|') || 'En klass')}</b> har byggt ${what} sitt berg! Nu kör vi!`;
       }
+      case 'buddy': { const [a, b] = String(e.detail).split('|'); return `🤝 <b>${esc(a)}</b> och <b>${esc(b || '')}</b> klarade en kompisutmaning!`; }
       case 'allin': return `🌟 <b>Alla i klassen har varit med den här veckan!</b> Alla får ett extra klistermärke.`;
       case 'pet': return `<b>${esc(genitive(e.name))}</b> husdjur växte och blev ${esc((PET_STAGES[+e.detail] || [0, 'större'])[1].toLowerCase())}! ${PET_ICONS[+e.detail] || '🐾'}`;
       case 'record': {
