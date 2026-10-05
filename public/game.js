@@ -361,14 +361,18 @@
       refreshBuddy();
       receiveGifts(net.classInfo.gifts || []);
       if (net.classInfo.mission && net.classInfo.mission.everyone && net.classInfo.mission.everyone.allIn) allInBonus(net.classInfo.mission);
-      const seen = prefs.seenCheers[net.player.id] || 0;
-      const fresh = net.classInfo.myCheers - seen;
+      // Säg bara till om hejarop som är nya sedan förra gången vi sa till, och räkna
+      // hejarop (inte kompisar: samma kompis kan heja på flera saker)
+      const id = net.player.id, all = net.classInfo.myCheers;
+      prefs.toldCheers = prefs.toldCheers || {};
+      const told = Math.max(prefs.toldCheers[id] || 0, prefs.seenCheers[id] || 0);
+      const fresh = all - told;
       if (current === 'start') {
         renderStart();
         if (fresh > 0) {
-          cheer(fresh === 1 ? 'En kompis hejade på dig!' : `${fresh} kompisar hejade på dig!`, true);
-          say(fresh === 1 ? 'En kompis hejade på dig!' : `${fresh} kompisar hejade på dig!`);
-          rain(60);
+          prefs.toldCheers[id] = all; savePrefs();
+          const text = fresh === 1 ? 'En kompis hejade på dig!' : `Du fick ${fresh} nya hejarop!`;
+          cheer(text, true); say(text); rain(60);
         }
       }
       return net.classInfo;
@@ -416,7 +420,7 @@
   /* ================= Ändringslogg ================= */
   // Det nyaste först. Höj APP_VERSION och lägg till en rad när något ändras i spelet.
   const CHANGELOG = [
-    ['1.17', '5 okt 2026', ['Tydligare sammanfattning efter en runda, en rad per sak.', 'En tydlig huvudknapp för att gå vidare, och Spela igen under.', 'Lärarens fokus står alltid överst i Idag, och läraren kan välja flera fokus och se vem som tränat.', 'Plutt hoppar själv i Plutts hopp, ingen känguru.', 'Talkamraterna hälsar alltid på Hem, och din figur är profilbilden uppe till höger.', 'Tallinjen och Plutts hopp har ett tal i mitten på de lättare nivåerna.', 'Titeln visar vilken nivå du är på. Tryck på den så ser du hela resan, med ett eget märke för varje nivå.']],
+    ['1.17', '5 okt 2026', ['Tydligare sammanfattning efter en runda, en rad per sak.', 'En tydlig huvudknapp för att gå vidare, och Spela igen under.', 'Lärarens fokus står alltid överst i Idag, och läraren kan välja flera fokus och se vem som tränat.', 'Plutt hoppar själv i Plutts hopp, ingen känguru.', 'Talkamraterna hälsar alltid på Hem, och din figur är profilbilden uppe till höger.', 'Tallinjen och Plutts hopp har ett tal i mitten på de lättare nivåerna.', 'Titeln visar vilken nivå du är på. Tryck på den så ser du hela resan, med ett eget märke för varje nivå.', 'Hejarop visas en gång, med rätt antal.']],
     ['1.16', '5 okt 2026', ['Klappa Plutt på Hem så säger han något.', 'Petar man för många gånger blir han sur, säger till fröken och tar till slut en tupplur.']],
     ['1.15', '5 okt 2026', ['Ändringslogg under Inställningar.', 'Testläge för vuxna: se hur en inbjudan, lärarens fokus eller en kompisutmaning ser ut, utan att röra riktiga elever.', 'Mer luft runt titeln på Hem, och stjärnan rymmer fyra siffror.', 'Mer luft längst ner, ovanför menyn.', 'Idag påminner om Kom ihåg-prov och obesvarade inbjudningar, och ger ett tips om dagen.']],
     ['1.14', '5 okt 2026', ['Plutts nivå syns på Hem, med en mätare till nästa nivå.', 'Idag-rutan har blivit solig och färgglad.']],
@@ -503,7 +507,8 @@
       if (current !== 'start') { stopGame(); show('start'); }
       setTab(id === 'contest' ? 'class' : 'home');
       renderStart();
-      cheer(r.text);
+      // Hejarop och presenter visar spelet själv, precis som för en elev
+      if (!['cheer', 'gift'].includes(id)) cheer(r.text);
     } catch (e) {
       if (e.status === 401) return startDemo();
       cheer(e.message);
