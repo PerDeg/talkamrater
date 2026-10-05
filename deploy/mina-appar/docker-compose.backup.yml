@@ -1,0 +1,34 @@
+# Backup varje natt. Läggs till av uppdatera.sh via COMPOSE_FILE i .env,
+# så att din egen docker-compose.yml inte behöver ändras.
+#
+# Tid och antal dagar ändras i env/backup.env (skapas av uppdatera.sh):
+#   BACKUP_AT=03:30
+#   KEEP_DAYS=14
+services:
+  backup:
+    image: postgres:17-alpine            # samma huvudversion som databasen
+    container_name: mina-appar-backup
+    restart: unless-stopped
+    env_file:
+      - ./env/db.env                     # POSTGRES_PASSWORD
+      - ./env/backup.env
+    environment:
+      PGHOST: db
+      PGUSER: postgres
+      BACKUP_DIR: /backup
+    entrypoint: ["/bin/sh", "/backup-tjanst.sh"]
+    command: ["schema"]
+    volumes:
+      - ./backup:/backup
+      - ./backup-tjanst.sh:/backup-tjanst.sh:ro
+    depends_on:
+      db:
+        condition: service_healthy
+    labels:
+      net.unraid.docker.icon: "https://raw.githubusercontent.com/docker-library/docs/master/postgres/logo.png"
+      se.mina-appar.owner: "egen"
+    logging:
+      driver: json-file
+      options:
+        max-size: "1m"
+        max-file: "2"

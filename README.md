@@ -186,12 +186,16 @@ Så här ser det ut på Unraid:
   docker-compose.yml        ← databasen + alla egna appar
   uppdatera.sh              ← backup, hämta kod, bygg om, starta om
   ny-databas.sh             ← skapar databas + användare för en app
-  backup.sh                 ← säkerhetskopierar alla databaser
+  backup.sh                 ← tar en backup direkt av alla databaser
+  aterstall.sh              ← återställer en app från en backup
+  backup-tjanst.sh          ← backup-containerns skript (varje natt)
+  docker-compose.backup.yml ← backup-containern (läggs till via .env)
+  env/backup.env            ← när backupen körs och hur länge den sparas
   env/db.env                ← databasens adminlösenord
   env/talkamrater.env       ← appens inställningar
   src/talkamrater/          ← git clone av det här repot
   data/postgres/            ← databasfilerna
-  backup/                   ← dagliga backuper (sparas i 14 dagar)
+  backup/                   ← backuper, en mapp per tillfälle (sparas i 14 dagar)
 ```
 
 ### Första installationen
@@ -241,20 +245,48 @@ Peka en proxy-host mot `http://<unraid-ip>:3080`. Konfigurationsexempel finns i 
 
 Skriptet tar en backup först. Nya tabeller läggs till automatiskt.
 
-### Backup varje natt
+### Backup och återställning
 
-Installera pluginen **User Scripts** och lägg till ett skript som körs *Daily*:
+**Varje natt kl 03:30** tar containern `mina-appar-backup` en backup av alla databaser i stacken. Dessutom tas en backup varje gång du kör `./uppdatera.sh`. Backuperna sparas i 14 dagar i `backup/`, en mapp per tillfälle:
 
-```bash
-#!/bin/bash
-/mnt/user/appdata/mina-appar/backup.sh
+```
+backup/2026-10-05-0330/                    talkamrater.dump, roller.sql.gz, …
+backup/2026-10-05-2130-fore-uppdatering/
 ```
 
-Så här återställer du en backup:
+Varje app ligger i en egen fil, så att en app kan återställas utan att röra de andra. Tid och antal dagar ändrar du i `env/backup.env` (`BACKUP_AT=03:30`, `KEEP_DAYS=14`), följt av `docker compose up -d backup`. En backup direkt tar du med `./backup.sh`.
+
+**Om något har gått riktigt fel:**
 
 ```bash
 cd /mnt/user/appdata/mina-appar
+./aterstall.sh                   # visar backuperna och frågar vilken
+./aterstall.sh senaste           # eller direkt den senaste
+```
+
+Skriptet frågar en gång till (skriv `ja`), och gör sedan detta:
+1. Tar en extra backup av läget just nu (`…-fore-aterstallning`), så att det går att ångra.
+2. Stoppar spelet och återställer databasen `talkamrater` från den backup du valt.
+3. Startar spelet igen.
+
+En annan app återställer du med `./aterstall.sh senaste minapp`.
+
+**Första gången** (en gång, sedan sköter `./uppdatera.sh` det själv):
+
+```bash
+cd /mnt/user/appdata/mina-appar
+git -C src/talkamrater pull && cp src/talkamrater/deploy/mina-appar/uppdatera.sh . && ./uppdatera.sh
+```
+
+`uppdatera.sh` lägger då till backup-containern (via `COMPOSE_FILE` i `.env`, så att din `docker-compose.yml` inte ändras), skapar `env/backup.env` och håller `backup.sh`, `aterstall.sh` och `backup-tjanst.sh` uppdaterade. Har du lagt in en backup i User Scripts kan du ta bort den.
+
+Äldre backuper från före den här ändringen heter `backup/postgres-ÅÅÅÅ-MM-DD-TTMM.sql.gz` och innehåller allt i en fil. En sådan återställs för hand:
+
+```bash
+docker compose stop talkamrater
+docker compose exec -T db psql -U postgres -c 'DROP DATABASE talkamrater WITH (FORCE)'
 zcat backup/postgres-ÅÅÅÅ-MM-DD-TTMM.sql.gz | docker compose exec -T db psql -U postgres
+docker compose up -d talkamrater
 ```
 
 ### Ny egen app i samma stack
@@ -268,12 +300,17 @@ zcat backup/postgres-ÅÅÅÅ-MM-DD-TTMM.sql.gz | docker compose exec -T db psql
 
 Huvudversionen är låst (`postgres:17-alpine`). Så här byter du till en ny:
 
-1. Kör `./backup.sh`.
+1. Kör `./backup.sh fore-uppgradering`.
 2. `docker compose down`.
 3. Flytta `data/postgres` åt sidan.
-4. Ändra versionen i compose-filen.
+4. Ändra versionen i `docker-compose.yml` och `docker-compose.backup.yml`.
 5. `docker compose up -d db`.
-6. Återställ backupen enligt ovan.
+6. Lägg tillbaka användarna och återställ varje app:
+   ```bash
+   zcat backup/<mappen>/roller.sql.gz | docker compose exec -T db psql -U postgres
+   ./aterstall.sh <mappen>              # talkamrater
+   ./aterstall.sh <mappen> minapp       # och övriga appar
+   ```
 7. `./uppdatera.sh`.
 
 ## API
