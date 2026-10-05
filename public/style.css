@@ -74,6 +74,15 @@ h1, h2, h3 { font-family: var(--display); line-height: 1.05; margin: 0; text-wra
 .hero-face { display: grid; place-items: center; width: 96px; min-height: 80px; }
 .hero-face .mascot { margin-right: 18px; }
 .hero-txt { display: grid; gap: 10px; justify-items: start; min-width: 0; }
+@media (max-width: 380px) {
+  .hero { column-gap: 8px; }
+  .hero-face { width: 78px; }
+  .hero-face .mascot { transform: scale(0.82); transform-origin: center; margin-right: 14px; }
+  .rank { gap: 8px; padding-right: 10px; }
+  .rank-txt > b { font-size: 0.98rem; }
+}
+/* Allra smalast: talkamraterna får vika undan så att titeln får plats */
+@media (max-width: 340px) { .hero { grid-template-columns: minmax(0, 1fr); } .hero-face { display: none; } }
 .hero h1 { font-size: clamp(2rem, 8vw, 3.4rem); font-weight: 800; line-height: 1; overflow-wrap: anywhere; }
 .hero p { margin: 4px 0 0; color: var(--ink-soft); font-weight: 700; }
 /* Titeln: en liten rad under hälsningen (stjärnan med antal, titel och mätare) */
@@ -91,12 +100,12 @@ h1, h2, h3 { font-family: var(--display); line-height: 1.05; margin: 0; text-wra
 .rank-star[data-len="3"] b { font-size: 0.78rem; }
 .rank-star[data-len="4"] b { font-size: 0.66rem; margin-top: 5px; }
 .rank-star[data-len="5"] b { font-size: 0.54rem; margin-top: 5px; }
-.rank-txt { display: grid; grid-template-columns: auto minmax(40px, 90px); column-gap: 10px; row-gap: 3px; align-items: center; min-width: 0; }
+.rank-txt { display: grid; grid-template-columns: minmax(0, 1fr); row-gap: 3px; min-width: 0; }
 .rank-txt > b { font-family: var(--display); font-size: 1.1rem; line-height: 1.1; color: var(--tier); }
-.rank-txt small { grid-column: 1 / -1; font-weight: 800; font-size: 0.72rem; color: #C9D3F2; }
+.rank-txt small { grid-column: 1 / -1; font-weight: 800; font-size: 0.72rem; color: #C9D3F2; white-space: nowrap; }
 .rank-txt .rank-lv { grid-column: 1 / -1; font-size: 0.66rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--tier); opacity: 0.9; }
 .rank-txt .rank-lv::after { content: " ›"; }
-.rank-meter { height: 7px; background: rgba(255, 255, 255, 0.18); border-radius: 999px; overflow: hidden; }
+.rank-meter { width: 100%; min-width: 110px; height: 7px; background: rgba(255, 255, 255, 0.18); border-radius: 999px; overflow: hidden; }
 .rank-meter i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--sun), #FFE58A); border-radius: 999px; transition: width 0.6s ease; }
 .rank.up { animation: bump 0.6s ease; }
 .titles { display: grid; gap: 6px; text-align: left; margin: 10px 0; }

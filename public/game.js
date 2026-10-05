@@ -60,8 +60,9 @@
     $('.rank-star').dataset.len = 1;
     $('#rankName').textContent = name;
     $('#rankMeter').style.width = next ? `${Math.round(100 * (t - from) / (next[0] - from))}%` : '100%';
-    $('#rankNext').textContent = next ? `${next[0] - t} ★ kvar till ${next[1]}` : 'Högsta titeln! 🏆';
-    $('#rankLevel').textContent = `Nivå ${tier + 1} av ${TITLES.length} · ${t} ★`;
+    // Alla stjärnor du har, och hur många som är kvar till nästa nivå
+    $('#rankNext').textContent = next ? `${t} ★ · ${next[0] - t} kvar` : `${t} ★ · högsta nivån`;
+    $('#rankLevel').textContent = `Nivå ${tier + 1} av ${TITLES.length}`;
     // Resan: alla nivåer som en väg, med märket för varje nivå och var man är nu
     badge.onclick = () => {
       // Stigen slingrar sig fram och tillbaka: märkena turas om att stå till vänster och höger
