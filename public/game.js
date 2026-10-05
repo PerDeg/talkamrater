@@ -963,7 +963,7 @@
     const st = petStage(save.pet.xp), wish = currentWish(), mood = petMood();
     $('#petView').innerHTML = petHTML(st, mood.cls, petWear());
     $('#petName').textContent = petName();
-    $('#petStageName').textContent = PET_STAGES[st][1];
+    $('#petStageName').textContent = `Nivå ${st + 1} av ${PET_STAGES.length} · ${PET_STAGES[st][1]}`;
     $('#petMood').textContent = mood.text;
     const next = PET_STAGES[st + 1];
     const from = PET_STAGES[st][0];
@@ -1574,7 +1574,11 @@
   function renderPetTab() {
     const st = petStage(save.pet.xp), b = basket();
     $('#homePetView').innerHTML = petHTML(st, petMood().cls, petWear());
-    $('#homePetName').textContent = `${petName()} · ${PET_STAGES[st][1]}`;
+    $('#homePetName').textContent = petName();
+    // Nivån syns tydligt: "Nivå 5 av 10 · Skolplutt" och hur långt det är kvar till nästa
+    $('#homePetStage').textContent = `${PET_ICONS[st]} Nivå ${st + 1} av ${PET_STAGES.length} · ${PET_STAGES[st][1]}`;
+    const nx = PET_STAGES[st + 1], fr = PET_STAGES[st][0];
+    $('#homePetMeter').style.width = nx ? (100 * (save.pet.xp - fr) / (nx[0] - fr)) + '%' : '100%';
     $('#homePetMood').textContent = $('#petMood').textContent;
     $('#basketCount').innerHTML = `${b} <small>${b === 1 ? 'jordgubbe' : 'jordgubbar'}</small>`;
     $('#basketText').textContent = b ? `Mata ${petName()} så växer den, eller köp kläder.` : 'Byt dubbletter i klistermärkesboken så fylls korgen.';

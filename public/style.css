@@ -865,11 +865,22 @@ body.on-start .tabbar { display: grid; grid-template-columns: repeat(4, 1fr); po
 .tabbar .dot { position: absolute; top: 4px; right: calc(50% - 22px); width: 12px; height: 12px; border-radius: 50%; background: var(--berry); box-shadow: 0 0 0 2px var(--card); }
 .tabpane > * + * { margin-top: 16px; }
 .tabpane .panel + .panel { margin-top: 16px; }
-/* Idag-listan */
-.todo { display: grid; gap: 8px; }
+/* Idag-listan: en solig morgonruta med vita kort */
+.panel.today { position: relative; overflow: hidden; background: linear-gradient(160deg, #FFE68A 0%, #FFC59E 55%, #FFAFC4 100%); }
+.panel.today::before { content: ""; position: absolute; top: -60px; right: -50px; width: 170px; height: 170px; border-radius: 50%; background: radial-gradient(circle, rgba(255,255,255,0.75), rgba(255,255,255,0) 70%); pointer-events: none; }
+.panel.today .label { position: relative; font-size: 1.45rem; }
+.panel.today .label small { color: #7A4A2A; }
+.today-sun { display: inline-block; animation: sunspin 12s linear infinite; }
+@keyframes sunspin { to { transform: rotate(360deg); } }
+.todo { position: relative; display: grid; gap: 8px; }
 .todo-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: center; border: 0; text-align: left; width: 100%;
-  background: var(--sky-2); border-radius: 16px; padding: 10px 12px; font: inherit; color: inherit; cursor: pointer; }
-.todo-row .ti { font-size: 1.6rem; line-height: 1; }
+  background: var(--card); border-radius: 16px; padding: 10px 12px; font: inherit; color: inherit; cursor: pointer; box-shadow: 0 3px 0 rgba(122, 74, 42, 0.18); }
+.todo-row:active { transform: translateY(2px); box-shadow: 0 1px 0 rgba(122, 74, 42, 0.18); }
+.todo-row .ti { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 14px; background: #FFF3D1; font-size: 1.5rem; line-height: 1; }
+.todo-row:nth-child(3n+2) .ti { background: #E8F7FF; }
+.todo-row:nth-child(3n+3) .ti { background: #FFE6EE; }
+.todo-row.main .ti { background: rgba(255, 255, 255, 0.14); }
+.panel.today .stats { color: #7A4A2A; font-weight: 800; }
 .todo-row b { display: block; font-family: var(--display); font-size: 1.1rem; line-height: 1.15; }
 .todo-row small { display: block; color: var(--ink-soft); font-weight: 700; }
 .todo-row .tg { background: var(--sun); border-radius: 999px; padding: 6px 12px; font-family: var(--display); font-weight: 800; box-shadow: 0 3px 0 #D99A00; white-space: nowrap; }
@@ -881,6 +892,10 @@ body.on-start .tabbar { display: grid; grid-template-columns: repeat(4, 1fr); po
 .hp-view .pet { --s: 0.8 !important; }
 .hp-txt b { display: block; font-family: var(--display); font-size: 1.2rem; }
 .hp-txt small { display: block; color: var(--ink-soft); font-weight: 700; }
+.hp-lv { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 4px 0; }
+.hp-lvtag { background: var(--grape); color: #fff; border-radius: 999px; padding: 2px 10px; font-weight: 800; font-size: 0.8rem; white-space: nowrap; }
+.hp-meter { flex: 1 1 50px; min-width: 50px; height: 8px; background: var(--sky-2); border-radius: 999px; overflow: hidden; }
+.hp-meter i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--berry), var(--grape)); border-radius: 999px; }
 .hp-go { font-size: 2rem; color: var(--line); font-weight: 800; }
 /* Inställningar: en ruta från kugghjulet i sidhuvudet */
 .settingsbox { display: grid; gap: 14px; text-align: left; }
