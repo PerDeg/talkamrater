@@ -42,8 +42,10 @@ Spelet fungerar på två sätt:
 - **Dagens utmaning**: 8 frågor med ett tema per veckodag (Tiokamratmåndag, Minustisdag, Dubbelonsdag …).
   - Frågorna är samma för alla i klassen samma dag.
   - Den ger en svit 🔥 och ett extra klistermärke.
-- **Husdjuret**: ett ägg som kläcks och sakta växer (bebis → liten → stor → jätte → kung 👑).
-  - Varje stjärna ger en stjärnfrukt 🍓. Det tar omkring 150 rundor att nå kung.
+- **Husdjuret**: ett ägg som kläcks och sakta växer i tio steg: ägg 🥚, bebis 🐣 (20 🍓), knatte 🧸 (80), liten 🐾 (180), skolplutt 🎒 (350), stor 💜 (600), superplutt 🦸 (1000), jätte ✨ (1600), kung 👑 (2500) och legend 🌟 (4000).
+  - Varje stjärna ger en jordgubbe 🍓. Det tar många hundra rundor att nå kung.
+  - Varje steg har egen personlighet: bebisen gråter lite när den är hungrig, skolplutten har glasögon, superplutten mantel, kungen krona och solglasögon och säger "Jag, Kung Plutt, befaller: mer matte!", legenden glänser.
+  - **Garderoben** 👕: köp keps, rosett, glasögon, hattar, supermantel, guldkrona och regnbågsmantel med dubbletter. Finare saker kostar sällsyntare dubbletter och kräver ett större husdjur. Man betalar alltid med exakt den sällsynthet saken kostar, så att ett legendariskt klistermärke aldrig går åt av misstag.
   - Husdjuret har **önskningar**, till exempel *"Lös det här så får jag en glass! Poppa alla bubbelpar som blir 9."* Varje uppfylld önskan ger en godsak och extra tillväxt. Det blir högst en önskan om dagen, och inte alla dagar.
   - Har eleven inte spelat på några dagar blir husdjuret hungrigt, men det blir aldrig ledset på riktigt.
 - **Spela två**: två spelare på samma skärm, i två lägen.
@@ -60,6 +62,8 @@ Spelet fungerar på två sätt:
   - Svenska hejarop, konfetti, ljud och röst.
   - Bonus vid flera rätt i rad.
   - Stjärnor, titlar, 33 klistermärken och 13 medaljer.
+- **Glänsande klistermärken** ✨: ungefär vart tjugonde klistermärke kommer i en glänsande variant som samlas för sig och är värd tre gånger så många jordgubbar.
+- **Dela med klassen** 🎁: en dubblett kan delas. Den går anonymt till någon i klassen som saknar just det klistermärket (helst någon med få), aldrig till en utvald kompis. Högst fem om dagen.
 - **Klistermärken** har fyra nivåer: vanliga (60 % chans), ovanliga (28 %), sällsynta (10 %) och legendariska (2 %, t.ex. 👑 Krona och 💎 Diamant). En runda med tre stjärnor ger lite bättre chans. **Dubbletter kan bytas mot jordgubbar** 🍓 till husdjuret i klistermärkesboken: 2 för en vanlig, 4 ovanlig, 10 sällsynt och 25 legendarisk. Det sista exemplaret av ett klistermärke går aldrig att byta bort. Byten sparas i framstegen (`swapped`) och räknas bara uppåt, så att de inte kommer tillbaka när framstegen slås ihop mellan enheter.
 
 - **Första gången** väljer man mellan att gå med i sin klass, skapa ett eget konto eller bara skriva sitt namn och spela på enheten. Inget namn är förvalt.

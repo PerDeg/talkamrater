@@ -48,20 +48,28 @@
     try { parent.postMessage({ type: 'talkamrater-height', height: h }, '*'); } catch (e) {}
   };
 
-  // Plutt som liten SVG: ägg, eller en lila figur som blir större och får krona
+  // Plutt som liten SVG, samma tio steg som i spelet: ägg, bebis (med tårar när den är
+  // hungrig), knatte, liten (horn), skolplutt (glasögon), stor, superplutt (mantel),
+  // jätte, kung (krona och solglasögon) och legend (guldmantel).
   function petSvg(p) {
     if (!p || p.stage === 0) {
       return '<svg viewBox="0 0 34 34"><ellipse cx="17" cy="19" rx="11" ry="13.5" fill="#FFF6E0" stroke="#E8DCC0"/><circle cx="13" cy="15" r="2.4" fill="var(--pet)" opacity=".7"/><circle cx="21" cy="21" r="2" fill="var(--pet)" opacity=".7"/><circle cx="14" cy="26" r="1.6" fill="var(--pet)" opacity=".7"/></svg>';
     }
-    const hungry = p.mood === 'hungrig';
+    const st = p.stage, hungry = p.mood === 'hungrig';
     const mouth = hungry ? '<rect x="14" y="22" width="6" height="1.8" rx=".9" fill="#1d2433"/>' : '<path d="M13.5 21.5q3.5 3.5 7 0" stroke="#1d2433" stroke-width="1.8" fill="none" stroke-linecap="round"/>';
-    const horns = p.stage >= 3 ? '<path d="M10 9l2-5 2.5 4.5M20.5 8.5L22 4l2 5" fill="#FFC83D"/>' : '';
-    const crown = p.stage >= 5 ? '<path d="M11 6l2.5 3 3.5-4 3.5 4 2.5-3-1 6h-10z" fill="#FFC83D" stroke="#D99A00" stroke-width=".6"/>' : '';
-    return `<svg viewBox="0 0 34 34">${horns}${crown}<path d="M4 21c0-8 5.8-13 13-13s13 5 13 13c0 6-5.8 10-13 10S4 27 4 21z" fill="var(--pet)"/>
-      <ellipse cx="17" cy="25" rx="7" ry="4.5" fill="#fff" opacity=".35"/>
-      <circle cx="12.5" cy="17" r="2.6" fill="#fff"/><circle cx="21.5" cy="17" r="2.6" fill="#fff"/>
-      <circle cx="13" cy="${hungry ? 18 : 17.5}" r="1.3" fill="#1d2433"/><circle cx="22" cy="${hungry ? 18 : 17.5}" r="1.3" fill="#1d2433"/>${mouth}
-      ${p.stage >= 2 ? '<circle cx="9" cy="21" r="1.6" fill="#ff9ec0" opacity=".8"/><circle cx="25" cy="21" r="1.6" fill="#ff9ec0" opacity=".8"/>' : ''}</svg>`;
+    const cape = st === 9 ? '#E9A800' : st >= 6 && st <= 7 ? '#C8283A' : '';
+    const back = cape ? `<path d="M7 12h20l4 20H3z" fill="${cape}"/>` : '';
+    const horns = st >= 3 && st < 8 ? '<path d="M10 9l2-5 2.5 4.5M20.5 8.5L22 4l2 5" fill="#FFC83D"/>' : '';
+    const crown = st >= 8 ? '<path d="M11 6l2.5 3 3.5-4 3.5 4 2.5-3-1 6h-10z" fill="#FFC83D" stroke="#D99A00" stroke-width=".6"/>' : '';
+    const eyes = st >= 8
+      ? '<rect x="9" y="15" width="7" height="4" rx="2" fill="#1d2433"/><rect x="18" y="15" width="7" height="4" rx="2" fill="#1d2433"/><rect x="15.5" y="16" width="3" height="1.2" fill="#1d2433"/>'
+      : `<circle cx="12.5" cy="17" r="2.6" fill="#fff"/><circle cx="21.5" cy="17" r="2.6" fill="#fff"/>
+         <circle cx="13" cy="${hungry ? 18 : 17.5}" r="1.3" fill="#1d2433"/><circle cx="22" cy="${hungry ? 18 : 17.5}" r="1.3" fill="#1d2433"/>`;
+    const specs = st === 4 ? '<circle cx="12.5" cy="17" r="3.6" fill="none" stroke="#1d2433" stroke-width="1"/><circle cx="21.5" cy="17" r="3.6" fill="none" stroke="#1d2433" stroke-width="1"/><path d="M16 17h2" stroke="#1d2433" stroke-width="1"/>' : '';
+    const tears = st === 1 && hungry ? '<path d="M10 20q-1 2.5 0 3.5t1-3.5z" fill="#7CC8FF"/><path d="M24 20q-1 2.5 0 3.5t1-3.5z" fill="#7CC8FF"/>' : '';
+    return `<svg viewBox="0 0 34 34">${back}${horns}${crown}<path d="M4 21c0-8 5.8-13 13-13s13 5 13 13c0 6-5.8 10-13 10S4 27 4 21z" fill="var(--pet)"/>
+      <ellipse cx="17" cy="25" rx="7" ry="4.5" fill="#fff" opacity=".35"/>${eyes}${specs}${mouth}${tears}
+      ${st >= 2 ? '<circle cx="9" cy="21" r="1.6" fill="#ff9ec0" opacity=".8"/><circle cx="25" cy="21" r="1.6" fill="#ff9ec0" opacity=".8"/>' : ''}</svg>`;
   }
 
   function renderBubble(d) {

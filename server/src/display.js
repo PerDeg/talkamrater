@@ -2,7 +2,10 @@
 // schema) kan visa status utan att känna till spelets regler.
 // Speglar konstanterna i public/game.js – håll dem i synk.
 
-export const PET_STAGES = [[0, 'Ägg', '🥚'], [10, 'Bebis', '🐣'], [40, 'Liten', '🐾'], [100, 'Stor', '💜'], [200, 'Jätte', '✨'], [400, 'Kung', '👑']];
+export const PET_STAGES = [[0, 'Ägg', '🥚'], [20, 'Bebis', '🐣'], [80, 'Knatte', '🧸'], [180, 'Liten', '🐾'], [350, 'Skolplutt', '🎒'],
+  [600, 'Stor', '💜'], [1000, 'Superplutt', '🦸'], [1600, 'Jätte', '✨'], [2500, 'Kung', '👑'], [4000, 'Legend', '🌟']];
+// Klassplutten har kvar sina sex steg
+const CLASS_PET_STAGES = [['Ägg', '🥚'], ['Bebis', '🐣'], ['Liten', '🐾'], ['Stor', '💜'], ['Jätte', '✨'], ['Kung', '👑']];
 import { contestEventText } from './contest.js';
 
 export const TREATS = {
@@ -28,7 +31,7 @@ const CLASS_PET_STEPS = [0, 2, 6, 15, 30, 60];
 export function classPetView({ rounds, players, recent }) {
   const per = rounds / Math.max(1, players);
   const stage = CLASS_PET_STEPS.reduce((s, min, i) => (per >= min ? i : s), 0);
-  const [, stageName, icon] = PET_STAGES[stage];
+  const [stageName, icon] = CLASS_PET_STAGES[stage];
   const next = CLASS_PET_STEPS[stage + 1];
   const share = players ? recent / players : 0;
   const name = 'Klassplutten';
@@ -76,7 +79,7 @@ export function eventText(e) {
     case 'expert': { const x = EXPERTS[e.detail]; return `${e.name} blev ${x ? x[1] : 'expert'} ${x ? x[0] : '🎓'}`; }
     case 'daily': return `${e.name} har gjort dagens utmaning ${e.detail} dagar i rad 🔥`;
     case 'book': return `${e.name} har samlat alla klistermärken 📒`;
-    case 'pet': return `${genitive(e.name)} husdjur blev kung 👑`;
+    case 'pet': { const st = PET_STAGES[Number(e.detail)] || PET_STAGES[8]; return `${genitive(e.name)} husdjur blev ${st[1].toLowerCase()} ${st[2]}`; }
     case 'mission': return 'Klassen klarade veckans uppdrag 🎉';
     case 'allin': return 'Alla i klassen har varit med den här veckan 🌟';
     case 'contest': return contestEventText(e.detail);
@@ -109,8 +112,13 @@ function trickyTip(tricky) {
 export function nudge({ pet, daily, mission, focus, tricky, gift = null, everyone = null, contest = null, buddy = null, today = dayNumber(), now = new Date() }) {
   const p = petView(pet, today);
   if (p.stage === 0) return { kind: 'egg', text: 'Ägget väntar på dig. Spela en runda så kläcks det! 🥚' };
+  if (gift && gift.startsWith('st:')) return { kind: 'gift', text: 'Någon i klassen har gett dig ett klistermärke! Kom och se 🎁' };
   if (gift) { const t = TREATS[gift] || TREATS.glass; return { kind: 'gift', text: `Någon i klassen gav mig ${t[1]} ${t[0]} Kom och se! 🎁` }; }
-  if (p.mood === 'hungrig') return { kind: 'hungry', text: 'Jag är hungrig! Spelar vi en runda? 🍓' };
+  if (p.mood === 'hungrig') {
+    if (p.stage === 1) return { kind: 'hungry', text: 'Bu-hu! Jag är så hungrig 😢 Spelar vi en runda?' };
+    if (p.stage >= 8) return { kind: 'hungry', text: 'Kungen är hungrig! Ett kungligt mål mat, tack 👑' };
+    return { kind: 'hungry', text: 'Jag är hungrig! Spelar vi en runda? 🍓' };
+  }
   if (buddy && buddy.invite) return { kind: 'buddy', text: buddy.text };
   if (p.wish) return { kind: 'wish', text: `Kan du ${p.wish.text}? Då får jag ${p.wish.treat} ${p.wish.icon}` };
   const options = [];

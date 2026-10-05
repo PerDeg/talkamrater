@@ -30,7 +30,7 @@ export const EXPERT_KEYS = { plus: 'expert', minus: 'mexpert', dubbel: 'dexpert'
 export function emptyProgress() {
   return {
     best: {}, total: 0, rounds: 0, stickers: [], path: {}, records: {}, tricky: {}, skill: {}, dates: {}, swapped: {},
-    pet: { xp: 0, last: 0, born: 0, name: '', wish: null, wishDay: 0, wishCount: 0, treats: 0 },
+    pet: { xp: 0, last: 0, born: 0, name: '', wish: null, wishDay: 0, wishCount: 0, treats: 0, wear: '' },
     daily: { day: 0, streak: 0, best: 0, count: 0 }
   };
 }
@@ -56,11 +56,13 @@ export function sanitizeProgress(p) {
     dates: intMap(src.dates, 1e6),
     // Hur många av varje klistermärke (s0, s1 …) eleven har bytt mot jordgubbar.
     // Räknas bara uppåt, så att ett byte inte kommer tillbaka vid sammanslagning.
-    swapped: intMap(src.swapped, 1e5, /^s\d{1,3}$/),
+    swapped: intMap(src.swapped, 1e5, /^[sg]\d{1,3}$/), // s = vanligt, g = glänsande
     pet: {
       xp: int(pet.xp, 0, 1e6), last: int(pet.last, 0, 1e6), born: int(pet.born, 0, 1e6), name: cleanText(pet.name, 16),
       wish: sanitizeWish(pet.wish),
-      wishDay: int(pet.wishDay, 0, 1e6), wishCount: int(pet.wishCount, 0, 100), treats: int(pet.treats, 0, 1e6)
+      wishDay: int(pet.wishDay, 0, 1e6), wishCount: int(pet.wishCount, 0, 100), treats: int(pet.treats, 0, 1e6),
+      // Saker från garderoben som husdjuret har på sig, t.ex. "keps,mantel" ("none" = inget)
+      wear: String(pet.wear ?? '').split(',').filter(w => /^[a-z]{2,12}$/.test(w)).slice(0, 4).join(',').slice(0, 52)
     },
     daily: { day: int(daily.day, 0, 1e6), streak: int(daily.streak, 0, 1e5), best: int(daily.best, 0, 1e5), count: int(daily.count, 0, 1e6) }
   };
@@ -102,7 +104,8 @@ export function mergeProgress(stored, incoming) {
       name: b.pet.name || a.pet.name,
       // Önskan och dagens räknare: den senaste versionen vinner
       wish: b.pet.wish, wishDay: b.pet.wishDay, wishCount: b.pet.wishCount,
-      treats: Math.max(a.pet.treats, b.pet.treats)
+      treats: Math.max(a.pet.treats, b.pet.treats),
+      wear: b.pet.wear || a.pet.wear
     },
     daily: { ...newer, best: Math.max(a.daily.best, b.daily.best, newer.streak), count: Math.max(a.daily.count, b.daily.count) }
   };

@@ -35,7 +35,7 @@
   <!-- VÄLKOMMEN -->
   <section class="screen welcome" id="welcome" hidden>
     <div class="welcome-hero">
-      <div class="mascot happy" aria-hidden="true"><div class="eyes"><i></i><i></i></div><div class="mouth"></div></div>
+      <div class="mascot happy" aria-hidden="true"><div class="eyes"><i></i><i></i></div><div class="mouth"></div><i class="pal"></i></div>
       <h1>Välkommen till Talkamrater!</h1>
       <p>Här tränar du talkamrater, minus och dubblor, samlar stjärnor och tar hand om ditt eget husdjur.</p>
     </div>
@@ -137,7 +137,7 @@
         <p id="petMood"></p>
         <div class="meter"><i id="petMeter"></i></div>
         <small class="petnext" id="petNext"></small>
-        <button class="textbtn" id="petRename">Byt namn</button>
+        <span class="petbtns"><button class="textbtn" id="petWardrobe">👕 Garderob</button><button class="textbtn" id="petRename">Byt namn</button></span>
       </div>
       <div class="wish" id="petWish" hidden>
         <span class="wish-icon" id="wishIcon" aria-hidden="true">🍦</span>
@@ -243,12 +243,23 @@
     </details>
   </section>
 
+  <!-- PLUTTS GARDEROB -->
+  <section class="screen" id="wardrobe" hidden>
+    <button class="chunky ghost back" data-home>← Hem</button>
+    <h2 class="mode-title"><span id="wdTitle">Plutts</span> <em>garderob</em></h2>
+    <div class="panel wd-top">
+      <div class="wd-pet" id="wdPet"></div>
+      <div class="wd-info"><b id="wdStage"></b><p id="wdText"></p><button class="textbtn" id="wdBook">Till klistermärkesboken</button></div>
+    </div>
+    <div class="wd-grid" id="wdGrid"></div>
+  </section>
+
   <!-- KOMPISUTMANING: välj mål och kompis -->
   <section class="screen" id="buddy" hidden>
     <button class="chunky ghost back" data-home>← Hem</button>
     <h2 class="mode-title">Kompis<em>utmaning</em></h2>
     <div class="buddy-row">
-      <div class="mascot happy" aria-hidden="true"><div class="eyes"><i></i><i></i></div><div class="mouth"></div></div>
+      <div class="mascot happy" aria-hidden="true"><div class="eyes"><i></i><i></i></div><div class="mouth"></div><i class="pal"></i></div>
       <p class="speech" aria-live="polite"></p>
     </div>
     <div class="panel formstack">
@@ -266,7 +277,7 @@
     <button class="chunky ghost back" data-home>← Hem</button>
     <h2 class="mode-title" id="extraTitle"></h2>
     <div class="buddy-row">
-      <div class="mascot happy" aria-hidden="true"><div class="eyes"><i></i><i></i></div><div class="mouth"></div></div>
+      <div class="mascot happy" aria-hidden="true"><div class="eyes"><i></i><i></i></div><div class="mouth"></div><i class="pal"></i></div>
       <p class="speech" aria-live="polite"></p>
     </div>
     <div class="levels" id="extraLevels"></div>
@@ -281,7 +292,7 @@
     </div>
     <div class="progress" id="lineProgress" aria-label="Framsteg"></div>
     <div class="buddy-row">
-      <div class="mascot" aria-hidden="true"><div class="eyes"><i></i><i></i></div><div class="mouth"></div></div>
+      <div class="mascot" aria-hidden="true"><div class="eyes"><i></i><i></i></div><div class="mouth"></div><i class="pal"></i></div>
       <p class="speech" aria-live="polite"></p>
     </div>
     <div class="stage">
@@ -300,7 +311,7 @@
       <span class="streak" id="wordStreak">🔥 0</span>
     </div>
     <div class="buddy-row">
-      <div class="mascot" aria-hidden="true"><div class="eyes"><i></i><i></i></div><div class="mouth"></div></div>
+      <div class="mascot" aria-hidden="true"><div class="eyes"><i></i><i></i></div><div class="mouth"></div><i class="pal"></i></div>
       <p class="speech" aria-live="polite"></p>
     </div>
     <div class="stage">
@@ -317,7 +328,7 @@
     <button class="chunky ghost back" id="introBack">← Tillbaka</button>
     <div class="stage intro">
       <div class="buddy-row">
-        <div class="mascot happy" aria-hidden="true"><div class="eyes"><i></i><i></i></div><div class="mouth"></div></div>
+        <div class="mascot happy" aria-hidden="true"><div class="eyes"><i></i><i></i></div><div class="mouth"></div><i class="pal"></i></div>
         <p class="speech" aria-live="polite"></p>
       </div>
       <h2 id="introTitle">Prov</h2>
@@ -331,7 +342,7 @@
     <button class="chunky ghost back" id="stepBack">← Vägen</button>
     <div class="stage step">
       <div class="buddy-row">
-        <div class="mascot happy" aria-hidden="true"><div class="eyes"><i></i><i></i></div><div class="mouth"></div></div>
+        <div class="mascot happy" aria-hidden="true"><div class="eyes"><i></i><i></i></div><div class="mouth"></div><i class="pal"></i></div>
         <p class="speech" aria-live="polite"></p>
       </div>
       <h2 id="stepTitle"></h2>
@@ -349,7 +360,7 @@
     </div>
     <div class="progress" id="findProgress" aria-label="Framsteg"></div>
     <div class="buddy-row">
-      <div class="mascot" aria-hidden="true"><div class="eyes"><i></i><i></i></div><div class="mouth"></div></div>
+      <div class="mascot" aria-hidden="true"><div class="eyes"><i></i><i></i></div><div class="mouth"></div><i class="pal"></i></div>
       <p class="speech" aria-live="polite"></p>
     </div>
     <div class="stage">
@@ -369,7 +380,7 @@
     </div>
     <div class="progress" id="bubProgress" aria-label="Framsteg"></div>
     <div class="buddy-row">
-      <div class="mascot" aria-hidden="true"><div class="eyes"><i></i><i></i></div><div class="mouth"></div></div>
+      <div class="mascot" aria-hidden="true"><div class="eyes"><i></i><i></i></div><div class="mouth"></div><i class="pal"></i></div>
       <p class="speech" aria-live="polite"></p>
     </div>
     <div class="stage">

@@ -7,7 +7,7 @@ import { openDatabase } from '../src/db.js';
 import { createApp } from '../src/app.js';
 import { mergeProgress, sanitizeProgress, summarize } from '../src/progress.js';
 import { weekStart, missionFor } from '../src/mission.js';
-import { classPetView, nudge } from '../src/display.js';
+import { classPetView, nudge, petView } from '../src/display.js';
 
 test('mergeProgress tar det bästa från båda', () => {
   const a = { best: { '8:find': 2 }, total: 10, stickers: ['🦖', '🦖', '🐼'], path: { n1: 1 }, tricky: { '8:3': 2 } };
@@ -24,7 +24,7 @@ test('husdjur och dagens utmaning slås ihop rätt', () => {
   const a = { pet: { xp: 30, last: 100, born: 90, name: 'Plutt' }, daily: { day: 100, streak: 4, best: 6, count: 20 } };
   const b = { pet: { xp: 12, last: 101, born: 95, name: '' }, daily: { day: 101, streak: 1, best: 2, count: 3 } };
   const m = mergeProgress(a, b);
-  assert.deepEqual({ ...m.pet }, { xp: 30, last: 101, born: 90, name: 'Plutt', wish: null, wishDay: 0, wishCount: 0, treats: 0 });
+  assert.deepEqual({ ...m.pet }, { xp: 30, last: 101, born: 90, name: 'Plutt', wish: null, wishDay: 0, wishCount: 0, treats: 0, wear: '' });
   assert.deepEqual(m.daily, { day: 101, streak: 1, best: 6, count: 20 });
   const s = summarize({ path: { 't-z1': 9, 't-mz1': 8, mexpert: 1 } });
   assert.equal(s.medals, 2);
@@ -42,6 +42,22 @@ test('bytta klistermärken räknas uppåt och kommer inte tillbaka', () => {
   const m = mergeProgress({ stickers: ['🦊', '🦊', '🦊'], swapped: { s3: 1 } }, { stickers: ['🦊', '🦊', '🦊'], swapped: { s3: 2, x: 5, s9999: 1 } });
   assert.deepEqual(m.swapped, { s3: 2 });
   assert.equal(m.stickers.length, 3);
+});
+
+test('husdjurets kläder: senaste vinner, skräp rensas', () => {
+  const m = mergeProgress({ pet: { wear: 'keps' } }, { pet: { wear: 'mantel,<script>,solglas' } });
+  assert.equal(m.pet.wear, 'mantel,solglas');
+  assert.equal(mergeProgress({ pet: { wear: 'keps' } }, { pet: {} }).pet.wear, 'keps');
+  assert.equal(mergeProgress({ pet: { wear: 'keps' } }, { pet: { wear: 'none' } }).pet.wear, 'none');
+  assert.deepEqual(mergeProgress({ swapped: { g3: 1 } }, { swapped: { g3: 2 } }).swapped, { g3: 2 });
+});
+
+test('tio steg för husdjuret, kung långt bort', () => {
+  assert.equal(petView({ xp: 400, last: 100 }, 100).stageName, 'Skolplutt'); // förr kung, nu steg 5 av 10
+  assert.equal(petView({ xp: 2500, last: 100 }, 100).stageName, 'Kung');
+  assert.equal(petView({ xp: 4000, last: 100 }, 100).nextAt, null);
+  assert.match(nudge({ pet: { xp: 30, last: 1 }, today: 100 }).text, /Bu-hu/);
+  assert.equal(nudge({ pet: { xp: 30, last: 100 }, gift: 'st:s3', today: 100 }).kind, 'gift');
 });
 
 test('global färdighet och datum sparas och slås ihop', () => {
@@ -406,6 +422,26 @@ for (const [label, envFor] of targets) {
       assert.equal((await call('GET', '/me/buddies', null, H(ida))).body.challenge.status, 'declined');
       assert.equal((await call('POST', `/me/challenge/${c.id}/seen`, null, H(ida))).body.challenge, null);
       assert.equal((await call('POST', `/me/challenge/${c.id}/accept`, null, H(ute))).status, 404);
+    });
+
+    test('dela en dubblett med klassen: går till någon som saknar den', async () => {
+      const cls = await call('POST', '/admin/classes', { name: 'Delklassen' }, ADMIN);
+      const reg = async name => (await call('POST', `/classes/${cls.body.code}/players`, { name, pin: [1, 2, 3] })).body;
+      const ann = await reg('Ann'), ben = await reg('Ben'), cia = await reg('Cia');
+      const H = p => ({ authorization: `Bearer ${p.token}` });
+      await call('PUT', '/me/progress', { progress: { stickers: ['🦊'] } }, H(ben));
+      assert.equal((await call('POST', '/me/share', { e: '🦊', id: 'x3' }, H(ann))).status, 400);
+      // Ben har räven, så den går till Cia
+      assert.equal((await call('POST', '/me/share', { e: '🦊', id: 's3' }, H(ann))).body.sent, true);
+      const got = (await call('GET', '/me/class', null, H(cia))).body.gifts;
+      assert.deepEqual(got.map(g => g.treat), ['st:s3']);
+      // Nu har alla den (Cias är på väg)
+      assert.equal((await call('POST', '/me/share', { e: '🦊', id: 's3' }, H(ann))).body.reason, 'everyone');
+      // Att dela räknas inte som dagens matpresent
+      assert.equal((await call('POST', '/me/gift', { treat: 'glass' }, H(ann))).status, 201);
+      await call('PATCH', `/admin/classes/${cls.body.id}`, { public: true }, ADMIN);
+      await call('PUT', '/me/progress', { progress: { pet: { xp: 30, last: 1 } } }, H(cia));
+      assert.match((await call('GET', `/public/classes/${cls.body.code}?name=Cia`)).body.me.nudge.text, /klistermärke/);
     });
 
     test('låser efter fem fel', async () => {

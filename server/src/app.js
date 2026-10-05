@@ -356,7 +356,7 @@ export function createApp({ db, t, client, adminKey, publicDir, trustProxy = 'lo
     const treat = String(req.body?.treat || '');
     if (!TREATS[treat]) fail(400, 'Okänd godsak');
     const me = Number(req.player.id), classId = req.player.class_id, dayStart = startOfDay();
-    const given = await db(t.gifts).where({ from_id: me }).andWhere('created_at', '>=', dayStart).first();
+    const given = await db(t.gifts).where({ from_id: me }).andWhere('treat', 'not like', 'st:%').andWhere('created_at', '>=', dayStart).first();
     if (given) return res.json({ sent: false, reason: 'today' });
     const mates = (await db(t.players).where({ class_id: classId }).whereNot({ id: me }).select('id', 'last_seen'))
       .sort((a, b) => (Number(a.last_seen) || 0) - (Number(b.last_seen) || 0));
@@ -367,6 +367,33 @@ export function createApp({ db, t, client, adminKey, publicDir, trustProxy = 'lo
     const pool = (fresh.length ? fresh : mates).slice(0, Math.max(1, Math.ceil((fresh.length || mates.length) / 2)));
     const to = pool[Math.floor(Math.random() * pool.length)];
     await insertId(db, client, t.gifts, { class_id: classId, from_id: me, to_id: to.id, treat, seen: false, created_at: Date.now() });
+    res.status(201).json({ sent: true });
+  });
+
+  // Dela en dubblett med klassen. Klistermärket går anonymt till någon i klassen som
+  // saknar det (helst någon med få klistermärken), aldrig till en utvald kompis.
+  const SHARES_PER_DAY = 5;
+  api.post('/me/share', auth, async (req, res) => {
+    const e = String(req.body?.e || ''), id = String(req.body?.id || '');
+    if (!/^s\d{1,3}$/.test(id) || !e || e.length > 8 || /[<>\s]/.test(e)) fail(400, 'Okänt klistermärke');
+    const me = Number(req.player.id), dayStart = startOfDay();
+    const shared = await db(t.gifts).where({ from_id: me }).andWhere('treat', 'like', 'st:%').andWhere('created_at', '>=', dayStart).count({ n: '*' }).first();
+    if (Number(shared.n) >= SHARES_PER_DAY) return res.json({ sent: false, reason: 'today' });
+    const rows = await db(t.players).leftJoin(t.progress, `${t.players}.id`, `${t.progress}.player_id`)
+      .where(`${t.players}.class_id`, req.player.class_id).whereNot(`${t.players}.id`, me).select(`${t.players}.id`, `${t.progress}.data`);
+    // Räkna med presenter som redan är på väg, så att två inte får samma
+    const incoming = await db(t.gifts).where({ class_id: req.player.class_id, seen: false, treat: `st:${id}` }).select('to_id');
+    const onTheWay = new Set(incoming.map(g => Number(g.to_id)));
+    const lacking = rows.map(r => {
+      let p = {};
+      try { p = sanitizeProgress(r.data ? JSON.parse(r.data) : {}); } catch { p = sanitizeProgress({}); }
+      const n = p.stickers.filter(x => x === e).length - (p.swapped[id] || 0);
+      return { id: Number(r.id), has: n > 0 || onTheWay.has(Number(r.id)), size: new Set(p.stickers).size };
+    }).filter(r => !r.has).sort((a, b) => a.size - b.size);
+    if (!lacking.length) return res.json({ sent: false, reason: 'everyone' });
+    const pool = lacking.slice(0, Math.max(1, Math.ceil(lacking.length / 2)));
+    const to = pool[Math.floor(Math.random() * pool.length)];
+    await insertId(db, client, t.gifts, { class_id: req.player.class_id, from_id: me, to_id: to.id, treat: `st:${id}`, seen: false, created_at: Date.now() });
     res.status(201).json({ sent: true });
   });
 

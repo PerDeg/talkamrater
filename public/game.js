@@ -259,6 +259,17 @@
     giftsBusy = true;
     try {
       await api('POST', 'me/gifts/seen');
+      // Klistermärken som någon i klassen har delat med sig av
+      const stickerGifts = gifts.filter(g => String(g.treat).startsWith('st:'));
+      gifts = gifts.filter(g => !String(g.treat).startsWith('st:'));
+      stickerGifts.forEach((g, i) => {
+        const st = STICKERS[Number(String(g.treat).slice(4))];
+        if (!st) return;
+        save.stickers.push(st[0]);
+        setTimeout(() => { cheer(`Ett klistermärke från klassen: ${st[0]}`, true); rain(60); say(`Någon i klassen gav dig ett klistermärke: ${lowerName(st[1])}!`); }, 600 + i * 2600);
+      });
+      if (stickerGifts.length) persist();
+      if (!gifts.length) { if (current === 'start') renderStart(); return; }
       for (const g of gifts) { save.pet.xp += GIFT_XP; save.pet.treats = (save.pet.treats || 0) + 1; }
       const t = treatOf({ treat: gifts[gifts.length - 1].treat });
       prefs.lastGift = { day: today(), treat: t[0], n: gifts.length }; savePrefs();
@@ -746,7 +757,7 @@
   function goHome() { if (needsWelcome()) return showWelcome(); stopGame(); renderStart(); show('start'); }
 
   const starStr = n => [0, 1, 2].map(i => `<span class="${i < n ? 'on' : ''}">★</span>`).join('');
-  const mascotHTML = '<div class="mascot happy" aria-hidden="true"><div class="eyes"><i></i><i></i></div><div class="mouth"></div></div>';
+  const mascotHTML = '<div class="mascot happy" aria-hidden="true"><div class="eyes"><i></i><i></i></div><div class="mouth"></div><i class="pal"></i></div>';
   const myFace = () => (net.player ? net.player.avatar : '🙂');
   const W = () => WORLDS[prefs.world];
   function bestOf(w, n) {
@@ -759,10 +770,43 @@
   const today = () => dayNumber();
 
   /* ================= Husdjuret ================= */
-  // Husdjuret växer av stjärnfrukter (= stjärnor från rundor) och av godsaker
-  // från önskningar. Det ska ta många rundor att nå kung.
-  const PET_STAGES = [[0, 'Ägg'], [10, 'Bebis'], [40, 'Liten'], [100, 'Stor'], [200, 'Jätte'], [400, 'Kung']];
-  const PET_ICONS = ['🥚', '🐣', '🐾', '💜', '✨', '👑'];
+  // Husdjuret växer av jordgubbar/stjärnfrukter (stjärnor från rundor, önskningar,
+  // presenter, kompisutmaningar och bytta klistermärken). Tio steg, och det ska ta
+  // väldigt många rundor att bli kung och legend. Speglas i server/src/display.js.
+  const PET_STAGES = [[0, 'Ägg'], [20, 'Bebis'], [80, 'Knatte'], [180, 'Liten'], [350, 'Skolplutt'], [600, 'Stor'],
+    [1000, 'Superplutt'], [1600, 'Jätte'], [2500, 'Kung'], [4000, 'Legend']];
+  const PET_ICONS = ['🥚', '🐣', '🧸', '🐾', '🎒', '💜', '🦸', '✨', '👑', '🌟'];
+  // Vad husdjuret säger när man klappar det, olika för varje steg
+  const PET_LINES = [
+    ['Knack knack!', 'Det rör sig där inne!', 'Snart, snart …'],
+    ['Bä-bä! 😢', 'Jag vill ha mjölk!', 'Gosa med mig!', 'Bu-hu, jag är så liten …'],
+    ['Hihi, det kittlas!', 'Leka! Leka!', 'Titta, jag kan hoppa!', 'Mer! Mer!'],
+    ['Mer matte!', 'Vet du vad 7 + 3 är? Tio!', 'Jag gillar dig, {n}!', 'Mums, jordgubbar!'],
+    ['Jag har pluggat talkamrater!', 'Visste du att 6 + 4 också blir 10?', 'Läxor? Ja tack!', 'Glasögonen gör mig smart.'],
+    ['Jag är stor och stark nu!', 'Vi är ett bra lag, {n}!', 'Kom igen, en runda till!'],
+    ['Superplutt till undsättning!', 'Inget tal är för svårt för oss!', 'Wohoo, jag kan nästan flyga!'],
+    ['JÄTTEMYCKET matte!', 'Jag är så stor att jag ser hela skolan!', 'En jätte behöver jättemycket jordgubbar.'],
+    ['Jag, Kung Plutt, befaller: mer matte!', 'Ganska coolt att vara kung, va?', 'Snyggt jobbat, mitt kungliga räknegeni!'],
+    ['Jag är en legend, och det är du också, {n}!', 'Vi har klarat allt tillsammans!', 'Legendariskt!']
+  ];
+  // Plutts garderob: saker som köps med dubbletter (cost = [lägsta sällsynthet, antal]).
+  // Finare saker kräver sällsyntare dubbletter och ett större husdjur (stage).
+  const WARDROBE = [
+    { id: 'keps', icon: '🧢', name: 'Keps', slot: 'head', cost: [0, 3], stage: 1 },
+    { id: 'rosett', icon: '🎀', name: 'Rosett', slot: 'neck', cost: [0, 3], stage: 1 },
+    { id: 'halsduk', icon: '🧣', name: 'Halsduk', slot: 'neck', cost: [0, 5], stage: 2 },
+    { id: 'solhatt', icon: '👒', name: 'Solhatt', slot: 'head', cost: [0, 6], stage: 2 },
+    { id: 'glasogon', icon: '👓', name: 'Glasögon', slot: 'face', cost: [1, 2], stage: 3 },
+    { id: 'solglas', icon: '🕶️', name: 'Solglasögon', slot: 'face', cost: [1, 3], stage: 4 },
+    { id: 'mossa', icon: '🎓', name: 'Studentmössa', slot: 'head', cost: [1, 4], stage: 4 },
+    { id: 'hogatt', icon: '🎩', name: 'Hög hatt', slot: 'head', cost: [2, 1], stage: 5 },
+    { id: 'mantel', icon: '🦸', name: 'Supermantel', slot: 'back', cost: [2, 1], stage: 5 },
+    { id: 'guldkrona', icon: '👑', name: 'Guldkrona', slot: 'head', cost: [3, 1], stage: 6 },
+    { id: 'regnbage', icon: '🌈', name: 'Regnbågsmantel', slot: 'back', cost: [3, 1], stage: 7 }
+  ];
+  const SLOT_NAME = { head: 'huvudet', face: 'ögonen', neck: 'halsen', back: 'ryggen' };
+  const ownsItem = id => (save.records['it-' + id] || 0) > 0;
+  const petWear = () => String(save.pet.wear || '').split(',').filter(id => ownsItem(id));
   // Högst en önskan per dag, och inte alla dagar, så att det inte blir tjat
   const WISH_XP = 5, WISHES_PER_DAY = 1;
   const petStage = xp => PET_STAGES.reduce((s, [min], i) => (xp >= min ? i : s), 0);
@@ -834,23 +878,43 @@
       return { cls: p.last ? 'mood-happy' : 'mood-new', text: p.last ? `Ägget gungar! ${left} 🍓 till så kläcks det.` : 'Ägget väntar på dig. Varje stjärna du tar värmer det!' };
     }
     const days = p.last ? today() - p.last : 99;
-    if (days >= 2) return { cls: 'mood-hungry', text: days <= 3 ? `${petName()} är hungrig! Spela en runda för att mata.` : `${petName()} har längtat efter dig! En runda så blir allt bra igen.` };
+    if (days >= 2) {
+      if (st === 1) return { cls: 'mood-hungry', text: `Bu-hu! ${petName()} gråter av hunger 😢 Spela en runda så blir det bra igen.` };
+      if (st >= 8) return { cls: 'mood-hungry', text: `${st === 8 ? 'Kungen' : 'Legenden'} är hungrig! Ett kungligt mål mat, tack. 👑` };
+      return { cls: 'mood-hungry', text: days <= 3 ? `${petName()} är hungrig! Spela en runda för att mata.` : `${petName()} har längtat efter dig! En runda så blir allt bra igen.` };
+    }
     if (prefs.lastGift && prefs.lastGift.day === today()) {
       const t = treatOf({ treat: prefs.lastGift.treat });
       return { cls: 'mood-happy', text: `${petName()} fick ${t[2]} ${t[1]} från någon i klassen idag! 🎁` };
     }
     if (p.wishDay === today() && p.wishCount >= WISHES_PER_DAY) return { cls: 'mood-happy', text: `${petName()} fick sin önskan idag och är överlycklig! 💜` };
     if (p.wish) return { cls: days <= 0 ? 'mood-happy' : 'mood-ok', text: days <= 0 ? `${petName()} är mätt men har en önskan …` : `${petName()} har en önskan idag.` };
+    if (st === 1 && days > 0) return { cls: 'mood-ok', text: `${petName()} snyftar lite och vill ha mat. 🥺` };
+    if (st >= 8) return { cls: days <= 0 ? 'mood-happy' : 'mood-ok', text: days <= 0 ? `${petName()} sitter på tronen och ser väldigt cool ut. 😎` : `Kung ${petName()} väntar på dagens matte.` };
     return { cls: days <= 0 ? 'mood-happy' : 'mood-ok', text: days <= 0 ? pick([`${petName()} är mätt och glad!`, `${petName()} gillar att räkna med dig!`]) : `${petName()} undrar om ni ska spela idag.` };
   }
-  function petHTML(stage, moodCls) {
+  // Husdjuret ritat med CSS. Varje steg får nya detaljer: bebisen har tårar,
+  // skolplutten glasögon, superplutten mantel, kungen krona och solglasögon,
+  // legenden en glänsande aura. wear = saker från garderoben.
+  function petHTML(stage, moodCls, wear = []) {
     if (stage === 0) return `<div class="pet egg ${moodCls}" aria-hidden="true"><i class="spot s1"></i><i class="spot s2"></i><i class="spot s3"></i></div>`;
-    return `<div class="pet stage-${stage} ${moodCls}" aria-hidden="true">
+    const has = id => wear.includes(id);
+    const cape = has('mantel') ? 'cape red' : has('regnbage') ? 'cape rainbow' : stage === 6 || stage === 7 ? 'cape red' : stage === 9 ? 'cape gold' : '';
+    const head = WARDROBE.find(w => w.slot === 'head' && has(w.id));
+    const face = WARDROBE.find(w => w.slot === 'face' && has(w.id));
+    const neck = WARDROBE.find(w => w.slot === 'neck' && has(w.id));
+    return `<div class="pet stage-${stage} ${moodCls}${stage === 9 ? ' legend' : ''}" aria-hidden="true">
+      ${cape ? `<i class="${cape}"></i>` : ''}
       ${stage >= 3 ? '<i class="horn h1"></i><i class="horn h2"></i>' : ''}
-      ${stage >= 4 ? '<i class="wing w1"></i><i class="wing w2"></i>' : ''}
+      ${stage >= 5 ? '<i class="wing w1"></i><i class="wing w2"></i>' : ''}
+      ${stage === 2 ? '<i class="tuft"></i>' : ''}
       <i class="belly"></i><i class="eye e1"></i><i class="eye e2"></i><i class="mouth"></i>
       ${stage >= 2 ? '<i class="cheek c1"></i><i class="cheek c2"></i>' : ''}
-      ${stage >= 5 ? '<span class="crown">👑</span>' : ''}
+      ${stage === 1 ? '<i class="tear t1"></i><i class="tear t2"></i>' : ''}
+      ${face ? `<span class="acc face">${face.icon}</span>` : stage === 4 ? '<i class="specs"></i>' : stage >= 8 ? '<span class="acc face">🕶️</span>' : ''}
+      ${head ? `<span class="acc head">${head.icon}</span>` : stage >= 8 ? '<span class="crown">👑</span>' : ''}
+      ${neck ? `<span class="acc neck">${neck.icon}</span>` : ''}
+      ${stage === 9 ? '<i class="sparkle k1">✨</i><i class="sparkle k2">✨</i>' : ''}
     </div>`;
   }
   function feedPet(food) {
@@ -862,14 +926,14 @@
   }
   function renderPet() {
     const st = petStage(save.pet.xp), wish = currentWish(), mood = petMood();
-    $('#petView').innerHTML = petHTML(st, mood.cls);
+    $('#petView').innerHTML = petHTML(st, mood.cls, petWear());
     $('#petName').textContent = petName();
     $('#petStageName').textContent = PET_STAGES[st][1];
     $('#petMood').textContent = mood.text;
     const next = PET_STAGES[st + 1];
     const from = PET_STAGES[st][0];
     $('#petMeter').style.width = next ? (100 * (save.pet.xp - from) / (next[0] - from)) + '%' : '100%';
-    $('#petNext').textContent = next ? `${next[0] - save.pet.xp} 🍓 kvar tills ${petName()} blir ${next[1].toLowerCase()}` : `${petName()} är fullvuxen kung!`;
+    $('#petNext').textContent = next ? `${next[0] - save.pet.xp} 🍓 kvar tills ${petName()} blir ${next[1].toLowerCase()} (steg ${st + 1} av ${PET_STAGES.length})` : `${petName()} är en legend! Högsta steget. 🌟`;
     const box = $('#petWish');
     box.hidden = !wish;
     if (wish) {
@@ -888,8 +952,9 @@
     el.classList.remove('jump'); void el.offsetWidth; el.classList.add('jump');
     sfx.select();
     const st = petStage(save.pet.xp);
-    const lines = st === 0 ? ['Knack knack!', 'Det rör sig där inne!', 'Snart, snart …'] : ['Hihi, det kittlas!', 'Mer matte!', `Jag gillar dig, ${nm()}!`, 'Mums, stjärnfrukt!', 'Vet du vad 7 + 3 är? Tio!'];
-    const line = pick(lines);
+    const line = pick(PET_LINES[st]).replace('{n}', nm());
+    // Bebisen gråter en skvätt när man klappar den
+    if (st === 1) { el.classList.add('crying'); setTimeout(() => el.classList.remove('crying'), 2200); }
     $('#petMood').textContent = line;
     say(line);
   });
@@ -2901,7 +2966,7 @@
     if (medalKey) postEvent('medal', medalKey);
     if (daily && [7, 30, 100].includes(daily)) postEvent('daily', daily);
     if (daily) sendGift();
-    if (grew === PET_STAGES.length - 1) postEvent('pet', grew);
+    if (grew >= 8) postEvent('pet', grew); // kung och legend syns i klassflödet
     if (bookDone) postEvent('book', 'alla');
 
     if (g.kind === 'final' && r.passed) {
@@ -2966,6 +3031,7 @@
     else if (prizes.length === 2) { $('#rewardEm').textContent = prizes[0].e + prizes[1].e; $('#rewardText').textContent = `Två klistermärken: ${prizeText(prizes[0])} och ${prizeText(prizes[1])}!`; }
     else if (prizes.length) { $('#rewardEm').textContent = prizes[0].e; $('#rewardText').textContent = prizes[0].isNew ? `Nytt klistermärke: ${prizeText(prizes[0])}!` : `En till ${prizeText(prizes[0])}. Byt dubbletter mot jordgubbar i boken!`; }
     $('#reward').classList.toggle('legend', prizes.some(p => p.rarity === 3));
+    if (prizes.some(p => p.shiny)) setTimeout(() => { cheer('GLÄNSANDE! ✨', true); rain(200); sfx.streak(); say('Wow! Ett glänsande klistermärke!'); }, 3600);
     const best = prizes.reduce((m, p) => Math.max(m, p.rarity), -1);
     if (best >= 2) setTimeout(() => { cheer(best === 3 ? 'LEGENDARISKT!' : 'Sällsynt!', true); rain(best === 3 ? 260 : 120); sfx.streak(); say(best === 3 ? 'Wow! Ett legendariskt klistermärke!' : 'Ett sällsynt klistermärke!'); }, 1800);
     $('#totalStars').textContent = save.total;
@@ -3040,10 +3106,24 @@
   /* ================= Klistermärken ================= */
   // Sällsynthet, dragning och byten. Ett byte räknas upp i save.swapped (per id),
   // så antalet man har = antal i listan minus antal bytta.
-  const stickerId = e => 's' + STICKERS.findIndex(([x]) => x === e);
-  function stickerCount(e) {
-    const n = save.stickers.reduce((c, x) => c + (x === e), 0);
-    return Math.max(0, n - (save.swapped[stickerId(e)] || 0));
+  // Glänsande varianter sparas som "✨" + emoji och räknas för sig (id "g3" i stället för "s3")
+  const SHINY = '✨', SHINY_CHANCE = 0.05;
+  const stickerId = (e, shiny) => (shiny ? 'g' : 's') + STICKERS.findIndex(([x]) => x === e);
+  function stickerCount(e, shiny = false) {
+    const key = shiny ? SHINY + e : e;
+    const n = save.stickers.reduce((c, x) => c + (x === key), 0);
+    return Math.max(0, n - (save.swapped[stickerId(e, shiny)] || 0));
+  }
+  // Dubbletter per sällsynthet (vanliga klistermärken, inte glänsande)
+  const dupsByRarity = () => RARITY.map((_, r) => STICKERS.filter(x => x[2] === r).reduce((sum, [e]) => sum + Math.max(0, stickerCount(e) - 1), 0));
+  // Betala med n dubbletter av exakt sällsynthet r, så att man aldrig råkar betala
+  // med ett legendariskt klistermärke för en vanlig sak.
+  function payDups(r, n) {
+    if (dupsByRarity()[r] < n) return false;
+    for (const [e] of STICKERS.filter(x => x[2] === r)) {
+      while (n > 0 && stickerCount(e) > 1) { const id = stickerId(e); save.swapped[id] = (save.swapped[id] || 0) + 1; n--; }
+    }
+    return true;
   }
   const stickerDups = () => STICKERS.reduce((sum, [e]) => sum + Math.max(0, stickerCount(e) - 1), 0);
   const lowerName = n => (n === n.toUpperCase() ? n : n.toLowerCase()); // "UFO" förblir UFO
@@ -3056,16 +3136,18 @@
     const tier = STICKERS.filter(x => x[2] === rarity);
     const missing = tier.filter(([e]) => stickerCount(e) === 0);
     const [e, name] = missing.length && Math.random() < 0.7 ? pick(missing) : pick(tier);
-    const isNew = stickerCount(e) === 0;
-    save.stickers.push(e);
-    return { e, name, rarity, isNew };
+    // Ibland kommer en glänsande variant, en egen samlarsak
+    const shiny = Math.random() < SHINY_CHANCE;
+    const isNew = stickerCount(e, shiny) === 0;
+    save.stickers.push(shiny ? SHINY + e : e);
+    return { e: shiny ? SHINY + e : e, name: shiny ? `glänsande ${lowerName(name)}` : name, rarity, isNew, shiny };
   }
   // Byt en dubblett mot jordgubbar till husdjuret. Det sista exemplaret går aldrig att byta.
-  function tradeSticker(e, quiet) {
-    if (stickerCount(e) < 2) return 0;
-    const id = stickerId(e), rar = STICKERS.find(([x]) => x === e)[2];
+  function tradeSticker(e, quiet, shiny = false) {
+    if (stickerCount(e, shiny) < 2) return 0;
+    const id = stickerId(e, shiny), rar = STICKERS.find(([x]) => x === e)[2];
     save.swapped[id] = (save.swapped[id] || 0) + 1;
-    const berries = RARITY[rar].berries;
+    const berries = RARITY[rar].berries * (shiny ? 3 : 1);
     const grew = feedPet(berries);
     if (!quiet) afterTrade(berries, grew);
     return berries;
@@ -3083,6 +3165,77 @@
     if (grew) setTimeout(() => { cheer(`${petName()} växte!`, true); sfx.streak(); rain(120); }, 900);
     openBook(true);
   }
+  // Plutts garderob: köp saker med dubbletter och klä husdjuret
+  const costText = ([r, n]) => `${n} ${RARITY[r].name.toLowerCase()}${n === 1 ? '' : 'a'} ${n === 1 ? 'dubblett' : 'dubbletter'}`;
+  function setWear(list) {
+    save.pet.wear = list.length ? list.join(',') : 'none';
+    persist();
+  }
+  function openWardrobe() {
+    stopGame();
+    const st = petStage(save.pet.xp), wear = petWear(), dups = dupsByRarity();
+    show('wardrobe');
+    $('#wdTitle').textContent = genitive(petName());
+    $('#wdPet').innerHTML = petHTML(st, 'mood-happy', wear);
+    $('#wdStage').textContent = `${petName()} · ${PET_STAGES[st][1]}`;
+    $('#wdText').textContent = st === 0
+      ? 'Ägget måste kläckas innan det kan ha kläder på sig. Spela några rundor!'
+      : `Du har ${dups.map((n, r) => `${n} ${RARITY[r].name.toLowerCase()}${n === 1 ? '' : 'a'}`).join(', ')} dubbletter att betala med.`;
+    const grid = $('#wdGrid'); grid.innerHTML = '';
+    WARDROBE.forEach(it => {
+      const owned = ownsItem(it.id), on = wear.includes(it.id), locked = st < it.stage;
+      const afford = dups[it.cost[0]] >= it.cost[1];
+      const el = document.createElement('div');
+      el.className = 'wd-item' + (locked && !owned ? ' locked' : '') + (on ? ' on' : '');
+      el.innerHTML = `<span class="wi" aria-hidden="true">${it.icon}</span><b>${esc(it.name)}</b>
+        <small>${owned ? `Sitter på ${SLOT_NAME[it.slot]}` : locked ? `🔒 När ${esc(petName())} är ${PET_STAGES[it.stage][1].toLowerCase()}` : costText(it.cost)}</small>`;
+      const b = document.createElement('button');
+      if (owned) {
+        b.className = 'chunky ' + (on ? 'ghost' : 'sun');
+        b.textContent = on ? 'Ta av' : 'Ta på';
+        b.onclick = () => {
+          const rest = petWear().filter(id => id !== it.id && (on || WARDROBE.find(w => w.id === id).slot !== it.slot));
+          setWear(on ? rest : [...rest, it.id]);
+          sfx.select(); openWardrobe();
+        };
+      } else if (!locked) {
+        b.className = 'chunky coral'; b.textContent = 'Köp'; b.disabled = !afford;
+        b.onclick = () => {
+          if (!payDups(it.cost[0], it.cost[1])) return;
+          save.records['it-' + it.id] = 1;
+          setWear([...petWear().filter(id => WARDROBE.find(w => w.id === id).slot !== it.slot), it.id]);
+          sfx.fanfare(); rain(90); cheer(`${it.icon} ${it.name}!`, true);
+          say(pick([`Snyggt! ${petName()} har fått ${it.name.toLowerCase()}!`, 'Wow, vad fin jag blev!', 'Titta på mig!']));
+          openWardrobe();
+        };
+      }
+      if (b.textContent) el.appendChild(b);
+      grid.appendChild(el);
+    });
+  }
+  $('#petWardrobe').addEventListener('click', openWardrobe);
+  $('#wdBook').addEventListener('click', () => openBook());
+
+  // Dela en dubblett med klassen: den går anonymt till någon i klassen som saknar den
+  async function shareSticker(e, name, btn) {
+    if (stickerCount(e) < 2) return;
+    btn.disabled = true;
+    try {
+      const r = await api('POST', 'me/share', { e, id: stickerId(e) });
+      if (r.sent) {
+        const id = stickerId(e);
+        save.swapped[id] = (save.swapped[id] || 0) + 1;
+        save.records.shared = (save.records.shared || 0) + 1;
+        persist();
+        sfx.fanfare(); cheer('Delat! 💛', true);
+        say(`Snällt! Någon i klassen som saknade ${lowerName(name)} får den nu.`);
+        openBook(true);
+      } else {
+        btn.disabled = false;
+        cheer(r.reason === 'everyone' ? `Alla i klassen har redan ${lowerName(name)}!` : 'Du har delat fem idag. Fortsätt imorgon!');
+      }
+    } catch (err) { btn.disabled = false; cheer(err.message); }
+  }
   function openBook(keepScroll) {
     stopGame();
     const got = STICKERS.filter(([e]) => stickerCount(e) > 0).length;
@@ -3096,26 +3249,36 @@
     const dups = stickerDups();
     const worth = STICKERS.reduce((sum, [e, , r]) => sum + Math.max(0, stickerCount(e) - 1) * RARITY[r].berries, 0);
     $('#tradeBox').innerHTML = dups
-      ? `<span class="tb-ic" aria-hidden="true">🍓</span><span><b>${dups} ${dups === 1 ? 'dubblett' : 'dubbletter'}</b> kan bli <b>${worth} jordgubbar</b> till ${esc(petName())}. Det sista av varje sparas alltid.</span>
+      ? `<span class="tb-ic" aria-hidden="true">🍓</span><span><b>${dups} ${dups === 1 ? 'dubblett' : 'dubbletter'}</b> kan bli <b>${worth} jordgubbar</b> till ${esc(petName())}, kläder i garderoben${net.player && !isSolo() ? ' eller delas med klassen' : ''}. Det sista av varje sparas alltid.</span>
          <button class="chunky sun" id="tradeAll">Byt alla</button>`
       : `<span class="tb-ic" aria-hidden="true">🍓</span><span>Har du flera av samma klistermärke kan du byta dem mot jordgubbar till ${esc(petName())}. Ju sällsyntare, desto fler!</span>`;
     const ta = $('#tradeAll');
     if (ta) ta.onclick = tradeAll;
     $('#rarityKey').innerHTML = RARITY.map((r, i) => `<span class="rk r${i}">${r.name} · ${r.berries} 🍓</span>`).join('');
     const g = $('#bookGrid'); g.innerHTML = '';
+    const canShare = net.player && !isSolo() && net.online;
     STICKERS.forEach(([e, name, r]) => {
-      const n = stickerCount(e);
+      const n = stickerCount(e), sh = stickerCount(e, true);
       const el = document.createElement('div');
-      el.className = `slot r${r}` + (n ? '' : ' missing');
-      el.innerHTML = n
+      el.className = `slot r${r}` + (n || sh ? '' : ' missing') + (sh ? ' has-shiny' : '');
+      el.innerHTML = n || sh
         ? `<div><div class="em">${e}</div><small>${name}</small>${n > 1 ? ` <span class="x">×${n}</span>` : ''}
-           ${n > 1 ? `<button class="swap" aria-label="Byt en ${name} mot ${RARITY[r].berries} jordgubbar">Byt +${RARITY[r].berries}🍓</button>` : ''}</div>`
+           ${sh ? `<span class="shiny" title="Glänsande">✨${sh > 1 ? `×${sh}` : ''}</span>` : ''}
+           ${n > 1 ? `<button class="swap" aria-label="Byt en ${name} mot ${RARITY[r].berries} jordgubbar">Byt +${RARITY[r].berries}🍓</button>` : ''}
+           ${n > 1 && canShare ? `<button class="share" aria-label="Dela en ${name} med klassen">Dela 🎁</button>` : ''}
+           ${sh > 1 ? `<button class="swap gsw" aria-label="Byt en glänsande ${name} mot ${RARITY[r].berries * 3} jordgubbar">Byt ✨ +${RARITY[r].berries * 3}🍓</button>` : ''}</div>`
         : `<span aria-label="${RARITY[r].name} klistermärke, inte hittat än">?</span>`;
-      el.title = RARITY[r].name;
-      const sw = $('.swap', el);
+      el.title = RARITY[r].name + (sh ? ', glänsande' : '');
+      const sw = $('.swap:not(.gsw)', el);
       if (sw) sw.addEventListener('click', () => tradeSticker(e));
+      const gs = $('.gsw', el);
+      if (gs) gs.addEventListener('click', () => tradeSticker(e, false, true));
+      const shr = $('.share', el);
+      if (shr) shr.addEventListener('click', () => shareSticker(e, name, shr));
       g.appendChild(el);
     });
+    const shinies = STICKERS.filter(([e]) => stickerCount(e, true) > 0).length;
+    if (shinies) $('#bookCount').textContent += ` · ✨ ${shinies} glänsande`;
     if (current !== 'book') show('book');
     else if (!keepScroll) window.scrollTo({ top: 0 });
   }
@@ -3263,7 +3426,8 @@
     $('#classPet').hidden = !p;
     if (!p) return;
     const cls = { 'ägg': 'mood-new', 'längtar': 'mood-hungry', 'glad': 'mood-ok' }[p.mood] || 'mood-happy';
-    $('#cpView').innerHTML = petHTML(p.stage, cls);
+    // Klassplutten har sex steg; rita dem med husdjurens utseende för ägg, bebis, liten, stor, jätte och kung
+    $('#cpView').innerHTML = petHTML([0, 1, 3, 5, 7, 8][p.stage] || 0, cls);
     $('#cpStage').textContent = `${p.name} · ${p.stageName}`;
     $('#cpMood').textContent = p.moodText;
     $('#cpMeter').style.width = p.percent + '%';

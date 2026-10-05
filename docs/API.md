@@ -77,11 +77,11 @@ GET https://talkamrater.degerfalt.se/api/public/classes/{klasskod}?name={namn}&e
     "contribution": 15,
     "pet": {
       "name": "Plutt",
-      "xp": 55,
+      "xp": 95,
       "stage": 2,
-      "stageName": "Liten",
-      "icon": "🐾",
-      "nextAt": 100,
+      "stageName": "Knatte",
+      "icon": "🧸",
+      "nextAt": 180,
       "mood": "glad",
       "moodText": "Plutt mår bra.",
       "wish": { "icon": "🍦", "treat": "en glass", "text": "poppa alla bubbelpar som blir 9", "have": 0, "need": 1 }
@@ -105,7 +105,7 @@ GET https://talkamrater.degerfalt.se/api/public/classes/{klasskod}?name={namn}&e
 | Fält | Betydelse |
 |---|---|
 | `name` | Alltid "Klassplutten" |
-| `stage`, `stageName`, `icon` | Stadium 0–5, samma som elevens husdjur: Ägg 🥚 … Kung 👑 |
+| `stage`, `stageName`, `icon` | Stadium 0–5 (klassplutten har sex steg): Ägg 🥚, Bebis 🐣, Liten 🐾, Stor 💜, Jätte ✨, Kung 👑 |
 | `mood`, `moodText` | `ägg`, `längtar`, `glad` eller `överlycklig`, plus en färdig mening |
 | `rounds`, `nextAt` | Klassens rundor hittills och hur många som behövs till nästa stadium (`null` när den är kung) |
 | `percent` | 0–100, hur långt det är kvar till nästa stadium |
@@ -150,8 +150,8 @@ GET https://talkamrater.degerfalt.se/api/public/classes/{klasskod}?name={namn}&e
 | Fält | Betydelse |
 |---|---|
 | `name` | Husdjurets namn (standard "Plutt") |
-| `stage`, `stageName`, `icon` | Stadium 0–5: Ägg 🥚, Bebis 🐣, Liten 🐾, Stor 💜, Jätte ✨, Kung 👑 |
-| `xp`, `nextAt` | Stjärnfrukter och hur många som krävs för nästa stadium (`null` för kung) |
+| `stage`, `stageName`, `icon` | Stadium 0–9: Ägg 🥚 (0), Bebis 🐣 (20), Knatte 🧸 (80), Liten 🐾 (180), Skolplutt 🎒 (350), Stor 💜 (600), Superplutt 🦸 (1000), Jätte ✨ (1600), Kung 👑 (2500), Legend 🌟 (4000). Talet inom parentes är hur många jordgubbar (`xp`) som behövs. |
+| `xp`, `nextAt` | Jordgubbar (stjärnfrukter) och hur många som krävs för nästa stadium (`null` för legend) |
 | `mood`, `moodText` | `ägg`, `glad`, `hungrig` eller `överlycklig`, plus en färdig mening |
 | `wish` | Dagens önskan, eller `null`. `text` passar efter "Kan du …?". `have`/`need` visar hur långt eleven kommit. |
 
@@ -160,8 +160,8 @@ GET https://talkamrater.degerfalt.se/api/public/classes/{klasskod}?name={namn}&e
 | `kind` | Exempel på `text` |
 |---|---|
 | `egg` | Ägget väntar på dig. Spela en runda så kläcks det! 🥚 |
-| `gift` | Någon i klassen gav mig 🍦 Kom och se! 🎁 (en hemlig present väntar, försvinner när eleven öppnar spelet) |
-| `hungry` | Jag är hungrig! Spelar vi en runda? 🍓 |
+| `gift` | Någon i klassen gav mig 🍦 Kom och se! 🎁 · Någon i klassen har gett dig ett klistermärke! Kom och se 🎁 (en hemlig present väntar, försvinner när eleven öppnar spelet) |
+| `hungry` | Jag är hungrig! Spelar vi en runda? 🍓 (bebisen: "Bu-hu! Jag är så hungrig 😢 …", kungen: "Kungen är hungrig! …") |
 | `buddy` | Alva vill göra en kompisutmaning med dig! 🤝 (en inbjudan går före önskan) · Du och Alva har 25 av 40 rätta svar. Kör! 🤝 (pågående, i växlingen) |
 | `wish` | Kan du poppa alla bubbelpar som blir 9? Då får jag en glass 🍦 |
 | `daily` | Dagens utmaning väntar! Håll sviten på 3 dagar 🔥 |
