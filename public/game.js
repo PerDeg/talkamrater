@@ -494,7 +494,9 @@
       [[523,0],[659,.12],[784,.24],[1047,.36]].forEach(([f, s]) => tone(f, s, .2, 'triangle', .16));
       [1047, 1319, 1568].forEach(f => tone(f, .55, .7, 'triangle', .1));
     },
-    sad() { [523, 494, 440].forEach((f, i) => tone(f, i * .18, .3, 'triangle', .1)); }
+    sad() { [523, 494, 440].forEach((f, i) => tone(f, i * .18, .3, 'triangle', .1)); },
+    // Visslande fall när Plutt ramlar
+    fall() { tone(900, 0, .7, 'sine', .14, 160); tone(140, .72, .18, 'triangle', .16, 80); }
   };
 
   /* ================= Röst ================= */
@@ -2184,21 +2186,26 @@
   }
   const tickVal = (L, i) => L.start + i * L.step;
   // Tallinjer för Plutts hopp. from = strecket där Plutt börjar (det första talet som står ut).
+  // Hoppstorlekarna på varje nivå. Används också som svarsalternativ, så att
+  // alternativen passar nivån (inget "1" när hoppen är 2, 5 och 10).
+  const JUMP_STEPS = [[1, 2, 5], [2, 5, 10], [3, 4], [2, 3, 4, 5, 10], [10, 20, 25, 50], [2, 3, 4, 5, 10, 20, 25]];
   function makeJumpLine(lv) {
     for (let guard = 0; guard < 300; guard++) {
       let step, start, n, a = 0, b;
-      if (lv === 0) { step = pick([1, 2, 5]); start = pick([0, 10, 20]); n = rnd(6, 11); }
-      else if (lv === 1) { step = pick([2, 5, 10]); start = 10 * rnd(1, 6); n = rnd(5, 9); }
-      else if (lv === 2) { step = pick([3, 4]); start = step * rnd(0, 6); n = rnd(5, 8); }
-      else if (lv === 3) { step = pick([2, 3, 4, 5, 10]); start = 10 * rnd(0, 5); n = rnd(6, 9); b = rnd(2, 4); }
-      else if (lv === 4) { step = pick([10, 20, 25, 50]); start = step * rnd(0, 4); n = rnd(5, 7); b = rnd(2, 3); }
-      else { step = pick([2, 3, 4, 5, 10, 20, 25]); start = step * rnd(0, 8); n = rnd(7, 9); a = rnd(1, 3); b = a + rnd(2, 4); }
+      const steps = JUMP_STEPS[lv];
+      step = pick(steps);
+      if (lv === 0) { start = pick([0, 10, 20]); n = rnd(6, 11); }
+      else if (lv === 1) { start = 10 * rnd(1, 6); n = rnd(5, 9); }
+      else if (lv === 2) { start = step * rnd(0, 6); n = rnd(5, 8); }
+      else if (lv === 3) { start = 10 * rnd(0, 5); n = rnd(6, 9); b = rnd(2, 4); }
+      else if (lv === 4) { start = step * rnd(0, 4); n = rnd(5, 7); b = rnd(2, 3); }
+      else { start = step * rnd(0, 8); n = rnd(7, 9); a = rnd(1, 3); b = a + rnd(2, 4); }
       if (b == null) b = n - 1;
       const end = start + step * (n - 1);
       if (b >= n || end > (lv >= 4 ? 300 : 100) || (end > 99 && n > 8)) continue;
-      return { start, step, n, end, labels: new Set([a, b]), from: a };
+      return { start, step, n, end, labels: new Set([a, b]), from: a, hops: b - a, steps };
     }
-    return { start: 0, step: 2, n: 6, end: 10, labels: new Set([0, 5]), from: 0 };
+    return { start: 0, step: 2, n: 6, end: 10, labels: new Set([0, 5]), from: 0, hops: 5, steps: [1, 2, 5] };
   }
 
   // Ritar tallinjen som SVG. Plutt är en liten figur i samma SVG, så att han kan studsa.
@@ -2222,6 +2229,7 @@
       <g class="jumper" hidden><ellipse class="jb" cx="0" cy="-26" rx="26" ry="24"/><ellipse class="jbelly" cx="0" cy="-18" rx="14" ry="10"/>
         <circle class="je" cx="-9" cy="-32" r="6"/><circle class="je" cx="9" cy="-32" r="6"/><circle class="jp" cx="-8" cy="-31" r="3"/><circle class="jp" cx="10" cy="-31" r="3"/>
         <text class="jcount" y="-62"></text></g>
+      <text class="jhelp" y="${NL.y - 120}">Oj, hjälp!</text>
     </svg>`;
     return $('svg', box);
   }
@@ -2359,13 +2367,17 @@
     placeJumper(svg, L, L.from, 0, '');
     $('#lineQ').textContent = 'Hur stora är hoppen mellan strecken?';
     talk(G.idx === 0 ? 'Titta på talen som står ut och räkna hur stort varje hopp är!' : pick(['Hur långt ska jag hoppa?', 'Hjälp mig att hoppa rätt!', 'Hur stora är hoppen nu?']));
-    // Svarsalternativ som ligger nära: ett mer, ett mindre, dubbelt, hälften
-    const s0 = L.step, near = [s0 - 1, s0 + 1, s0 * 2, s0 / 2, s0 + 5, s0 - 5, 1, 2, 3, 4, 5, 10, 20, 25, 50]
-      .filter(c => Number.isInteger(c) && c > 0 && c !== s0);
+    // Svarsalternativ: andra hoppstorlekar på nivån och vanliga misstag, som att
+    // räkna strecken i stället för hoppens storlek, eller dubbelt och hälften.
+    // Aldrig 1 om nivån inte har hopp om 1.
+    const s0 = L.step;
+    const ok = c => Number.isInteger(c) && c > 0 && c !== s0 && (c !== 1 || L.steps.includes(1));
+    const others = shuffle(L.steps.filter(ok)).slice(0, 2);
+    const mistakes = shuffle([L.hops, s0 * 2, s0 / 2, ...(s0 >= 3 && s0 <= 5 ? [s0 + 1, s0 - 1] : [])]);
     const set = new Set([s0]);
-    for (const c of shuffle([...new Set(near)].sort((x, y) => Math.abs(x - s0) - Math.abs(y - s0)).slice(0, 5))) {
+    for (const c of [...others, ...mistakes, ...shuffle(L.steps)]) {
       if (set.size >= 4) break;
-      set.add(c);
+      if (ok(c)) set.add(c);
     }
     const box = $('#lineAnswers'); box.classList.remove('two');
     [...set].sort((a, b) => a - b).forEach(v => {
@@ -2436,8 +2448,15 @@
     $(`.tick[data-i="${failAt}"] .lbl`, svg).classList.add('bad');
     lineWrong();
     G.tries++;
-    talk(`Oj! Jag räknade ${base + (failAt - f) * v}, men här står ${tickVal(L, failAt)}!`, 'oops');
+    // "Oj, hjälp!" när Plutt tappar balansen och ramlar
+    const help = $('.jhelp', svg);
+    help.setAttribute('x', Math.min(NL.x1 - 60, Math.max(NL.x0 + 60, tickX(L, failAt))));
+    help.classList.add('show');
+    sfx.fall();
+    say(pick(['Oj, hjälp!', 'Oj oj oj, hjälp!', 'Hjälp! Jag ramlar!']));
     await fall(svg, L, failAt);
+    help.classList.remove('show');
+    talk(`Oj! Jag räknade ${base + (failAt - f) * v}, men här står ${tickVal(L, failAt)}!`, 'oops');
     if (G !== g) return;
     $('#lineExplain').textContent = `Hoppen var inte ${v}. Från ${base} till ${tickVal(L, failAt)} är det ${failAt - f} hopp.`;
     btn.classList.remove('picked'); btn.classList.add('wrong');

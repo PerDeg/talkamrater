@@ -119,7 +119,8 @@ h1, h2, h3 { font-family: var(--display); line-height: 1.05; margin: 0; text-wra
 }
 .chunky:active { transform: translateY(3px); box-shadow: 0 2px 0 var(--blue-deep); }
 .chunky.coral { background: var(--coral); box-shadow: 0 5px 0 var(--coral-deep); }
-.chunky.ghost { background: var(--sky-2); color: var(--ink); box-shadow: 0 5px 0 var(--line); }
+.chunky.ghost { background: var(--card); color: var(--ink); box-shadow: inset 0 0 0 3px var(--ink), 0 5px 0 var(--ink); }
+.chunky.ghost:active { box-shadow: inset 0 0 0 3px var(--ink), 0 2px 0 var(--ink); }
 .chunky.sun { background: var(--sun); color: var(--ink); box-shadow: 0 5px 0 #D99A00; }
 
 .foot { display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between; align-items: center; margin-top: 16px; }
@@ -679,6 +680,9 @@ details.friends summary { font-family: var(--display); font-weight: 800; font-si
 .numline .je { fill: #fff; } .numline .jp { fill: var(--ink); }
 .numline .jcount { font-family: var(--display); font-weight: 800; font-size: 36px; text-anchor: middle; fill: var(--grape); }
 .ans.picked { outline: 4px solid var(--sun); }
+.numline .jhelp { font-family: var(--display); font-weight: 800; font-size: 44px; text-anchor: middle; fill: var(--berry); stroke: var(--card); stroke-width: 8px; paint-order: stroke; opacity: 0; }
+.numline .jhelp.show { animation: help 1.1s ease forwards; }
+@keyframes help { 0% { opacity: 0; transform: translateY(10px); } 20%, 80% { opacity: 1; transform: translateY(0); } 100% { opacity: 0; } }
 .numline .flag { display: none; }
 #line[data-game="jump"] .numline .flag { display: inline; }
 
