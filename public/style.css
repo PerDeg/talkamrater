@@ -72,8 +72,24 @@ h1, h2, h3 { font-family: var(--display); line-height: 1.05; margin: 0; text-wra
 .hero { display: grid; grid-template-columns: auto 1fr; gap: 16px; align-items: center; margin-block: 6px 18px; }
 .hero h1 { font-size: clamp(2.2rem, 8vw, 3.4rem); font-weight: 800; }
 .hero p { margin: 4px 0 0; color: var(--ink-soft); font-weight: 700; }
-.rank { display: inline-flex; align-items: center; gap: 8px; margin-top: 10px; background: var(--ink); color: var(--card); border-radius: 999px; padding: 4px 14px 4px 6px; font-weight: 800; font-size: 0.95rem; }
-.rank b { background: var(--sun); color: var(--ink); border-radius: 999px; padding: 1px 10px; font-family: var(--display); }
+/* Titeln som en badge: stjärnan med antal stjärnor, titeln och mätaren till nästa titel */
+.rank { --tier: #8FA3C7; display: inline-flex; align-items: center; gap: 10px; margin-top: 10px; max-width: 100%;
+  background: var(--ink); color: var(--card); border-radius: 20px; padding: 8px 14px 8px 8px;
+  box-shadow: inset 0 0 0 3px var(--tier), 0 5px 0 var(--shadow); }
+.rank[data-tier="1"] { --tier: #C98A55; } .rank[data-tier="2"] { --tier: #C9D3E0; } .rank[data-tier="3"] { --tier: var(--sun); }
+.rank[data-tier="4"] { --tier: var(--leaf); } .rank[data-tier="5"] { --tier: var(--berry); } .rank[data-tier="6"] { --tier: #B7A4FF; }
+.rank-star { position: relative; flex: none; width: 62px; height: 62px; display: grid; place-items: center;
+  background: radial-gradient(circle at 40% 35%, #FFF1B8, var(--sun) 45%, #E9A800);
+  clip-path: polygon(50% 0, 61.8% 35.4%, 100% 38.2%, 69.1% 61.8%, 80.9% 100%, 50% 76.4%, 19.1% 100%, 30.9% 61.8%, 0 38.2%, 38.2% 35.4%);
+  filter: drop-shadow(0 2px 0 rgba(0,0,0,0.25)); }
+.rank-star b { margin-top: 6px; font-family: var(--display); font-weight: 800; color: var(--ink); font-size: 1.05rem; font-variant-numeric: tabular-nums; }
+.rank-star.long b { font-size: 0.85rem; }
+.rank-txt { display: grid; gap: 2px; min-width: 0; }
+.rank-txt small { font-weight: 800; font-size: 0.72rem; letter-spacing: 0.04em; color: #C9D3F2; }
+.rank-txt > b { font-family: var(--display); font-size: 1.35rem; line-height: 1.05; color: var(--tier); overflow-wrap: anywhere; }
+.rank-meter { height: 8px; width: min(170px, 100%); background: rgba(255,255,255,0.18); border-radius: 999px; overflow: hidden; }
+.rank-meter i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--sun), #FFE58A); border-radius: 999px; transition: width 0.6s ease; }
+.rank.up { animation: bump 0.6s ease; }
 
 .panel { background: var(--card); border-radius: 26px; padding: 18px; box-shadow: 0 6px 0 var(--shadow); }
 .panel + .panel { margin-top: 16px; }

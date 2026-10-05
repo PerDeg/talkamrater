@@ -23,6 +23,23 @@
   const PIN_PICS = ['🐶', '🐱', '🐸', '🦊', '🐼', '🦁', '🍎', '🍕', '🚗', '🚀', '⚽', '🌈'];
   const TITLES = [[0,'Talspanare'],[10,'Talkompis'],[25,'Plusproffs'],[50,'Mattehjälte'],[100,'Talkamratmästare'],[200,'Mattelegend'],[400,'Mattegeni']];
   const titleFor = t => TITLES.filter(([min]) => t >= min).pop()[1];
+  // Titeln som en badge: stjärnorna i stjärnan, och hur långt det är till nästa titel
+  let shownTier = null;
+  function renderRank() {
+    const t = save.total, tier = TITLES.reduce((n, [min], i) => (t >= min ? i : n), 0);
+    const [from, name] = TITLES[tier], next = TITLES[tier + 1];
+    const badge = $('#rankBadge');
+    badge.dataset.tier = tier;
+    $('#rankStars').textContent = t;
+    $('.rank-star', badge).classList.toggle('long', t >= 1000);
+    $('#rankName').textContent = name;
+    $('#rankLevel').textContent = `${tier + 1} av ${TITLES.length}`;
+    $('#rankMeter').style.width = next ? `${Math.round(100 * (t - from) / (next[0] - from))}%` : '100%';
+    $('#rankNext').textContent = next ? `${next[0] - t} ★ kvar till ${next[1]}` : 'Högsta titeln! 🏆';
+    badge.setAttribute('aria-label', `Din titel: ${name}. ${t} stjärnor.${next ? ` ${next[0] - t} stjärnor kvar till ${next[1]}.` : ''}`);
+    if (shownTier != null && tier > shownTier) { badge.classList.remove('up'); void badge.offsetWidth; badge.classList.add('up'); }
+    shownTier = tier;
+  }
 
   // Bara svenska hejarop, så att talsyntesen läser dem rätt
   const CHEERS = ['Hurra!','Jippi!','Toppen!','Snyggt!','Klockrent!','Kanon!','Jättebra!','Grymt!','Superbra!','Mattemagi!','Helt rätt!','Strålande!','Bingo!','Fantastiskt!','Häftigt!','Ja, ja, ja!','Briljant!','Pang på!'];
@@ -1381,7 +1398,7 @@
     $('#hello').textContent = save.name ? `Hej ${save.name}!` : 'Hej!';
     $('#heroFace').innerHTML = net.player ? `<div class="avatar-big" aria-hidden="true">${net.player.avatar}</div>` : mascotHTML;
     $('#nameInput').value = save.name;
-    $('#rankName').textContent = titleFor(save.total);
+    renderRank();
     $('#totalStars').textContent = save.total;
     $('#stickerCount').textContent = `${STICKERS.filter(([e]) => save.stickers.includes(e)).length} av ${STICKERS.length}`;
 
