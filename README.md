@@ -20,7 +20,7 @@ Spelet fungerar på två sätt:
 
 ## Spelet
 
-Startsidan har en meny längst ner med fyra flikar. I sidhuvudet syns jordgubbarna i Plutts korg (tryck för att gå till Plutt) och ⚙️ **Inställningar**: ljud, röst, vem som hejar, testa ljudet, namn eller konto och nollställ.
+Startsidan har en meny längst ner med fyra flikar. Överst hälsar alltid **talkamraterna** (de två figurerna som hjälper en genom spelet tillsammans med Plutt). I sidhuvudet syns jordgubbarna i Plutts korg (tryck för att gå till Plutt) och ⚙️ **Inställningar**. Har man ett konto är knappen i stället ens egen figur med ett litet kugghjul, som en profilbild. Där finns ljud, röst, vem som hejar, testa ljudet, namn eller konto och nollställ.
 
 
 | Flik | Innehåll |

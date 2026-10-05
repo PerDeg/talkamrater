@@ -389,7 +389,7 @@
   /* ================= Ändringslogg ================= */
   // Det nyaste först. Höj APP_VERSION och lägg till en rad när något ändras i spelet.
   const CHANGELOG = [
-    ['1.17', '5 okt 2026', ['Tydligare sammanfattning efter en runda, en rad per sak.', 'En tydlig huvudknapp för att gå vidare, och Spela igen under.', 'Lärarens fokus står alltid överst i Idag, och läraren kan välja flera fokus och se vem som tränat.', 'Plutt hoppar själv i Plutts hopp, ingen känguru.']],
+    ['1.17', '5 okt 2026', ['Tydligare sammanfattning efter en runda, en rad per sak.', 'En tydlig huvudknapp för att gå vidare, och Spela igen under.', 'Lärarens fokus står alltid överst i Idag, och läraren kan välja flera fokus och se vem som tränat.', 'Plutt hoppar själv i Plutts hopp, ingen känguru.', 'Talkamraterna hälsar alltid på Hem, och din figur är profilbilden uppe till höger.']],
     ['1.16', '5 okt 2026', ['Klappa Plutt på Hem så säger han något.', 'Petar man för många gånger blir han sur, säger till fröken och tar till slut en tupplur.']],
     ['1.15', '5 okt 2026', ['Ändringslogg under Inställningar.', 'Testläge för vuxna: se hur en inbjudan, lärarens fokus eller en kompisutmaning ser ut, utan att röra riktiga elever.', 'Mer luft runt titeln på Hem, och stjärnan rymmer fyra siffror.', 'Mer luft längst ner, ovanför menyn.', 'Idag påminner om Kom ihåg-prov och obesvarade inbjudningar, och ger ett tips om dagen.']],
     ['1.14', '5 okt 2026', ['Plutts nivå syns på Hem, med en mätare till nästa nivå.', 'Idag-rutan har blivit solig och färgglad.']],
@@ -1751,7 +1751,9 @@
   function renderStart() {
     const w = W();
     $('#hello').textContent = save.name ? `Hej ${save.name}!` : 'Hej!';
-    $('#heroFace').innerHTML = net.player ? `<div class="avatar-big" aria-hidden="true">${net.player.avatar}</div>` : mascotHTML;
+    // Talkamraterna hälsar alltid. Den egna figuren är profilbilden uppe till höger.
+    if (!$('#heroFace .mascot')) $('#heroFace').innerHTML = mascotHTML;
+    renderProfileBtn();
     $('#nameInput').value = save.name;
     renderRank();
     renderBerries();
@@ -1826,6 +1828,14 @@
     applyTab();
     document.body.classList.toggle('on-start', current === 'start');
     renderSettings();
+  }
+  // Kugghjulet blir elevens figur när man har ett konto, med ett litet kugghjul i hörnet
+  function renderProfileBtn() {
+    const btn = $('#settingsBtn'), av = net.player && net.player.avatar;
+    btn.classList.toggle('profile', !!av);
+    btn.innerHTML = av ? `<span class="pf-av" aria-hidden="true">${esc(av)}</span><span class="pf-gear" aria-hidden="true">⚙️</span>` : '⚙️';
+    btn.setAttribute('aria-label', av ? `${net.player.name}: profil och inställningar` : 'Inställningar');
+    btn.title = av ? 'Profil och inställningar' : 'Inställningar';
   }
   // Jordgubbarna i sidhuvudet: det man kan handla kläder och mat för
   function renderBerries() {
