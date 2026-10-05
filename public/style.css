@@ -898,8 +898,19 @@ body.on-start .tabbar { display: grid; grid-template-columns: repeat(4, 1fr); po
 .todo-row.main { background: var(--ink); color: var(--card); }
 .todo-row.main small { color: #C9D3F2; }
 /* Plutt i litet format på Hem */
-.homepet { display: grid; grid-template-columns: 72px minmax(0, 1fr) auto; gap: 12px; align-items: center; width: 100%; border: 0; text-align: left; font: inherit; color: inherit; cursor: pointer; }
-.hp-view { height: 72px; border-radius: 18px; display: grid; place-items: end center; padding-bottom: 6px; background: radial-gradient(circle at 50% 85%, #E3DAFF 0 38%, var(--sky-2) 39%); }
+.homepet { display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: 12px; align-items: center; width: 100%; }
+/* Husdjuret går att klappa; resten av kortet leder till Plutt-fliken */
+.hp-view { height: 72px; width: 72px; border: 0; padding: 0 0 6px; cursor: pointer; border-radius: 18px; display: grid; place-items: end center; background: radial-gradient(circle at 50% 85%, #E3DAFF 0 38%, var(--sky-2) 39%); }
+.hp-view:active { transform: scale(0.96); }
+.hp-open { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: center; border: 0; background: none; padding: 0; text-align: left; font: inherit; color: inherit; cursor: pointer; min-width: 0; }
+.hp-txt small.saying { display: inline-block; margin-top: 2px; background: var(--sky-2); color: var(--ink); border-radius: 12px 12px 12px 4px; padding: 4px 10px; animation: pop-in 0.25s ease; }
+@keyframes pop-in { from { transform: scale(0.8); opacity: 0; } to { transform: none; opacity: 1; } }
+/* Petar man för mycket: husdjuret skakar på sig, och till slut somnar det */
+.pet.grumpy { animation: petshake 0.45s ease; }
+.pet:not(.egg).grumpy::before { background: #9A6BFF; }
+.pet.sleepy { animation: petsleep 2.4s ease-in-out infinite; filter: saturate(0.6) brightness(0.92); }
+@keyframes petshake { 0%, 100% { transform: translateX(0); } 20% { transform: translateX(-6px) rotate(-6deg); } 40% { transform: translateX(6px) rotate(6deg); } 60% { transform: translateX(-4px) rotate(-3deg); } 80% { transform: translateX(3px); } }
+@keyframes petsleep { 0%, 100% { transform: scale(1, 1); } 50% { transform: scale(1.04, 0.96) translateY(2px); } }
 .hp-view .pet { --s: 0.8 !important; }
 .hp-txt b { display: block; font-family: var(--display); font-size: 1.2rem; }
 .hp-txt small { display: block; color: var(--ink-soft); font-weight: 700; }

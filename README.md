@@ -82,6 +82,10 @@ Startsidan har en meny längst ner med fyra flikar. I sidhuvudet syns jordgubbar
 
 När något nytt kommer till spelet visas en ruta högst upp på startsidan, t.ex. *"Nytt! Nu kan du träna på tallinjen"*, och när klassen får ett nytt veckouppdrag. Rutan försvinner när eleven har sett den, och det sparas med elevens framsteg. Nya nyheter läggs i listan `NEWS` i `public/game.js`.
 
+### Klappa Plutt
+
+Husdjuret går att klappa både på Hem och i Plutt-fliken, och säger då något som passar dess nivå. Petar man mer än fem gånger på sex sekunder blir det trött på det: *"Aj aj!"*, *"Nu räcker det faktiskt!"*, *"Jag säger till fröken!"* … och till slut *"Okej, nu tar jag en tupplur. Zzz …"*. Då sover det i 15 sekunder innan det vill prata igen.
+
 ### Ändringslogg
 
 Under ⚙️ Inställningar står versionsnumret och **Vad är nytt?**, med alla versioner och vad som ändrats. Listan finns i `CHANGELOG` i `public/game.js`. Lägg till en ny version överst när något ändras i spelet.

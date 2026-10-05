@@ -400,6 +400,7 @@
   /* ================= Ändringslogg ================= */
   // Det nyaste först. Höj APP_VERSION och lägg till en rad när något ändras i spelet.
   const CHANGELOG = [
+    ['1.16', '5 okt 2026', ['Klappa Plutt på Hem så säger han något.', 'Petar man för många gånger blir han sur, säger till fröken och tar till slut en tupplur.']],
     ['1.15', '5 okt 2026', ['Ändringslogg under Inställningar.', 'Testläge för vuxna: se hur en inbjudan, lärarens fokus eller en kompisutmaning ser ut, utan att röra riktiga elever.', 'Mer luft runt titeln på Hem, och stjärnan rymmer fyra siffror.', 'Mer luft längst ner, ovanför menyn.', 'Idag påminner om Kom ihåg-prov och obesvarade inbjudningar, och ger ett tips om dagen.']],
     ['1.14', '5 okt 2026', ['Plutts nivå syns på Hem, med en mätare till nästa nivå.', 'Idag-rutan har blivit solig och färgglad.']],
     ['1.13', '5 okt 2026', ['🍓 i sidhuvudet och ⚙️ Inställningar för ljud, röst och konto.', '27 nya klistermärken, 60 totalt.', 'Tryck på en medalj så står det hur du får den.', 'Fri träning visar hur många stjärnor du tagit av max.', 'Klasskampen syns i Idag.']],
@@ -1085,17 +1086,47 @@
   }
   $('#ctFocusBtn').addEventListener('click', () => startFocus());
   $('#wishBtn').addEventListener('click', () => { const w = save.pet.wish; if (w && WISH_TYPES[w.type]) WISH_TYPES[w.type].go(w); });
-  $('#petBtn').addEventListener('click', () => {
-    const el = $('#petView .pet'); if (!el) return;
-    el.classList.remove('jump'); void el.offsetWidth; el.classList.add('jump');
-    sfx.select();
-    const st = petStage(save.pet.xp);
-    const line = pick(PET_LINES[st]).replace('{n}', nm());
+  // Petar man för många gånger i rad blir husdjuret trött på det, och till slut tar det en tupplur
+  const PET_ANNOYED = ['Aj aj!', 'Aj! Inte så hårt!', 'Det där kittlas inte längre …', 'Nu räcker det faktiskt!', 'Sluta pilla på mig!',
+    'Jag säger till fröken!', 'Hörru, jag är inte en knapp!', 'Hmpf! Nu blir jag sur.', 'Okej, nu tar jag en tupplur. Zzz …'];
+  const PET_SLEEPY = ['Zzz …', 'Pssst, jag sover.', 'Snark … fem plus fem … snark …', 'Väck mig sen, {n}.'];
+  const PET_CALM = 5, PET_WINDOW = 6000, PET_NAP = 15000;
+  let petTaps = [], petNapUntil = 0, petLast = '';
+  // Inte samma mening två gånger i rad
+  const freshLine = list => pick(list.length > 1 ? list.filter(x => x !== petLast) : list);
+  function petTap(el, out) {
+    if (!el) return;
+    const now = Date.now(), st = petStage(save.pet.xp);
+    petTaps = petTaps.filter(x => now - x < PET_WINDOW);
+    petTaps.push(now);
+    let line, mood = 'jump';
+    if (now < petNapUntil) { line = freshLine(PET_SLEEPY); mood = 'sleepy'; }
+    else if (petTaps.length > PET_CALM) {
+      const i = Math.min(petTaps.length - PET_CALM - 1, PET_ANNOYED.length - 1);
+      line = PET_ANNOYED[i]; mood = 'grumpy';
+      if (i === PET_ANNOYED.length - 1) {
+        petNapUntil = now + PET_NAP; petTaps = []; mood = 'sleepy';
+        setTimeout(() => $$('.pet.sleepy').forEach(p => p.classList.remove('sleepy')), PET_NAP);
+      }
+    } else line = freshLine(PET_LINES[st]);
+    petLast = line;
+    line = line.replace('{n}', nm());
+    el.classList.remove('jump', 'grumpy', 'sleepy'); void el.offsetWidth; el.classList.add(mood);
+    sfx[mood === 'grumpy' ? 'wrong' : 'select']();
+    if (mood === 'grumpy') setTimeout(() => el.classList.remove('grumpy'), 600);
     // Bebisen gråter en skvätt när man klappar den
-    if (st === 1) { el.classList.add('crying'); setTimeout(() => el.classList.remove('crying'), 2200); }
-    $('#petMood').textContent = line;
+    if (st === 1 && mood !== 'sleepy') { el.classList.add('crying'); setTimeout(() => el.classList.remove('crying'), 2200); }
+    if (out) out(line);
     say(line);
-  });
+  }
+  $('#petBtn').addEventListener('click', () => petTap($('#petView .pet'), line => { $('#petMood').textContent = line; }));
+  let homeSayTimer = 0;
+  $('#homePetView').addEventListener('click', () => petTap($('#homePetView .pet'), line => {
+    const m = $('#homePetMood');
+    m.textContent = `”${line}”`; m.classList.add('saying');
+    clearTimeout(homeSayTimer);
+    homeSayTimer = setTimeout(() => { m.classList.remove('saying'); m.textContent = petMood().text; }, 4000);
+  }));
   $('#petRename').addEventListener('click', () => {
     const box = $('#petName');
     if (!box) return;
@@ -1693,7 +1724,7 @@
     $('#homePetStage').textContent = `${PET_ICONS[st]} Nivå ${st + 1} av ${PET_STAGES.length} · ${PET_STAGES[st][1]}`;
     const nx = PET_STAGES[st + 1], fr = PET_STAGES[st][0];
     $('#homePetMeter').style.width = nx ? (100 * (save.pet.xp - fr) / (nx[0] - fr)) + '%' : '100%';
-    $('#homePetMood').textContent = $('#petMood').textContent;
+    if (!$('#homePetMood').classList.contains('saying')) $('#homePetMood').textContent = petMood().text;
     $('#basketCount').innerHTML = `${b} <small>${b === 1 ? 'jordgubbe' : 'jordgubbar'}</small>`;
     $('#basketText').textContent = b ? `Mata ${petName()} så växer den, eller köp kläder.` : 'Byt dubbletter i klistermärkesboken så fylls korgen.';
     // Garderoben: små rutor med vad som finns, vad det kostar och vad som är låst
@@ -1717,7 +1748,7 @@
     $('#basketFeed').disabled = b === 0 || st === 0;
     $('#basketFeed').textContent = b ? `Mata ${Math.min(10, b)} 🍓` : 'Korgen är tom';
   }
-  $('#homePet').addEventListener('click', () => { sfx.select(); setTab('pet'); });
+  $('#homePetOpen').addEventListener('click', () => { sfx.select(); setTab('pet'); });
   $('#basketFeed').addEventListener('click', () => feedFromBasket(10));
   $('#basketWardrobe').addEventListener('click', openWardrobe);
   $('#wardRow').addEventListener('click', openWardrobe);
