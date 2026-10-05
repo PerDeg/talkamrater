@@ -55,12 +55,13 @@
     const [from, name] = TITLES[tier], next = TITLES[tier + 1];
     const badge = $('#rankBadge');
     badge.dataset.tier = tier;
-    $('#rankStars').textContent = t;
-    $('.rank-star').dataset.len = Math.min(5, String(t).length);
+    // Stjärnan visar nivån (1–9), så att den alltid får plats. Stjärnorna står i texten bredvid.
+    $('#rankStars').textContent = tier + 1;
+    $('.rank-star').dataset.len = 1;
     $('#rankName').textContent = name;
     $('#rankMeter').style.width = next ? `${Math.round(100 * (t - from) / (next[0] - from))}%` : '100%';
     $('#rankNext').textContent = next ? `${next[0] - t} ★ kvar till ${next[1]}` : 'Högsta titeln! 🏆';
-    $('#rankLevel').textContent = `Nivå ${tier + 1} av ${TITLES.length}`;
+    $('#rankLevel').textContent = `Nivå ${tier + 1} av ${TITLES.length} · ${t} ★`;
     // Resan: alla nivåer som en väg, med märket för varje nivå och var man är nu
     badge.onclick = () => {
       // Stigen slingrar sig fram och tillbaka: märkena turas om att stå till vänster och höger
@@ -85,7 +86,7 @@
       const here = $('#sheetBody .jr-here');
       if (here) setTimeout(() => here.scrollIntoView({ block: 'center', behavior: 'smooth' }), 250);
     };
-    badge.setAttribute('aria-label', `Din titel: ${name}. ${t} stjärnor.${next ? ` ${next[0] - t} stjärnor kvar till ${next[1]}.` : ''}`);
+    badge.setAttribute('aria-label', `Nivå ${tier + 1} av ${TITLES.length}: ${name}. ${t} stjärnor.${next ? ` ${next[0] - t} stjärnor kvar till ${next[1]}.` : ''}`);
     if (shownTier != null && tier > shownTier) { badge.classList.remove('up'); void badge.offsetWidth; badge.classList.add('up'); }
     shownTier = tier;
   }

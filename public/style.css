@@ -86,7 +86,7 @@ h1, h2, h3 { font-family: var(--display); line-height: 1.05; margin: 0; text-wra
   background: radial-gradient(circle at 40% 35%, #FFF1B8, var(--sun) 45%, #E9A800);
   clip-path: polygon(50% 0, 61.8% 35.4%, 100% 38.2%, 69.1% 61.8%, 80.9% 100%, 50% 76.4%, 19.1% 100%, 30.9% 61.8%, 0 38.2%, 38.2% 35.4%);
   filter: drop-shadow(0 2px 0 rgba(0,0,0,0.3)); }
-.rank-star b { margin-top: 6px; font-family: var(--display); font-weight: 800; color: var(--ink); font-size: 0.9rem; line-height: 1; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+.rank-star b { margin-top: 6px; font-family: var(--display); font-weight: 800; color: var(--ink); font-size: 1.15rem; line-height: 1; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
 /* Fler siffror, mindre text: 2000 och mer får plats i stjärnan */
 .rank-star[data-len="3"] b { font-size: 0.78rem; }
 .rank-star[data-len="4"] b { font-size: 0.66rem; margin-top: 5px; }
