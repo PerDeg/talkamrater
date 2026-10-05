@@ -20,7 +20,14 @@
     ['⚽','Fotboll',0],['🎸','Gitarr',1],['🐉','Drake',2],['🦕','Långhals',1],['🐯','Tiger',0],['🐨','Koala',0],
     ['🦉','Uggla',1],['🍩','Munk',0],['🛸','UFO',2],['🐬','Delfin',0],['🦈','Haj',1],['🐢','Sköldpadda',0],
     ['🦒','Giraff',0],['🐧','Pingvin',0],['🤖','Robot',1],['👑','Krona',3],['🌋','Vulkan',2],['🏆','Pokal',3],
-    ['💎','Diamant',3],['☄️','Komet',3],['🌟','Superstjärna',3]
+    ['💎','Diamant',3],['☄️','Komet',3],['🌟','Superstjärna',3],
+    // Nya läggs alltid sist, så att sparade byten (som pekar på platsen i listan) stämmer
+    ['🐶','Hund',0],['🐱','Katt',0],['🐰','Kanin',0],['🐮','Ko',0],['🐷','Gris',0],['🐝','Bi',0],
+    ['🐞','Nyckelpiga',0],['🍌','Banan',0],['🎈','Ballong',0],['🚲','Cykel',0],['🐌','Snigel',0],
+    ['🦩','Flamingo',1],['🦜','Papegoja',1],['🐘','Elefant',1],['🦀','Krabba',1],['🚂','Tåg',1],
+    ['🎡','Pariserhjul',1],['🛹','Skateboard',1],['🧁','Muffins',1],
+    ['🦚','Påfågel',2],['🪐','Saturnus',2],['🧜','Sjöjungfru',2],['🦦','Utter',2],['🎠','Karusell',2],
+    ['🌠','Stjärnfall',3],['🌌','Vintergatan',3],['🎆','Fyrverkeri',3]
   ];
   // Sällsynthet: chans per dragning (i procent), och hur många jordgubbar en dubblett är värd
   const RARITY = [
@@ -173,6 +180,7 @@
   }
 
   function persist() {
+    renderBerries();
     if (net.player) {
       ls.set(ACCOUNT_KEY, { token: net.token, player: net.player, progress: progressOf(save), dirty: true });
       clearTimeout(net.timer);
@@ -1499,11 +1507,12 @@
     if (cur) setTimeout(() => cur.scrollIntoView({ block: 'center', behavior: reduced ? 'auto' : 'smooth' }), 60);
   }
 
+  const WORLD_ICON = { plus: '➕', minus: '➖', dubbel: '✌️' };
   function renderWorldTabs(el, onChange) {
     el.innerHTML = '';
     WORLD_IDS.forEach(id => {
       const b = document.createElement('button');
-      b.textContent = WORLDS[id].tab;
+      b.textContent = `${WORLD_ICON[id]} ${WORLDS[id].tab}`;
       b.setAttribute('aria-pressed', String(prefs.world === id));
       b.addEventListener('click', () => { if (prefs.world === id) return; prefs.world = id; savePrefs(); sfx.select(); onChange(); });
       el.appendChild(b);
@@ -1540,6 +1549,10 @@
     if (tricky) items.push({ ic: '🧩', t: 'Kluriga uppgifter', s: `${tricky} ${tricky === 1 ? 'uppgift' : 'uppgifter'} att öva på`, go: 'Öva', fn: () => { roadContext = false; startTricky(); } });
     const m = net.classInfo && net.classInfo.mission;
     if (m && net.player && !isSolo()) items.push({ ic: '🎯', t: 'Klassens uppdrag', s: `${Math.min(m.progress, m.goal)} av ${m.goal} ${m.unit}`, go: 'Visa', fn: () => setTab('class') });
+    // Klasskampen: bara hur långt det egna berget har kommit, aldrig en placering
+    const k = net.player && !isSolo() && net.classInfo && net.classInfo.contest;
+    const kMine = k && !k.ended && k.classes && k.classes.find(x => x.mine);
+    if (kMine) items.push({ ic: '🏔️', t: k.title, s: `Vårt ${k.mountain} är på ${kMine.percent} %. Nu bygger vi!`, go: 'Heja', fn: () => openClass() });
     const d = stickerDups();
     if (d) items.push({ ic: '🃏', t: `${d} ${d === 1 ? 'dubblett' : 'dubbletter'}`, s: 'Byt mot jordgubbar till kläder och mat', go: 'Byt', fn: () => openBook() });
     $('#todaySub').textContent = new Date().toLocaleDateString('sv-SE', { weekday: 'long', day: 'numeric', month: 'long' });
@@ -1563,13 +1576,33 @@
     $('#homePetView').innerHTML = petHTML(st, petMood().cls, petWear());
     $('#homePetName').textContent = `${petName()} · ${PET_STAGES[st][1]}`;
     $('#homePetMood').textContent = $('#petMood').textContent;
-    $('#basketText').innerHTML = `I korgen: <b class="berries">${b} 🍓</b>. Köp kläder i garderoben, eller mata ${esc(petName())} så växer den. Jordgubbar får du genom att byta dubbletter i klistermärkesboken.`;
+    $('#basketCount').innerHTML = `${b} <small>${b === 1 ? 'jordgubbe' : 'jordgubbar'}</small>`;
+    $('#basketText').textContent = b ? `Mata ${petName()} så växer den, eller köp kläder.` : 'Byt dubbletter i klistermärkesboken så fylls korgen.';
+    // Garderoben: små rutor med vad som finns, vad det kostar och vad som är låst
+    const owned = WARDROBE.filter(it => ownsItem(it.id)), worn = petWear();
+    $('#wardCount').textContent = `${owned.length} av ${WARDROBE.length}`;
+    const canBuy = WARDROBE.filter(it => !ownsItem(it.id) && st >= it.stage && b >= it.price);
+    const nextItem = WARDROBE.find(it => !ownsItem(it.id) && st >= it.stage);
+    $('#wardText').textContent = canBuy.length ? `Du har råd med ${canBuy.length === 1 ? lowerName(canBuy[0].name) : `${canBuy.length} saker`}! 🛍️`
+      : nextItem ? `${nextItem.name} kostar ${nextItem.price} 🍓. Du har ${b}.`
+      : owned.length === WARDROBE.length ? `${petName()} har allt! Byt kläder när du vill.` : `Fler kläder låses upp när ${petName()} växer.`;
+    $('#wardRow').innerHTML = WARDROBE.map(it => {
+      const own = ownsItem(it.id), lock = !own && st < it.stage;
+      const tag = worn.includes(it.id) ? 'På' : own ? '✓' : lock ? '🔒' : `${it.price}🍓`;
+      return `<span class="ward-it${own ? ' own' : ''}${lock ? ' lock' : ''}${canBuy.includes(it) ? ' buy' : ''}" title="${esc(it.name)}"><span aria-hidden="true">${it.icon}</span><small>${tag}</small></span>`;
+    }).join('');
+    // Klistermärken per nivå, så att man ser vad som är kvar att leta efter
+    $('#stickerTiers').innerHTML = RARITY.map((r, i) => {
+      const tier = STICKERS.filter(x => x[2] === i), got = tier.filter(([e]) => stickerCount(e) > 0).length;
+      return `<div class="st-tier r${i}"><span>${r.plural}</span><span class="st-bar"><i style="width:${100 * got / tier.length}%"></i></span><b>${got}/${tier.length}</b></div>`;
+    }).join('');
     $('#basketFeed').disabled = b === 0 || st === 0;
     $('#basketFeed').textContent = b ? `Mata ${Math.min(10, b)} 🍓` : 'Korgen är tom';
   }
   $('#homePet').addEventListener('click', () => { sfx.select(); setTab('pet'); });
   $('#basketFeed').addEventListener('click', () => feedFromBasket(10));
   $('#basketWardrobe').addEventListener('click', openWardrobe);
+  $('#wardRow').addEventListener('click', openWardrobe);
 
   /* ================= Startsidan ================= */
   function renderStart() {
@@ -1578,7 +1611,7 @@
     $('#heroFace').innerHTML = net.player ? `<div class="avatar-big" aria-hidden="true">${net.player.avatar}</div>` : mascotHTML;
     $('#nameInput').value = save.name;
     renderRank();
-    $('#totalStars').textContent = save.total;
+    renderBerries();
     $('#stickerCount').textContent = `${STICKERS.filter(([e]) => save.stickers.includes(e)).length} av ${STICKERS.length}`;
     const dups = stickerDups();
     $('#stickerText').textContent = dups ? `Du har ${dups} ${dups === 1 ? 'dubblett' : 'dubbletter'} att byta mot jordgubbar till ${petName()}!` : `Samla alla ${STICKERS.length}. Några är legendariska och väldigt svåra att hitta!`;
@@ -1590,7 +1623,10 @@
     fixDates();
     const all = stations(w.id), units = pathUnits(w.id);
     const next = all.find(s => !s.done);
-    $('#roadLabel').textContent = w.id === 'plus' ? 'Vägen till expert' : `${w.name}: vägen till expert`;
+    // Kortet visar tydligt vilket räknesätt vägen gäller
+    $('#roadCard').dataset.world = w.id;
+    $('#roadWorld').textContent = `${WORLD_ICON[w.id]} ${w.tab}${w.id === 'plus' ? ' · talkamrater' : ''}`;
+    $('#roadLabel').textContent = `Vägen till expert i ${w.tab.toLowerCase()}`;
     $('#roadCount').textContent = `Steg ${units.done} av ${units.total}`;
     $('#roadMeter').style.width = (100 * units.done / units.total) + '%';
     const recalls = recallsWaiting().filter(r => r.world === w.id);
@@ -1602,7 +1638,10 @@
     $('#trickyPanel').hidden = tricky === 0;
     $('#trickyText').textContent = `${tricky} ${tricky === 1 ? 'uppgift har' : 'uppgifter har'} varit kluriga. Öva på dem så blir de lätta!`;
 
-    $('#freeTitle').textContent = `Fri träning: ${w.name}`;
+    $('#freeTitle').textContent = `Fri träning: ${w.tab}`;
+    const freeGot = w.levels.reduce((sum, n) => sum + bestOf(w.id, n), 0);
+    $('#freeStars').innerHTML = `<span class="star" aria-hidden="true">★</span> ${freeGot} av ${w.levels.length * 3}`;
+    $('#freeStars').setAttribute('aria-label', `${freeGot} av ${w.levels.length * 3} stjärnor`);
     const g = $('#numgrid'); g.innerHTML = '';
     for (const n of w.levels) {
       const b = document.createElement('button');
@@ -1643,9 +1682,18 @@
     $('#noClassText').hidden = (!!net.player && !isSolo()) || !$('#joinCard').hidden;
     applyTab();
     document.body.classList.toggle('on-start', current === 'start');
+    renderSettings();
+  }
+  // Jordgubbarna i sidhuvudet: det man kan handla kläder och mat för
+  function renderBerries() {
+    const el = $('#berryCount');
+    if (el && save) el.textContent = basket();
+  }
+  function renderSettings() {
     $('#soundBtn').setAttribute('aria-pressed', String(prefs.sound));
-    $('#soundBtn').textContent = prefs.sound ? '🔊' : '🔇';
+    $('#soundBtn .tg-ic').textContent = prefs.sound ? '🔊' : '🔇';
     $('#voiceBtn').setAttribute('aria-pressed', String(prefs.voice));
+    $('#settingsBtn').classList.toggle('muted', !prefs.sound);
   }
 
   // Lärarens fokus, t.ex. "p7" = talkamraterna till 7
@@ -1704,6 +1752,8 @@
   // sparas i framstegen (dates['n-<id>']) så att det gäller på alla enheter.
   // Lägg nya nyheter först i listan; bara en visas åt gången.
   const NEWS = [
+    { id: 'stickers2', icon: '🪐', title: '27 nya klistermärken', text: 'Nu finns det 60 klistermärken att samla, bland annat tre nya legendariska. Kan du hitta Vintergatan?',
+      go: 'Öppna boken', action: () => openBook() },
     { id: 'buddy1', icon: '🤝', title: 'Kompisutmaning', text: 'Utmana en kompis på skolan. Klarar ni målet tillsammans får ni varsin kompisbricka!',
       go: 'Utmana en kompis', when: () => canBuddy(), action: () => openBuddy() },
     { id: 'jump2', icon: '🦘', title: 'Svårare hopp för Plutt', text: 'Plutts hopp har nya nivåer med hopp om 3, 4, 20 och 25, och linjer som börjar mitt i.',
@@ -3132,7 +3182,7 @@
     if (prizes.some(p => p.shiny)) setTimeout(() => { cheer('GLÄNSANDE! ✨', true); rain(200); sfx.streak(); say('Wow! Ett glänsande klistermärke!'); }, 3600);
     const best = prizes.reduce((m, p) => Math.max(m, p.rarity), -1);
     if (best >= 2) setTimeout(() => { cheer(best === 3 ? 'LEGENDARISKT!' : 'Sällsynt!', true); rain(best === 3 ? 260 : 120); sfx.streak(); say(best === 3 ? 'Wow! Ett legendariskt klistermärke!' : 'Ett sällsynt klistermärke!'); }, 1800);
-    $('#totalStars').textContent = save.total;
+    renderBerries();
 
     lastStart = g;
     $('#againBtn').textContent = r.passed ? 'Spela igen' : 'Försök igen';
@@ -3350,6 +3400,7 @@
   // En ruta som glider upp nerifrån, med stora knappar (lätt att träffa på mobilen)
   function openSheet(html) {
     const sh = $('#sheet');
+    $('#settingsBox').hidden = true;
     $('#sheetBody').innerHTML = html;
     sh.hidden = false;
     requestAnimationFrame(() => sh.classList.add('open'));
@@ -3360,6 +3411,14 @@
     sh.classList.remove('open');
     setTimeout(() => { sh.hidden = true; }, 200);
   }
+  // Inställningarna ligger i samma ruta, så de nås från alla skärmar
+  function openSettings() {
+    openSheet('');
+    renderSettings(); renderVoicePick();
+    $('#settingsBox').hidden = false;
+  }
+  $('#settingsBtn').addEventListener('click', () => { sfx.select(); openSettings(); });
+  $('#berryPill').addEventListener('click', () => { sfx.select(); closeSheet(); if (!needsWelcome()) setTab('pet'); });
   $('#sheet').addEventListener('click', e => { if (e.target.id === 'sheet' || e.target.closest('[data-close]')) closeSheet(); });
   // Klistermärket i närbild: byt, dela eller läs om det
   function stickerSheet(e) {
@@ -3387,16 +3446,47 @@
     on('shShiny', () => tradeSticker(e, false, true));
     on('shShare', () => shareSticker(e, name, $('#shShare')));
   }
+  // Var en medalj finns och vad som krävs, t.ex. zonprovet i Kompisbyn
+  function medalWhere(k) {
+    for (const w of WORLD_IDS) {
+      const W0 = WORLDS[w];
+      if (!W0.medals[k]) continue;
+      if (k === W0.final.id) return { w, text: `Klara ${W0.final.name} i ${W0.tab.toLowerCase()}. Provet öppnas när du har ★★★ på alla övningar på vägen till expert i ${W0.tab.toLowerCase()}.` };
+      const z = W0.zones.find(z => 't-' + z.id === k);
+      return { w, text: `Klara provet i ${z.name} på vägen till expert i ${W0.tab.toLowerCase()}. Där tränar du talen ${z.from} till ${z.to}.` };
+    }
+    return null;
+  }
+  function medalSheet(k) {
+    if (k === 'buddy') {
+      const nb = save.records.buddies || 0;
+      openSheet(`<div class="sh-big r1">🤝</div><h3>Kompisbricka</h3>
+        <p>Du får en kompisbricka när du och en klasskompis klarar en kompisutmaning tillsammans.${nb ? ` Du har ${nb}!` : ''}</p>
+        <div class="sh-actions"><button class="chunky sun" id="shGo">Till kompisutmaningen</button><button class="chunky ghost" data-close>Stäng</button></div>`);
+      $('#shGo').onclick = () => { closeSheet(); setTab('class'); };
+      return;
+    }
+    const where = medalWhere(k), [e, name] = ALL_MEDALS[k], have = !!save.path[k], shine = !!save.path['s-' + k];
+    const zoneMedal = k.startsWith('t-');
+    openSheet(`<div class="sh-big r3${have ? '' : ' dim'}">${e}</div><h3>${esc(name)}</h3>
+      <p class="sh-rar r3">${have ? (shine ? 'Vunnen och glänsande ✨' : 'Vunnen! 🎉') : 'Inte vunnen än'}</p>
+      <p>${esc(where.text)}</p>
+      ${zoneMedal ? `<p>${shine ? 'Den glänser för att du kom ihåg allt en vecka senare.' : 'En vecka efter provet kommer ett Kom ihåg-prov. Klarar du det börjar medaljen glänsa ✨'}</p>` : ''}
+      <div class="sh-actions"><button class="chunky sun" id="shGo">${have ? 'Till vägen' : 'Gå dit'}</button><button class="chunky ghost" data-close>Stäng</button></div>`);
+    $('#shGo').onclick = () => { closeSheet(); openRoad(where.w); };
+  }
   function openBook(keepScroll) {
     stopGame();
     const got = STICKERS.filter(([e]) => stickerCount(e) > 0).length;
     const shinies = STICKERS.filter(([e]) => stickerCount(e, true) > 0).length;
     $('#bookCount').textContent = `${got} av ${STICKERS.length}${shinies ? ` · ✨ ${shinies} glänsande` : ''}`;
+    // Varje medalj är en knapp: tryck så står det vad som krävs och var man gör det
     $('#medalRow').innerHTML = WORLD_IDS.map(w => Object.entries(WORLDS[w].medals).map(([k, [e, name]]) => (save.path[k]
-      ? `<div class="slot${save.path['s-' + k] ? ' shine' : ''}"><div><div class="em">${e}</div><small>${name}${save.path['s-' + k] ? ' ✨' : ''}</small></div></div>`
-      : `<div class="slot missing" title="${name}">?</div>`)).join('')).join('');
+      ? `<button class="slot${save.path['s-' + k] ? ' shine' : ''}" data-medal="${k}"><div><div class="em">${e}</div><small>${name}${save.path['s-' + k] ? ' ✨' : ''}</small></div></button>`
+      : `<button class="slot missing" data-medal="${k}" aria-label="${name}, inte vunnen än"><div><div class="em">${e}</div><small>?</small></div></button>`)).join('')).join('');
     const nb = save.records.buddies || 0;
-    if (nb) $('#medalRow').insertAdjacentHTML('beforeend', `<div class="slot"><div><div class="em">🤝</div><small>Kompisbricka${nb > 1 ? ` <span class="x">×${nb}</span>` : ''}</small></div></div>`);
+    if (nb || (net.player && !isSolo())) $('#medalRow').insertAdjacentHTML('beforeend', `<button class="slot${nb ? '' : ' missing'}" data-medal="buddy"><div><div class="em">🤝</div><small>Kompisbricka${nb > 1 ? ` <span class="x">×${nb}</span>` : ''}</small></div></button>`);
+    $$('#medalRow [data-medal]').forEach(b => b.addEventListener('click', () => { sfx.select(); medalSheet(b.dataset.medal); }));
     // Flödet: dubbletter → jordgubbar i korgen → kläder eller mat
     const dups = stickerDups();
     const worth = STICKERS.reduce((sum, [e, , r]) => sum + Math.max(0, stickerCount(e) - 1) * RARITY[r].berries, 0);
@@ -3892,10 +3982,10 @@
     $('#hello').textContent = save.name ? `Hej ${save.name}!` : 'Hej!';
     persist();
   });
-  $('#soundBtn').addEventListener('click', () => { prefs.sound = !prefs.sound; savePrefs(); renderStart(); if (prefs.sound) { unlockAudio(); sfx.right(); } else if (silentEl) silentEl.pause(); });
+  $('#soundBtn').addEventListener('click', () => { prefs.sound = !prefs.sound; savePrefs(); renderSettings(); if (prefs.sound) { unlockAudio(); sfx.right(); } else if (silentEl) silentEl.pause(); });
   $('#soundTest').addEventListener('click', soundTest);
   $('#voiceBtn').addEventListener('click', () => {
-    prefs.voice = !prefs.voice; savePrefs(); renderStart();
+    prefs.voice = !prefs.voice; savePrefs(); renderSettings(); renderVoicePick();
     if (!prefs.voice) return stopSpeech();
     loadVoices();
     if (voiceState.server) say(`Hej ${nm()}!`);

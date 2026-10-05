@@ -20,13 +20,14 @@ Spelet fungerar på två sätt:
 
 ## Spelet
 
-Startsidan har en meny längst ner med fyra flikar:
+Startsidan har en meny längst ner med fyra flikar. I sidhuvudet syns jordgubbarna i Plutts korg (tryck för att gå till Plutt) och ⚙️ **Inställningar**: ljud, röst, vem som hejar, testa ljudet, namn eller konto och nollställ.
+
 
 | Flik | Innehåll |
 |---|---|
-| 🏠 **Hem** | Titeln, nyheter, listan **Idag** (nästa steg på vägen, lärarens fokus, Plutts önskan, kompisutmaning, kluriga, klassens uppdrag, dubbletter), dagens utmaning och Plutt i litet format. Inställningar längst ner. |
-| ✏️ **Träna** | Plus, minus och dubblor: vägen till expert, kluriga, fri träning (hopfälld), fler utmaningar och spela två. |
-| 💜 **Plutt** | Husdjuret och dess önskan, korgen med jordgubbar, garderoben och klistermärkesboken. |
+| 🏠 **Hem** | Titeln, nyheter, listan **Idag** (nästa steg på vägen, lärarens fokus, Plutts önskan, kompisutmaning, kluriga, klassens uppdrag, klasskampen, dubbletter), dagens utmaning och Plutt i litet format. |
+| ✏️ **Träna** | Plus, minus och dubblor: vägen till expert (kortet visar tydligt vilket räknesätt den gäller), kluriga, fri träning med alla tal och hur många stjärnor av max man har, fler utmaningar och spela två. |
+| Plutt (mini-Plutt som ikon) | Husdjuret och dess önskan, korgen med jordgubbar, garderoben med alla plagg (pris, låst eller ägt) och klistermärken per nivå. |
 | 👥 **Klassen** | Veckans uppdrag, kompisutmaning och att gå med i en klass. |
 
 **Tre världar**, var och en med fri träning, en egen väg till expert, egna medaljer och ett eget diplom:
@@ -70,7 +71,7 @@ Startsidan har en meny längst ner med fyra flikar:
 - **Belöningar**:
   - Svenska hejarop, konfetti, ljud och röst.
   - Bonus vid flera rätt i rad.
-  - Stjärnor, titlar, 33 klistermärken och 13 medaljer.
+  - Stjärnor, titlar, 60 klistermärken och 13 medaljer. Tryck på en medalj i boken så står det vad som krävs, med en knapp dit.
 - **Glänsande klistermärken** ✨: ungefär vart trettionde klistermärke kommer i en glänsande variant som samlas för sig och är värd tre gånger så många jordgubbar.
 - **Dela med klassen** 🎁: en dubblett kan delas. Den går anonymt till någon i klassen som saknar just det klistermärket (helst någon med få), aldrig till en utvald kompis. Högst fem om dagen.
 - **Klistermärken** ges inte varje runda: 10 % chans med en stjärna, 20 % med två och 35 % med tre. Medaljer, utmaningar och dagens utmaning ger alltid ett. De har fyra nivåer: vanliga (72 %), ovanliga (21 %), sällsynta (6 %) och legendariska (1 %, t.ex. 👑 Krona och 💎 Diamant). Boken är uppdelad per nivå, och ett tryck på ett klistermärke visar stora knappar för att byta eller dela. **Dubbletter byts mot jordgubbar** 🍓 till **Plutts korg**: 1 för en vanlig, 2 ovanlig, 5 sällsynt och 12 legendarisk. Korgens jordgubbar används till **kläder i garderoben** eller som **mat** så att Plutt växer. Det sista exemplaret av ett klistermärke går aldrig att byta bort. Byten sparas i framstegen (`swapped`) och räknas bara uppåt, så att de inte kommer tillbaka när framstegen slås ihop mellan enheter.
