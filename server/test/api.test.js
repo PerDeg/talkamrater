@@ -38,6 +38,12 @@ test('veckans uppdrag börjar på måndag och skalar med klassen', () => {
   assert.ok(missionFor(ws.getTime(), 25).goal > missionFor(ws.getTime(), 2).goal);
 });
 
+test('bytta klistermärken räknas uppåt och kommer inte tillbaka', () => {
+  const m = mergeProgress({ stickers: ['🦊', '🦊', '🦊'], swapped: { s3: 1 } }, { stickers: ['🦊', '🦊', '🦊'], swapped: { s3: 2, x: 5, s9999: 1 } });
+  assert.deepEqual(m.swapped, { s3: 2 });
+  assert.equal(m.stickers.length, 3);
+});
+
 test('global färdighet och datum sparas och slås ihop', () => {
   const m = mergeProgress({ skill: { g: 8 }, dates: { 't-z1': 20000 } }, { skill: { g: 5, p3: 2 }, dates: { 't-z1': 19990, 't-z2': 20010 } });
   assert.deepEqual(m.skill, { g: 5, p3: 2 });

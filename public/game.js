@@ -12,12 +12,22 @@
   const MINUS = '−';
 
   /* ================= Innehåll ================= */
+  // Klistermärken: [emoji, namn, sällsynthet]. Ordningen får inte ändras (index = id "s0", "s1" …
+  // för byten), nya läggs alltid sist.
   const STICKERS = [
-    ['🦖','T-rex'],['🦄','Enhörning'],['🐙','Bläckfisk'],['🦊','Räv'],['🐼','Panda'],['🚀','Raket'],
-    ['🌈','Regnbåge'],['🦁','Lejon'],['🐸','Groda'],['🐳','Val'],['🦋','Fjäril'],['🍕','Pizza'],
-    ['⚽','Fotboll'],['🎸','Gitarr'],['🐉','Drake'],['🦕','Långhals'],['🐯','Tiger'],['🐨','Koala'],
-    ['🦉','Uggla'],['🍩','Munk'],['🛸','UFO'],['🐬','Delfin'],['🦈','Haj'],['🐢','Sköldpadda'],
-    ['🦒','Giraff'],['🐧','Pingvin'],['🤖','Robot'],['👑','Krona'],['🌋','Vulkan'],['🏆','Pokal']
+    ['🦖','T-rex',2],['🦄','Enhörning',2],['🐙','Bläckfisk',1],['🦊','Räv',0],['🐼','Panda',0],['🚀','Raket',1],
+    ['🌈','Regnbåge',1],['🦁','Lejon',0],['🐸','Groda',0],['🐳','Val',1],['🦋','Fjäril',0],['🍕','Pizza',0],
+    ['⚽','Fotboll',0],['🎸','Gitarr',1],['🐉','Drake',2],['🦕','Långhals',1],['🐯','Tiger',0],['🐨','Koala',0],
+    ['🦉','Uggla',1],['🍩','Munk',0],['🛸','UFO',2],['🐬','Delfin',0],['🦈','Haj',1],['🐢','Sköldpadda',0],
+    ['🦒','Giraff',0],['🐧','Pingvin',0],['🤖','Robot',1],['👑','Krona',3],['🌋','Vulkan',2],['🏆','Pokal',3],
+    ['💎','Diamant',3],['☄️','Komet',3],['🌟','Superstjärna',3]
+  ];
+  // Sällsynthet: chans per dragning (i procent), och hur många jordgubbar en dubblett är värd
+  const RARITY = [
+    { name: 'Vanlig', weight: 60, boost: 52, berries: 2 },
+    { name: 'Ovanlig', weight: 28, boost: 30, berries: 4 },
+    { name: 'Sällsynt', weight: 10, boost: 14, berries: 10 },
+    { name: 'Legendarisk', weight: 2, boost: 4, berries: 25 }
   ];
   const AVATARS = ['🦊', '🐼', '🐸', '🦁', '🐯', '🐨', '🐵', '🐰', '🐶', '🐱', '🦄', '🐲'];
   const PIN_PICS = ['🐶', '🐱', '🐸', '🦊', '🐼', '🦁', '🍎', '🍕', '🚗', '🚀', '⚽', '🌈'];
@@ -112,9 +122,9 @@
     set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} },
     del(k) { try { localStorage.removeItem(k); } catch (e) {} }
   };
-  const FIELDS = ['best', 'total', 'rounds', 'stickers', 'path', 'records', 'tricky', 'skill', 'dates', 'pet', 'daily'];
+  const FIELDS = ['best', 'total', 'rounds', 'stickers', 'path', 'records', 'tricky', 'skill', 'dates', 'swapped', 'pet', 'daily'];
   const freshProgress = () => ({
-    best: {}, total: 0, rounds: 0, stickers: [], path: {}, records: {}, tricky: {}, skill: {}, dates: {},
+    best: {}, total: 0, rounds: 0, stickers: [], path: {}, records: {}, tricky: {}, skill: {}, dates: {}, swapped: {},
     pet: { xp: 0, last: 0, born: 0, name: '' }, daily: { day: 0, streak: 0, best: 0, count: 0 }
   });
   const progressOf = s => Object.fromEntries(FIELDS.map(k => [k, s[k]]));
@@ -275,12 +285,9 @@
     const wk = dayNumber(new Date(m.start));
     if (!m.start || (save.dates.allin || 0) >= wk) return;
     save.dates.allin = wk;
-    const owned = new Set(save.stickers);
-    const missing = STICKERS.filter(([e]) => !owned.has(e));
-    const prize = missing.length ? pick(missing) : pick(STICKERS);
-    save.stickers.push(prize[0]);
+    const prize = giveSticker(true);
     persist();
-    setTimeout(() => { cheer(`Alla med-bonus! ${prize[0]}`, true); rain(120); say('Alla i klassen har spelat den här veckan! Du får ett extra klistermärke.'); }, 2600);
+    setTimeout(() => { cheer(`Alla med-bonus! ${prize.e}`, true); rain(120); say('Alla i klassen har spelat den här veckan! Du får ett extra klistermärke.'); }, 2600);
   }
   function postEvent(type, detail) { if (net.player && !isSolo()) api('POST', 'me/events', { type, detail: String(detail) }).catch(() => {}); }
 
@@ -1416,6 +1423,8 @@
     renderRank();
     $('#totalStars').textContent = save.total;
     $('#stickerCount').textContent = `${STICKERS.filter(([e]) => save.stickers.includes(e)).length} av ${STICKERS.length}`;
+    const dups = stickerDups();
+    $('#stickerText').textContent = dups ? `Du har ${dups} ${dups === 1 ? 'dubblett' : 'dubbletter'} att byta mot jordgubbar till ${petName()}!` : `Samla alla ${STICKERS.length}. Några är legendariska och väldigt svåra att hitta!`;
 
     renderDaily();
     renderPet();
@@ -2871,13 +2880,7 @@
     // Klistermärken (dagens utmaning ger ett extra)
     const prizes = [];
     if (r.passed) {
-      for (let i = 0; i < (daily ? 2 : 1); i++) {
-        const owned = new Set(save.stickers);
-        const missing = STICKERS.filter(([e]) => !owned.has(e));
-        const prize = missing.length ? pick(missing) : pick(STICKERS);
-        prizes.push({ e: prize[0], name: prize[1], dup: !missing.length });
-        save.stickers.push(prize[0]);
-      }
+      for (let i = 0; i < (daily ? 2 : 1); i++) prizes.push(giveSticker(r.stars === 3));
     }
     const bookDone = !save.path.book && STICKERS.every(([e]) => save.stickers.includes(e));
     if (bookDone) save.path.book = 1;
@@ -2960,8 +2963,11 @@
 
     $('#reward').hidden = !prizes.length && !medal;
     if (medal) { $('#rewardEm').textContent = medal[0]; $('#rewardText').textContent = `${medal[1]}! Och ett klistermärke: ${prizes[0].e} ${prizes[0].name}`; }
-    else if (prizes.length === 2) { $('#rewardEm').textContent = prizes[0].e + prizes[1].e; $('#rewardText').textContent = `Två klistermärken: ${prizes[0].name} och ${prizes[1].name}!`; }
-    else if (prizes.length) { $('#rewardEm').textContent = prizes[0].e; $('#rewardText').textContent = prizes[0].dup ? `En till ${prizes[0].name.toLowerCase()} till samlingen!` : `Nytt klistermärke: ${prizes[0].name}!`; }
+    else if (prizes.length === 2) { $('#rewardEm').textContent = prizes[0].e + prizes[1].e; $('#rewardText').textContent = `Två klistermärken: ${prizeText(prizes[0])} och ${prizeText(prizes[1])}!`; }
+    else if (prizes.length) { $('#rewardEm').textContent = prizes[0].e; $('#rewardText').textContent = prizes[0].isNew ? `Nytt klistermärke: ${prizeText(prizes[0])}!` : `En till ${prizeText(prizes[0])}. Byt dubbletter mot jordgubbar i boken!`; }
+    $('#reward').classList.toggle('legend', prizes.some(p => p.rarity === 3));
+    const best = prizes.reduce((m, p) => Math.max(m, p.rarity), -1);
+    if (best >= 2) setTimeout(() => { cheer(best === 3 ? 'LEGENDARISKT!' : 'Sällsynt!', true); rain(best === 3 ? 260 : 120); sfx.streak(); say(best === 3 ? 'Wow! Ett legendariskt klistermärke!' : 'Ett sällsynt klistermärke!'); }, 1800);
     $('#totalStars').textContent = save.total;
 
     lastStart = g;
@@ -3009,7 +3015,7 @@
     else if (g.kind === 'tricky') startTricky();
     else if (g.kind === 'daily') startDaily();
   });
-  $('#bookBtn').addEventListener('click', openBook);
+  $('#bookBtn').addEventListener('click', () => openBook());
 
   /* ================= Diplom ================= */
   function showDiploma(wid, celebrateNow) {
@@ -3032,24 +3038,86 @@
   $('#dipPrint').addEventListener('click', () => { try { window.print(); } catch (e) {} });
 
   /* ================= Klistermärken ================= */
-  function openBook() {
+  // Sällsynthet, dragning och byten. Ett byte räknas upp i save.swapped (per id),
+  // så antalet man har = antal i listan minus antal bytta.
+  const stickerId = e => 's' + STICKERS.findIndex(([x]) => x === e);
+  function stickerCount(e) {
+    const n = save.stickers.reduce((c, x) => c + (x === e), 0);
+    return Math.max(0, n - (save.swapped[stickerId(e)] || 0));
+  }
+  const stickerDups = () => STICKERS.reduce((sum, [e]) => sum + Math.max(0, stickerCount(e) - 1), 0);
+  const lowerName = n => (n === n.toUpperCase() ? n : n.toLowerCase()); // "UFO" förblir UFO
+  const prizeText = p => `${lowerName(p.name)}${p.rarity ? ` (${RARITY[p.rarity].name.toLowerCase()})` : ''}`;
+  // Dra ett klistermärke: först sällsynthet, sedan helst ett man inte har inom den
+  function giveSticker(boost) {
+    const w = RARITY.map(r => (boost ? r.boost : r.weight));
+    let roll = Math.random() * w.reduce((a, b) => a + b, 0), rarity = 0;
+    while (roll >= w[rarity]) { roll -= w[rarity]; rarity++; }
+    const tier = STICKERS.filter(x => x[2] === rarity);
+    const missing = tier.filter(([e]) => stickerCount(e) === 0);
+    const [e, name] = missing.length && Math.random() < 0.7 ? pick(missing) : pick(tier);
+    const isNew = stickerCount(e) === 0;
+    save.stickers.push(e);
+    return { e, name, rarity, isNew };
+  }
+  // Byt en dubblett mot jordgubbar till husdjuret. Det sista exemplaret går aldrig att byta.
+  function tradeSticker(e, quiet) {
+    if (stickerCount(e) < 2) return 0;
+    const id = stickerId(e), rar = STICKERS.find(([x]) => x === e)[2];
+    save.swapped[id] = (save.swapped[id] || 0) + 1;
+    const berries = RARITY[rar].berries;
+    const grew = feedPet(berries);
+    if (!quiet) afterTrade(berries, grew);
+    return berries;
+  }
+  function tradeAll() {
+    let berries = 0, grew = 0;
+    STICKERS.forEach(([e]) => { while (stickerCount(e) > 1) { const before = petStage(save.pet.xp); berries += tradeSticker(e, true); if (petStage(save.pet.xp) > before) grew = petStage(save.pet.xp); } });
+    if (berries) afterTrade(berries, grew);
+  }
+  function afterTrade(berries, grew) {
+    persist();
+    sfx.pop();
+    cheer(`+${berries} 🍓`, berries >= 10);
+    say(berries >= 10 ? `Mums! ${berries} jordgubbar till ${petName()}!` : pick(['Mums!', 'Smaskens!', `${petName()} blev glad!`]));
+    if (grew) setTimeout(() => { cheer(`${petName()} växte!`, true); sfx.streak(); rain(120); }, 900);
+    openBook(true);
+  }
+  function openBook(keepScroll) {
     stopGame();
-    const counts = {};
-    save.stickers.forEach(e => { counts[e] = (counts[e] || 0) + 1; });
-    const got = STICKERS.filter(([e]) => counts[e]).length;
+    const got = STICKERS.filter(([e]) => stickerCount(e) > 0).length;
     $('#bookCount').textContent = `${got} av ${STICKERS.length}`;
     $('#medalRow').innerHTML = WORLD_IDS.map(w => Object.entries(WORLDS[w].medals).map(([k, [e, name]]) => (save.path[k]
       ? `<div class="slot${save.path['s-' + k] ? ' shine' : ''}"><div><div class="em">${e}</div><small>${name}${save.path['s-' + k] ? ' ✨' : ''}</small></div></div>`
       : `<div class="slot missing" title="${name}">?</div>`)).join('')).join('');
     const nb = save.records.buddies || 0;
     if (nb) $('#medalRow').insertAdjacentHTML('beforeend', `<div class="slot"><div><div class="em">🤝</div><small>Kompisbricka${nb > 1 ? ` <span class="x">×${nb}</span>` : ''}</small></div></div>`);
+    // Byt-rutan
+    const dups = stickerDups();
+    const worth = STICKERS.reduce((sum, [e, , r]) => sum + Math.max(0, stickerCount(e) - 1) * RARITY[r].berries, 0);
+    $('#tradeBox').innerHTML = dups
+      ? `<span class="tb-ic" aria-hidden="true">🍓</span><span><b>${dups} ${dups === 1 ? 'dubblett' : 'dubbletter'}</b> kan bli <b>${worth} jordgubbar</b> till ${esc(petName())}. Det sista av varje sparas alltid.</span>
+         <button class="chunky sun" id="tradeAll">Byt alla</button>`
+      : `<span class="tb-ic" aria-hidden="true">🍓</span><span>Har du flera av samma klistermärke kan du byta dem mot jordgubbar till ${esc(petName())}. Ju sällsyntare, desto fler!</span>`;
+    const ta = $('#tradeAll');
+    if (ta) ta.onclick = tradeAll;
+    $('#rarityKey').innerHTML = RARITY.map((r, i) => `<span class="rk r${i}">${r.name} · ${r.berries} 🍓</span>`).join('');
     const g = $('#bookGrid'); g.innerHTML = '';
-    STICKERS.forEach(([e, name]) => {
-      g.insertAdjacentHTML('beforeend', counts[e]
-        ? `<div class="slot"><div><div class="em">${e}</div><small>${name}</small>${counts[e] > 1 ? ` <span class="x">×${counts[e]}</span>` : ''}</div></div>`
-        : `<div class="slot missing" aria-label="Inte hittad än">?</div>`);
+    STICKERS.forEach(([e, name, r]) => {
+      const n = stickerCount(e);
+      const el = document.createElement('div');
+      el.className = `slot r${r}` + (n ? '' : ' missing');
+      el.innerHTML = n
+        ? `<div><div class="em">${e}</div><small>${name}</small>${n > 1 ? ` <span class="x">×${n}</span>` : ''}
+           ${n > 1 ? `<button class="swap" aria-label="Byt en ${name} mot ${RARITY[r].berries} jordgubbar">Byt +${RARITY[r].berries}🍓</button>` : ''}</div>`
+        : `<span aria-label="${RARITY[r].name} klistermärke, inte hittat än">?</span>`;
+      el.title = RARITY[r].name;
+      const sw = $('.swap', el);
+      if (sw) sw.addEventListener('click', () => tradeSticker(e));
+      g.appendChild(el);
     });
-    show('book');
+    if (current !== 'book') show('book');
+    else if (!keepScroll) window.scrollTo({ top: 0 });
   }
 
   /* ================= Klassen ================= */
@@ -3497,7 +3565,7 @@
   $('#mixB').addEventListener('click', () => { roadContext = false; startMix(1); });
   $('#trickyBtn').addEventListener('click', () => { roadContext = false; startTricky(); });
   $('#dailyBtn').addEventListener('click', () => { roadContext = false; startDaily(); });
-  $('#openBook').addEventListener('click', openBook);
+  $('#openBook').addEventListener('click', () => openBook());
   $('#openDuel').addEventListener('click', openDuel);
   $('#duelGo').addEventListener('click', startDuel);
   $('#duelAgain').addEventListener('click', startDuel);

@@ -59,7 +59,8 @@ Spelet fungerar på två sätt:
 - **Belöningar**:
   - Svenska hejarop, konfetti, ljud och röst.
   - Bonus vid flera rätt i rad.
-  - Stjärnor, titlar, 30 klistermärken och 13 medaljer.
+  - Stjärnor, titlar, 33 klistermärken och 13 medaljer.
+- **Klistermärken** har fyra nivåer: vanliga (60 % chans), ovanliga (28 %), sällsynta (10 %) och legendariska (2 %, t.ex. 👑 Krona och 💎 Diamant). En runda med tre stjärnor ger lite bättre chans. **Dubbletter kan bytas mot jordgubbar** 🍓 till husdjuret i klistermärkesboken: 2 för en vanlig, 4 ovanlig, 10 sällsynt och 25 legendarisk. Det sista exemplaret av ett klistermärke går aldrig att byta bort. Byten sparas i framstegen (`swapped`) och räknas bara uppåt, så att de inte kommer tillbaka när framstegen slås ihop mellan enheter.
 
 - **Första gången** väljer man mellan att gå med i sin klass, skapa ett eget konto eller bara skriva sitt namn och spela på enheten. Inget namn är förvalt.
 

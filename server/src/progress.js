@@ -29,7 +29,7 @@ export const EXPERT_KEYS = { plus: 'expert', minus: 'mexpert', dubbel: 'dexpert'
 
 export function emptyProgress() {
   return {
-    best: {}, total: 0, rounds: 0, stickers: [], path: {}, records: {}, tricky: {}, skill: {}, dates: {},
+    best: {}, total: 0, rounds: 0, stickers: [], path: {}, records: {}, tricky: {}, skill: {}, dates: {}, swapped: {},
     pet: { xp: 0, last: 0, born: 0, name: '', wish: null, wishDay: 0, wishCount: 0, treats: 0 },
     daily: { day: 0, streak: 0, best: 0, count: 0 }
   };
@@ -54,6 +54,9 @@ export function sanitizeProgress(p) {
     skill: intMap(src.skill, 10, /^([pmd]\d{1,2}|g)$/),
     // Dagnummer då något hände på vägen, t.ex. när ett prov klarades (för Kom ihåg-provet)
     dates: intMap(src.dates, 1e6),
+    // Hur många av varje klistermärke (s0, s1 …) eleven har bytt mot jordgubbar.
+    // Räknas bara uppåt, så att ett byte inte kommer tillbaka vid sammanslagning.
+    swapped: intMap(src.swapped, 1e5, /^s\d{1,3}$/),
     pet: {
       xp: int(pet.xp, 0, 1e6), last: int(pet.last, 0, 1e6), born: int(pet.born, 0, 1e6), name: cleanText(pet.name, 16),
       wish: sanitizeWish(pet.wish),
@@ -91,6 +94,7 @@ export function mergeProgress(stored, incoming) {
     // Färdighet kan också sjunka, så den senaste versionen vinner
     skill: Object.keys(b.skill).length ? b.skill : a.skill,
     dates: maxMap(a.dates, b.dates),
+    swapped: maxMap(a.swapped, b.swapped),
     pet: {
       xp: Math.max(a.pet.xp, b.pet.xp),
       last: Math.max(a.pet.last, b.pet.last),
