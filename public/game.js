@@ -1437,6 +1437,7 @@
       : `${net.player.avatar} ${net.player.name} i ${net.player.className || 'klassen'}`;
 
     renderVoicePick();
+    renderExtrasCard();
     $('#soundBtn').setAttribute('aria-pressed', String(prefs.sound));
     $('#soundBtn').textContent = prefs.sound ? '🔊' : '🔇';
     $('#voiceBtn').setAttribute('aria-pressed', String(prefs.voice));
@@ -1879,6 +1880,507 @@
     }
   }
 
+  /* ================= Fler utmaningar: tallinjen, Plutts hopp, hemliga ordet ================= */
+  // Egna övningar med nivåer som låses upp i tur och ordning (minst ★★ på nivån före).
+  const LINE_LEVELS = [
+    { name: 'Talen 0–10', hint: 'Ett steg i taget' },
+    { name: 'Upp till 20', hint: 'Hopp om 1 och 2' },
+    { name: 'Hopp om 2 och 5', hint: 'Upp till 50' },
+    { name: 'Upp till 100', hint: 'Hopp om 5 och 10' },
+    { name: 'Mitt i', hint: 'T.ex. mellan 40 och 60' },
+    { name: 'Klurigt', hint: 'Bara några tal står ut' }
+  ];
+  const WORD_LEVELS = [
+    { name: 'Plus upp till 10', hint: 'Korta ord' },
+    { name: 'Plus upp till 20', hint: 'Ord med fyra bokstäver' },
+    { name: 'Plus och minus', hint: 'Upp till 20' },
+    { name: 'Blandat', hint: 'Med dubblor och tal som fattas' },
+    { name: 'Tiotal', hint: 'Långa ord och tal upp till 100' }
+  ];
+  const EXTRAS = {
+    line: { title: 'Tallinjen', icon: '📏', prefix: 'nl', mode: 'line', levels: LINE_LEVELS, count: 8,
+      talk: 'Varje streck på tallinjen är ett tal. Kan du hitta var talen bor?' },
+    jump: { title: 'Plutts hopp', icon: '🦘', prefix: 'nj', mode: 'jump', levels: LINE_LEVELS, count: 6,
+      talk: 'Säg hur stora hoppen är mellan strecken. Svarar du rätt studsar jag hela vägen. Annars ramlar jag!' },
+    word: { title: 'Hemliga ordet', icon: '🔤', prefix: 'w', mode: 'word', levels: WORD_LEVELS,
+      talk: 'Räkna ut talet, leta upp det i kodnyckeln och få fram bokstaven. Vilket ord blir det?' }
+  };
+  const extraStars = (id, i) => save.best[`${EXTRAS[id].prefix}${i}:${EXTRAS[id].mode}`] || 0;
+  const extraOpen = (id, i) => i === 0 || extraStars(id, i - 1) >= 2;
+  const extraReached = id => EXTRAS[id].levels.reduce((n, _, i) => (extraOpen(id, i) ? i + 1 : n), 1);
+
+  function renderExtrasCard() {
+    for (const id of Object.keys(EXTRAS)) {
+      const el = $(`[data-lv="${id}"]`);
+      if (el) el.textContent = `Nivå ${extraReached(id)} av ${EXTRAS[id].levels.length}`;
+    }
+  }
+  let extraCtx = null;
+  function openExtra(id) {
+    stopGame();
+    extraCtx = id;
+    const X = EXTRAS[id];
+    show('extra');
+    $('#extraTitle').innerHTML = `${X.icon} ${esc(X.title)}`;
+    talk(X.talk, 'happy');
+    const box = $('#extraLevels'); box.innerHTML = '';
+    X.levels.forEach((lv, i) => {
+      const open = extraOpen(id, i), stars = extraStars(id, i);
+      const b = document.createElement('button');
+      b.className = 'level' + (open ? '' : ' locked') + (stars ? ' done' : '');
+      b.disabled = !open;
+      b.innerHTML = `<span class="lv-n" aria-hidden="true">${open ? i + 1 : '🔒'}</span>
+        <span class="lv-t"><b>${esc(lv.name)}</b><small>${esc(lv.hint)}</small></span>
+        <span class="lv-s" aria-label="${stars} stjärnor">${starStr(stars)}</span>`;
+      b.addEventListener('click', () => startExtra(id, i));
+      box.appendChild(b);
+    });
+  }
+  function startExtra(id, i) {
+    if (id === 'word') return startWord(i);
+    return startLine(id, i);
+  }
+  // Låser rundan upp nästa nivå? Räknas ut innan finish() sparar stjärnorna.
+  function unlockNote(id, i, stars) {
+    const X = EXTRAS[id];
+    if (stars >= 2 && extraStars(id, i) < 2 && i + 1 < X.levels.length) return `🔓 Ny nivå: <b>${esc(X.levels[i + 1].name)}</b>!`;
+    if (stars >= 2 && i + 1 === X.levels.length && extraStars(id, i) < 2) return `🏆 Du har klarat alla nivåer i ${esc(X.title)}!`;
+    return null;
+  }
+  const extraStarsFor = (mistakes, total) => (mistakes <= Math.ceil(total * 0.1) ? 3 : mistakes <= Math.ceil(total * 0.35) ? 2 : 1);
+
+  /* ---------- Tallinjen ---------- */
+  // En tallinje: start, hoppets storlek, antal streck och vilka streck som har ett tal utskrivet
+  function makeLine(lv, forJump) {
+    for (let guard = 0; guard < 200; guard++) {
+      let start = 0, step = 1, n = 11, labels = null;
+      if (lv === 0) { step = 1; start = 0; labels = [0, 5, 10]; }
+      else if (lv === 1) { if (Math.random() < 0.5) { step = 1; start = 10; } else { step = 2; start = 0; } }
+      else if (lv === 2) { step = pick([2, 5]); n = pick([6, 11]); start = 10 * rnd(0, 5); }
+      else if (lv === 3) { step = pick([5, 10]); start = step === 10 ? 0 : pick([0, 50]); }
+      else if (lv === 4) { step = pick([1, 2, 2, 5]); start = 10 * rnd(1, 8); }
+      else { step = pick([2, 5, 10]); n = pick([6, 8, 11]); start = step * rnd(1, 9); }
+      const end = start + step * (n - 1);
+      if (end > 100) continue;
+      if (!labels) {
+        if (lv === 5) {
+          // Två tal någonstans på linjen, resten får man räkna fram
+          const a = forJump ? 0 : rnd(0, 2), b = Math.min(n - 1, a + rnd(2, 4));
+          labels = [a, b];
+        } else labels = [0, n - 1];
+      }
+      return { start, step, n, labels: new Set(labels), end };
+    }
+    return { start: 0, step: 1, n: 11, labels: new Set([0, 10]), end: 10 };
+  }
+  const tickVal = (L, i) => L.start + i * L.step;
+
+  // Ritar tallinjen som SVG. Plutt är en liten figur i samma SVG, så att han kan studsa.
+  const NL = { w: 700, h: 230, x0: 45, x1: 655, y: 150 };
+  const tickX = (L, i) => NL.x0 + i * (NL.x1 - NL.x0) / (L.n - 1);
+  function drawLine(L, opts = {}) {
+    const box = $('#numline');
+    const ticks = Array.from({ length: L.n }, (_, i) => {
+      const x = tickX(L, i), shown = L.labels.has(i) || (opts.reveal && opts.reveal.has(i));
+      return `<g class="tick${L.labels.has(i) ? ' given' : ''}" data-i="${i}">
+        <rect class="hit" x="${x - 28}" y="40" width="56" height="190" rx="10"></rect>
+        <line x1="${x}" y1="${NL.y - 22}" x2="${x}" y2="${NL.y + 22}"></line>
+        <text class="lbl${shown ? '' : ' hidden'}" x="${x}" y="${NL.y + 64}">${tickVal(L, i)}</text>
+      </g>`;
+    }).join('');
+    const marker = opts.marker != null ? `<g class="marker" transform="translate(${tickX(L, opts.marker)} ${NL.y - 34})"><path d="M-22 -40h44l-22 32z"/><text y="-50">?</text></g>` : '';
+    box.innerHTML = `<svg viewBox="0 0 ${NL.w} ${NL.h}" role="img" aria-label="Tallinje från ${L.start} till ${L.end}">
+      <line class="axis" x1="${NL.x0 - 30}" y1="${NL.y}" x2="${NL.x1 + 30}" y2="${NL.y}"></line>
+      ${ticks}${marker}
+      <g class="flag" transform="translate(${NL.x1} ${NL.y - 24})"><line y1="0" y2="-80"></line><path d="M0 -80h40l-10 14 10 14H0z"/></g>
+      <g class="jumper" hidden><ellipse class="jb" cx="0" cy="-26" rx="26" ry="24"/><ellipse class="jbelly" cx="0" cy="-18" rx="14" ry="10"/>
+        <circle class="je" cx="-9" cy="-32" r="6"/><circle class="je" cx="9" cy="-32" r="6"/><circle class="jp" cx="-8" cy="-31" r="3"/><circle class="jp" cx="10" cy="-31" r="3"/>
+        <text class="jcount" y="-62"></text></g>
+    </svg>`;
+    return $('svg', box);
+  }
+  function revealLabels(svg, idxs, cls = '') {
+    idxs.forEach(i => { const t = $(`.tick[data-i="${i}"] .lbl`, svg); if (t) { t.classList.remove('hidden'); if (cls) { t.classList.remove('good', 'bad'); t.classList.add(cls); } } });
+  }
+  // Räkna från närmaste utskrivna tal fram till målet: "40, 42, 44, 46"
+  function countPath(L, target) {
+    const from = [...L.labels].sort((a, b) => Math.abs(a - target) - Math.abs(b - target))[0];
+    const dir = target >= from ? 1 : -1, out = [];
+    for (let i = from; ; i += dir) { out.push(i); if (i === target) break; }
+    return out;
+  }
+
+  function startLine(id, lv) {
+    stopGame();
+    const X = EXTRAS[id];
+    G = { game: id, kind: 'train', world: 'plus', extra: id, lv, level: `${X.prefix}${lv}`, mode: X.mode, idx: 0, total: X.count,
+      mistakes: 0, score: 0, streak: 0, bestStreak: 0, marks: [], again: () => startLine(id, lv) };
+    show('line');
+    $('#line').dataset.game = id;
+    $('#lineLabel').textContent = `${X.title}: ${X.levels[lv].name}`;
+    $('#lineBack').onclick = () => openExtra(id);
+    setStreak($('#lineStreak'), 0);
+    nextLine();
+  }
+  function lineRight(btn, firstTry) {
+    if (firstTry) { G.score++; G.marks[G.idx] = true; } else G.marks[G.idx] = false;
+    G.streak++; G.bestStreak = Math.max(G.bestStreak, G.streak);
+    setStreak($('#lineStreak'), G.streak);
+    wishProgress({ kind: 'answer', w: 'plus', streak: G.streak });
+    if (btn) celebrate(btn, G.streak);
+    G.idx++;
+    renderProgress($('#lineProgress'), G.idx, G.total, -1, G.marks);
+  }
+  function lineWrong() {
+    G.mistakes++; G.streak = 0;
+    setStreak($('#lineStreak'), 0);
+    sfx.wrong();
+  }
+  function lineNext(delay) {
+    const g = G;
+    timer = setTimeout(() => { if (G !== g) return; if (G.idx >= G.total) finishLine(); else nextLine(); }, delay);
+  }
+  function nextLine() {
+    renderProgress($('#lineProgress'), G.idx, G.total, G.idx, G.marks);
+    $('#lineExplain').textContent = '';
+    $('#lineAnswers').innerHTML = '';
+    G.tries = 0; G.locked = false;
+    if (G.game === 'jump') return nextJump();
+    const L = makeLine(G.lv, false);
+    const free = Array.from({ length: L.n }, (_, i) => i).filter(i => !L.labels.has(i));
+    const target = pick(free);
+    G.L = L; G.target = target;
+    G.form = G.idx % 2 === 0 ? 'which' : 'tap';
+    if (G.form === 'which') {
+      const svg = drawLine(L, { marker: target });
+      $('#lineQ').textContent = 'Vilket tal står Plutt-pilen på?';
+      talk(G.idx === 0 ? 'Titta på talen som står ut. Hur stora är hoppen mellan strecken?' : pick(['Vilket tal är det?', 'Räkna från ett tal du ser.', 'Vilket tal bor där?']));
+      const ans = tickVal(L, target);
+      const set = new Set([ans]);
+      for (const c of shuffle([ans + L.step, ans - L.step, ans + 1, ans - 1, ans + 2 * L.step, ans - 2 * L.step, ans + 10, ans - 10])) {
+        if (set.size >= 4) break;
+        if (c >= Math.max(0, L.start - L.step) && c <= L.end + L.step && c !== ans) set.add(c);
+      }
+      const box = $('#lineAnswers'); box.classList.remove('two');
+      shuffle([...set]).forEach(v => {
+        const b = document.createElement('button');
+        b.className = 'ans'; b.textContent = v; b.dataset.v = v;
+        b.addEventListener('click', () => answerWhich(b, v, svg));
+        box.appendChild(b);
+      });
+    } else {
+      const svg = drawLine(L);
+      const val = tickVal(L, target);
+      $('#lineQ').innerHTML = `Tryck på strecket där <b>${val}</b> bor.`;
+      talk(`Var bor talet ${val}?`);
+      svg.classList.add('tappable');
+      $$('.tick', svg).forEach(t => t.addEventListener('click', () => answerTap(t, +t.dataset.i, svg)));
+    }
+  }
+  function explainLine(L, target) {
+    const path = countPath(L, target).map(i => tickVal(L, i));
+    return `Varje hopp är ${L.step}. Räkna: ${path.join(', ')}.`;
+  }
+  function answerWhich(btn, v, svg) {
+    if (!G || G.locked || btn.disabled) return;
+    const L = G.L, ans = tickVal(L, G.target);
+    if (v === ans) {
+      G.locked = true;
+      btn.classList.add('right');
+      $$('#lineAnswers .ans').forEach(x => { x.disabled = true; });
+      revealLabels(svg, [G.target], 'good');
+      $('#lineExplain').textContent = `${ans} bor där! ${explainLine(L, G.target)}`;
+      lineRight(btn, G.tries === 0);
+      return lineNext(1700);
+    }
+    btn.classList.add('wrong'); btn.disabled = true;
+    G.tries++; lineWrong();
+    if (G.tries >= 2) revealLabels(svg, countPath(L, G.target).filter(i => i !== G.target));
+    $('#lineExplain').textContent = G.tries >= 2 ? `Räkna med mig: ${countPath(L, G.target).map(i => (i === G.target ? '?' : tickVal(L, i))).join(', ')}` : `Inte ${v}. Hur stort är varje hopp?`;
+    talk(pick(OOPS), 'oops');
+  }
+  function answerTap(el, i, svg) {
+    if (!G || G.locked) return;
+    const L = G.L;
+    if (i === G.target) {
+      G.locked = true;
+      el.classList.add('right');
+      revealLabels(svg, [i], 'good');
+      $('#lineExplain').textContent = `Ja! Där bor ${tickVal(L, i)}. ${explainLine(L, i)}`;
+      lineRight(el, G.tries === 0);
+      return lineNext(1700);
+    }
+    el.classList.add('wrong'); setTimeout(() => el.classList.remove('wrong'), 600);
+    revealLabels(svg, [i], 'bad');
+    G.tries++; lineWrong();
+    $('#lineExplain').textContent = `Där bor ${tickVal(L, i)}. Ska vi längre ${tickVal(L, i) < tickVal(L, G.target) ? 'fram' : 'bak'}?`;
+    talk(pick(OOPS), 'oops');
+    if (G.tries >= 3) {
+      G.locked = true;
+      revealLabels(svg, countPath(L, G.target), 'good');
+      $('#lineExplain').textContent = `Här bor ${tickVal(L, G.target)}. ${explainLine(L, G.target)}`;
+      G.marks[G.idx] = false; G.idx++;
+      lineNext(2600);
+    }
+  }
+
+  /* ---------- Plutts hopp ---------- */
+  function nextJump() {
+    const L = makeLine(G.lv, true);
+    G.L = L;
+    const svg = drawLine(L);
+    G.svg = svg;
+    placeJumper(svg, L, 0, 0, '');
+    $('#lineQ').textContent = 'Hur stora är hoppen mellan strecken?';
+    talk(G.idx === 0 ? 'Titta på talen som står ut och räkna hur stort varje hopp är!' : pick(['Hur långt ska jag hoppa?', 'Hjälp mig att hoppa rätt!', 'Hur stora är hoppen nu?']));
+    const set = new Set([L.step]);
+    for (const c of shuffle([1, 2, 3, 4, 5, 10, 20].filter(v => v !== L.step).sort((a, b) => Math.abs(a - L.step) - Math.abs(b - L.step)).slice(0, 4))) {
+      if (set.size >= 4) break;
+      set.add(c);
+    }
+    const box = $('#lineAnswers'); box.classList.remove('two');
+    [...set].sort((a, b) => a - b).forEach(v => {
+      const b = document.createElement('button');
+      b.className = 'ans'; b.textContent = v; b.dataset.v = v;
+      b.addEventListener('click', () => answerJump(b, v));
+      box.appendChild(b);
+    });
+  }
+  function placeJumper(svg, L, i, dy, count, rot = 0) {
+    const j = $('.jumper', svg); j.removeAttribute('hidden'); // SVG har ingen .hidden-egenskap
+    j.setAttribute('transform', `translate(${typeof i === 'number' ? tickX(L, i) : i.x} ${NL.y - 6 + dy}) rotate(${rot}) scale(1.35)`);
+    $('.jcount', j).textContent = count;
+  }
+  // En studs från streck a till b, med en båge
+  function hop(svg, L, a, b, count, ms = 300) {
+    const g = G;
+    return new Promise(res => {
+      const x0 = tickX(L, a), x1 = tickX(L, b), t0 = performance.now();
+      const step = now => {
+        if (G !== g) return res(false);
+        const t = Math.min(1, (now - t0) / ms);
+        placeJumper(svg, L, { x: x0 + (x1 - x0) * t }, -70 * 4 * t * (1 - t), t > 0.6 ? count : '');
+        if (t < 1) requestAnimationFrame(step); else { sfx.tick(); res(true); }
+      };
+      requestAnimationFrame(step);
+    });
+  }
+  function fall(svg, L, i) {
+    const g = G;
+    return new Promise(res => {
+      const t0 = performance.now(), x = tickX(L, i);
+      const step = now => {
+        if (G !== g) return res(false);
+        const t = Math.min(1, (now - t0) / 900);
+        placeJumper(svg, L, { x: x + 40 * t }, -30 * Math.sin(Math.min(1, t * 3) * Math.PI) + 260 * t * t, '', 200 * t);
+        if (t < 1) requestAnimationFrame(step); else res(true);
+      };
+      requestAnimationFrame(step);
+    });
+  }
+  async function answerJump(btn, v) {
+    if (!G || G.locked || btn.disabled) return;
+    G.locked = true;
+    const L = G.L, svg = G.svg, g = G;
+    $$('#lineAnswers .ans').forEach(x => { x.disabled = true; });
+    btn.classList.add('picked');
+    placeJumper(svg, L, 0, 0, tickVal(L, 0));
+    // Plutt hoppar med elevens hoppstorlek och jämför med talen som står ut
+    let failAt = -1;
+    for (let i = 1; i < L.n; i++) {
+      const count = tickVal(L, 0) + i * v;
+      if (!(await hop(svg, L, i - 1, i, count, L.n > 8 ? 240 : 300))) return;
+      if (L.labels.has(i) && count !== tickVal(L, i)) { failAt = i; break; }
+    }
+    if (G !== g) return;
+    if (failAt < 0) {
+      btn.classList.add('right');
+      $('.flag', svg).classList.add('won');
+      revealLabels(svg, Array.from({ length: L.n }, (_, i) => i), 'good');
+      $('#lineExplain').textContent = `Hoppen var ${L.step} stora! Plutt kom ända fram. 🚩`;
+      lineRight(btn, G.tries === 0);
+      say(pick([`Jippi! Hoppen var ${L.step}!`, 'Hela vägen fram!', 'Studs, studs, hurra!']));
+      return lineNext(1900);
+    }
+    // Fel: talet stämmer inte, Plutt snubblar och ramlar ner
+    $(`.tick[data-i="${failAt}"] .lbl`, svg).classList.add('bad');
+    lineWrong();
+    G.tries++;
+    talk(`Oj! Jag räknade ${tickVal(L, 0) + failAt * v}, men här står ${tickVal(L, failAt)}!`, 'oops');
+    await fall(svg, L, failAt);
+    if (G !== g) return;
+    $('#lineExplain').textContent = `Hoppen var inte ${v}. Från ${tickVal(L, 0)} till ${tickVal(L, failAt)} är det ${failAt} hopp.`;
+    btn.classList.remove('picked'); btn.classList.add('wrong');
+    if (G.tries >= 2) {
+      // Visa rätt svar och gå vidare
+      revealLabels(svg, Array.from({ length: L.n }, (_, i) => i));
+      $('#lineExplain').textContent = `Hoppen var ${L.step} stora: ${Array.from({ length: Math.min(L.n, 6) }, (_, i) => tickVal(L, i)).join(', ')} …`;
+      $$('#lineAnswers .ans').forEach(x => { if (+x.dataset.v === L.step) x.classList.add('correct-was'); });
+      G.marks[G.idx] = false; G.idx++;
+      renderProgress($('#lineProgress'), G.idx, G.total, -1, G.marks);
+      return lineNext(2600);
+    }
+    placeJumper(svg, L, 0, 0, '');
+    G.locked = false;
+    $$('#lineAnswers .ans').forEach(x => { if (!x.classList.contains('wrong')) x.disabled = false; });
+  }
+  function finishLine() {
+    const X = EXTRAS[G.game], stars = extraStarsFor(G.mistakes, G.total);
+    const note = unlockNote(G.game, G.lv, stars);
+    finish({ passed: true, stars, score: G.score, total: G.total, notes: note ? [note] : [],
+      stats: `${G.score} av ${G.total} rätt på första försöket · bästa svit ${G.bestStreak} i rad · ${X.levels[G.lv].name}` });
+  }
+
+  /* ---------- Hemliga ordet ---------- */
+  const WORDS = [
+    ['SOL', '☀️'], ['ORM', '🐍'], ['MUS', '🐭'], ['BÅT', '⛵'], ['TÅG', '🚂'], ['UFO', '🛸'], ['SNÖ', '❄️'], ['ÖRN', '🦅'],
+    ['KATT', '🐱'], ['HUND', '🐶'], ['BOLL', '⚽'], ['FISK', '🐟'], ['HÄST', '🐴'], ['GRIS', '🐷'], ['KAKA', '🍪'], ['MÅNE', '🌙'], ['BUSS', '🚌'], ['ÄGG', '🥚'],
+    ['GLASS', '🍦'], ['RAKET', '🚀'], ['DRAKE', '🐉'], ['UGGLA', '🦉'], ['BANAN', '🍌'], ['TIGER', '🐯'], ['LEJON', '🦁'], ['ROBOT', '🤖'],
+    ['PIZZA', '🍕'], ['ÄPPLE', '🍎'], ['TÅRTA', '🎂'], ['BJÖRN', '🐻'], ['PANDA', '🐼'], ['ZEBRA', '🦓'], ['KRONA', '👑'], ['PIRAT', '🏴‍☠️']
+  ];
+  const WORD_LEN = [[3], [3, 4], [4], [4, 5], [5]];
+  const WORD_MAX = [10, 20, 20, 20, 100];
+  const ALPHABET = 'ABCDEFGHIJKLMNOPRSTUVYÅÄÖ';
+  // En uppgift vars svar är v, efter nivå. På tiotalsnivån utan minnessiffra:
+  // entalen och tiotalen räknas var för sig (23 + 14, 58 − 23, 40 + 20).
+  function wordTask(lv, v) {
+    if (lv >= 4) {
+      const T = Math.floor(v / 10), U = v % 10;
+      const type = U === 0 && T >= 2 ? pick(['tens', 'plus', 'minus']) : pick(['plus', 'minus']);
+      if (type === 'tens') { const a = 10 * rnd(1, T - 1); return { text: `${a} + ${v - a}`, v }; }
+      if (type === 'minus' && v <= 89) {
+        const t2 = rnd(1, Math.min(4, Math.floor((99 - v) / 10))), u2 = rnd(0, 9 - U);
+        const sub = 10 * t2 + u2;
+        return { text: `${v + sub} ${MINUS} ${sub}`, v };
+      }
+      const t1 = rnd(1, Math.max(1, T - 1)), u1 = rnd(0, U);
+      const a = 10 * t1 + u1;
+      return { text: `${a} + ${v - a}`, v };
+    }
+    const max = WORD_MAX[lv];
+    const opts = [];
+    if (v >= 2) opts.push('plus');
+    if (lv >= 2 && v < max) opts.push('minus');
+    if (lv >= 3 && v % 2 === 0 && v >= 2 && v <= 20) opts.push('dubbel');
+    if (lv >= 3 && v >= 1 && v <= 15) opts.push('missing');
+    const type = opts.length ? pick(opts) : 'plus';
+    if (type === 'dubbel') return { text: `${v / 2} + ${v / 2}`, v };
+    if (type === 'minus') { const top = rnd(v + 1, Math.min(max, v + 10)); return { text: `${top} ${MINUS} ${top - v}`, v }; }
+    if (type === 'missing') { const a = rnd(1, Math.min(9, max - v)); return { text: `${a} + ? = ${a + v}`, v, missing: true }; }
+    const a = rnd(v >= 2 ? 1 : 0, Math.max(0, v - 1)); return { text: `${a} + ${v - a}`, v };
+  }
+  function startWord(lv) {
+    stopGame();
+    const lens = WORD_LEN[lv];
+    const [word, emoji] = pick(WORDS.filter(([w]) => lens.includes([...w].length) && w !== (prefs.lastWord || '')));
+    prefs.lastWord = word; savePrefs();
+    const letters = [...word], max = WORD_MAX[lv];
+    // Varje bokstav får ett eget tal, plus några låtsasbokstäver i nyckeln
+    const pool = shuffle(lv >= 4 ? range(21, 89) : range(2, max));
+    const key = {};
+    const distinct = [...new Set(letters)];
+    distinct.forEach((l, i) => { key[l] = pool[i]; });
+    shuffle([...ALPHABET].filter(l => !distinct.includes(l))).slice(0, 4).forEach((l, i) => { key[l] = pool[distinct.length + i]; });
+    G = { game: 'word', kind: 'train', world: 'plus', extra: 'word', lv, level: `w${lv}`, mode: 'word', word, emoji, letters, key,
+      tasks: letters.map(l => wordTask(lv, key[l])), idx: 0, step: 'num', mistakes: 0, score: 0, streak: 0, bestStreak: 0, tries: 0,
+      again: () => startWord(lv) };
+    show('word');
+    $('#wordLabel').textContent = `Hemliga ordet: ${WORD_LEVELS[lv].name}`;
+    $('#wordBack').onclick = () => openExtra('word');
+    setStreak($('#wordStreak'), 0);
+    const keyBox = $('#codeKey'); keyBox.innerHTML = '';
+    Object.entries(key).sort((a, b) => a[1] - b[1]).forEach(([l, n]) => {
+      const b = document.createElement('button');
+      b.className = 'keytile'; b.dataset.n = n; b.dataset.l = l;
+      b.innerHTML = `<span class="kn">${n}</span><span class="kl">${l}</span>`;
+      b.setAttribute('aria-label', `${n} är ${l}`);
+      b.addEventListener('click', () => pickLetter(b));
+      keyBox.appendChild(b);
+    });
+    talk(`Ett hemligt ord med ${letters.length} bokstäver. Räkna ut talet och leta upp bokstaven i nyckeln!`, 'happy');
+    nextWordTask();
+  }
+  function renderSlots() {
+    $('#wordSlots').innerHTML = G.letters.map((l, i) => `<span class="slot-l${i < G.idx ? ' got' : i === G.idx ? ' now' : ''}">${i < G.idx ? l : '?'}</span>`).join('');
+  }
+  function nextWordTask() {
+    renderSlots();
+    G.step = 'num'; G.tries = 0; G.locked = false;
+    const t = G.tasks[G.idx];
+    $('#wordEq').innerHTML = t.missing ? esc(t.text).replace('?', '<span class="gap">?</span>') : `${esc(t.text)} = <span class="gap">?</span>`;
+    $('#wordExplain').textContent = `Bokstav ${G.idx + 1} av ${G.letters.length}`;
+    $('#codeKey').classList.remove('active');
+    $$('#codeKey .keytile').forEach(x => x.classList.remove('hit', 'wrong'));
+    const v = t.v, set = new Set([v]);
+    for (const c of shuffle([v + 1, v - 1, v + 2, v - 2, v + 10, v - 10])) { if (set.size >= 4) break; if (c >= 0) set.add(c); }
+    const box = $('#wordAnswers'); box.innerHTML = ''; box.hidden = false;
+    shuffle([...set]).forEach(n => {
+      const b = document.createElement('button');
+      b.className = 'ans'; b.textContent = n; b.dataset.v = n;
+      b.addEventListener('click', () => answerWordNum(b, n));
+      box.appendChild(b);
+    });
+    if (G.idx > 0) talk(pick(['Nästa bokstav!', 'Vad blir det nu?', 'Ordet växer fram!']));
+  }
+  function answerWordNum(btn, n) {
+    if (!G || G.game !== 'word' || G.step !== 'num' || btn.disabled) return;
+    const t = G.tasks[G.idx];
+    if (n === t.v) {
+      btn.classList.add('right');
+      $$('#wordAnswers .ans').forEach(x => { x.disabled = true; });
+      $('#wordEq').innerHTML = t.missing ? esc(t.text).replace('?', `<span class="gap filled">${t.v}</span>`) : `${esc(t.text)} = <span class="gap filled">${t.v}</span>`;
+      sfx.quick();
+      G.step = 'letter';
+      $('#codeKey').classList.add('active');
+      $('#wordExplain').innerHTML = `Rätt, <b>${t.v}</b>! Leta upp ${t.v} i kodnyckeln och tryck på bokstaven.`;
+      talk(`Vilken bokstav är ${t.v}?`, 'happy');
+      return;
+    }
+    btn.classList.add('wrong'); btn.disabled = true;
+    G.mistakes++; G.tries++; G.streak = 0; setStreak($('#wordStreak'), 0);
+    sfx.wrong(); talk(pick(OOPS), 'oops');
+  }
+  function pickLetter(tile) {
+    if (!G || G.game !== 'word' || G.step !== 'letter') return;
+    const t = G.tasks[G.idx];
+    if (+tile.dataset.n !== t.v) {
+      tile.classList.add('wrong'); setTimeout(() => tile.classList.remove('wrong'), 500);
+      G.mistakes++; G.tries++; G.streak = 0; setStreak($('#wordStreak'), 0);
+      sfx.wrong();
+      $('#wordExplain').innerHTML = `Det där är ${tile.dataset.n}. Leta efter <b>${t.v}</b>.`;
+      return;
+    }
+    G.step = 'done';
+    tile.classList.add('hit');
+    if (G.tries === 0) G.score++;
+    G.streak++; G.bestStreak = Math.max(G.bestStreak, G.streak);
+    setStreak($('#wordStreak'), G.streak);
+    wishProgress({ kind: 'answer', w: 'plus', streak: G.streak });
+    celebrate(tile, G.streak, true);
+    G.idx++;
+    renderSlots();
+    if (G.idx >= G.letters.length) {
+      $('#codeKey').classList.remove('active');
+      $('#wordEq').innerHTML = `<span class="word-reveal">${esc(G.word)} <span aria-hidden="true">${G.emoji}</span></span>`;
+      $('#wordAnswers').hidden = true;
+      const pretty = G.word[0] + G.word.slice(1).toLowerCase();
+      $('#wordExplain').textContent = `Det hemliga ordet var ${G.word}!`;
+      cheer(`${G.word}! ${G.emoji}`, true); rain(120);
+      say(`Det hemliga ordet var ${pretty}!`);
+      const g = G;
+      timer = setTimeout(() => {
+        if (G !== g) return;
+        const stars = extraStarsFor(G.mistakes, G.letters.length * 2);
+        const note = unlockNote('word', G.lv, stars);
+        finish({ passed: true, stars, score: G.score, total: G.letters.length, notes: [`🔤 Ordet var <b>${esc(G.word)}</b> ${G.emoji}`, ...(note ? [note] : [])],
+          stats: `${G.letters.length} bokstäver · ${G.score} utan fel · ${WORD_LEVELS[G.lv].name}` });
+      }, 2600);
+      return;
+    }
+    timer = setTimeout(() => { if (G && G.game === 'word') nextWordTask(); }, 700);
+  }
+  $$('.extra-btn').forEach(b => b.addEventListener('click', () => { roadContext = false; openExtra(b.dataset.extra); }));
+
   /* ================= Kompisduell ================= */
   const DUEL_MODES = [
     { id: 'p10', label: 'Talkamrater 1–10', w: 'plus', lo: 2, hi: 10 },
@@ -2196,6 +2698,7 @@
       }
       notes.push(...beadNotes.slice(0, 2));
     }
+    if (r.notes) notes.push(...r.notes);
     if (wishNote) notes.push(`${wishNote.t[1]} ${esc(petName())} fick ${wishNote.t[2]}! Önskan uppfylld.`);
     wishNote = null;
     if (grew) notes.push(`🍓 ${esc(petName())} <b>växte och blev ${PET_STAGES[grew][1].toLowerCase()}!</b>`);
@@ -2215,7 +2718,10 @@
     lastStart = g;
     $('#againBtn').textContent = r.passed ? 'Spela igen' : 'Försök igen';
     const fromRoad = roadContext || !!g.station;
-    if (step && !step.done) {
+    if (g.extra) {
+      $('#otherBtn').textContent = 'Välj nivå';
+      $('#otherBtn').onclick = () => openExtra(g.extra);
+    } else if (step && !step.done) {
       $('#otherBtn').textContent = r.passed ? 'Nästa moment' : `Till ${step.name}`;
       $('#otherBtn').onclick = () => openStep(stationById(step.id));
     } else {

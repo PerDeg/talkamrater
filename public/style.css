@@ -620,6 +620,72 @@ details.friends summary { font-family: var(--display); font-weight: 800; font-si
 .voicepick { margin-top: 12px; display: grid; gap: 6px; justify-items: center; text-align: center; }
 .voicepick .lead { font-weight: 800; }
 
+/* Fler utmaningar */
+.extras { margin-top: 16px; }
+.extra-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.extra-btn { border: 0; border-radius: 20px; padding: 12px 8px; background: var(--sky-2); box-shadow: inset 0 -4px 0 var(--line); display: grid; gap: 2px; justify-items: center; text-align: center; min-width: 0; }
+.extra-btn .ex-ic { font-size: 2rem; line-height: 1.1; }
+.extra-btn b { font-family: var(--display); font-size: 1.1rem; line-height: 1.1; }
+.extra-btn small { font-weight: 700; color: var(--ink-soft); font-size: 0.8rem; }
+.extra-btn .ex-lv { margin-top: 4px; font-size: 0.75rem; font-weight: 800; background: var(--card); border-radius: 999px; padding: 2px 8px; }
+@media (max-width: 380px) { .extra-row { grid-template-columns: 1fr; } .extra-btn { grid-template-columns: auto 1fr auto; justify-items: start; text-align: left; align-items: center; column-gap: 10px; } .extra-btn .ex-ic { grid-row: span 2; } }
+.levels { display: grid; gap: 10px; margin-top: 4px; }
+.level { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; align-items: center; border: 0; border-radius: 20px; padding: 12px 14px; background: var(--card); box-shadow: 0 5px 0 var(--shadow); text-align: left; }
+.level .lv-n { width: 46px; height: 46px; border-radius: 50%; display: grid; place-items: center; background: var(--sun); font-family: var(--display); font-weight: 800; font-size: 1.4rem; }
+.level.done .lv-n { background: var(--leaf); color: var(--card); }
+.level.locked { opacity: 0.55; } .level.locked .lv-n { background: var(--sky-2); font-size: 1.1rem; }
+.level .lv-t b { display: block; font-family: var(--display); font-size: 1.2rem; line-height: 1.1; }
+.level .lv-t small { color: var(--ink-soft); font-weight: 700; }
+.level .lv-s { color: var(--line); white-space: nowrap; } .level .lv-s .on { color: var(--sun); -webkit-text-stroke: 0.6px #D99A00; }
+
+/* Tallinjen */
+.line-q { margin: 0 0 6px; font-weight: 800; font-size: 1.2rem; }
+.numline svg { width: 100%; height: auto; display: block; overflow: visible; margin-bottom: 10px; }
+.numline .axis { stroke: var(--ink); stroke-width: 6; stroke-linecap: round; }
+.numline .tick line { stroke: var(--ink); stroke-width: 5; stroke-linecap: round; }
+.numline .tick .hit { fill: transparent; }
+.numline .tappable .tick { cursor: pointer; }
+.numline .tappable .tick:hover .hit { fill: var(--sky-2); }
+.numline .tick.right .hit { fill: #D9F7E7; }
+.numline .tick.wrong .hit { fill: #FFE0EA; }
+.numline .lbl { font-family: var(--display); font-weight: 800; font-size: 38px; text-anchor: middle; fill: var(--ink); }
+.numline .tick:not(.given) .lbl { fill: var(--blue); }
+.numline .lbl.hidden { display: none; }
+.numline .lbl.good { fill: var(--leaf); }
+.numline .lbl.bad { fill: var(--berry); }
+.numline .marker path { fill: var(--coral); }
+.numline .marker text { font-family: var(--display); font-weight: 800; font-size: 44px; text-anchor: middle; fill: var(--coral-deep); }
+.numline .flag line { stroke: var(--ink-soft); stroke-width: 4; }
+.numline .flag path { fill: var(--line); }
+.numline .flag.won path { fill: var(--leaf); }
+.numline .jb { fill: var(--grape); }
+.numline .jbelly { fill: #CBBDFF; }
+.numline .je { fill: #fff; } .numline .jp { fill: var(--ink); }
+.numline .jcount { font-family: var(--display); font-weight: 800; font-size: 36px; text-anchor: middle; fill: var(--grape); }
+.ans.picked { outline: 4px solid var(--sun); }
+.numline .flag { display: none; }
+#line[data-game="jump"] .numline .flag { display: inline; }
+
+/* Hemliga ordet */
+.wordslots { display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.slot-l { width: 48px; height: 58px; border-radius: 12px; display: grid; place-items: center; background: var(--sky-2); font-family: var(--display); font-weight: 800; font-size: 2rem; color: var(--line); box-shadow: inset 0 -4px 0 var(--line); }
+.slot-l.now { outline: 4px solid var(--sun); }
+.slot-l.got { background: var(--leaf); color: var(--card); box-shadow: inset 0 -4px 0 rgba(0,0,0,0.2); animation: bump 0.4s ease; }
+#wordEq { margin-bottom: 12px; }
+.word-reveal { font-size: 1.3em; letter-spacing: 0.08em; color: var(--leaf); }
+.codekey-wrap { margin-top: 14px; display: grid; gap: 6px; }
+.codekey-title { font-weight: 800; color: var(--ink-soft); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.08em; }
+.codekey { display: grid; grid-template-columns: repeat(auto-fill, minmax(54px, 1fr)); gap: 6px; }
+.keytile { border: 0; border-radius: 12px; padding: 6px 2px; background: #FFF6DA; box-shadow: inset 0 -3px 0 #F2C55C; display: grid; line-height: 1.1; }
+.keytile .kn { font-weight: 800; color: var(--ink-soft); font-size: 0.95rem; font-variant-numeric: tabular-nums; }
+.keytile .kl { font-family: var(--display); font-weight: 800; font-size: 1.5rem; }
+.codekey.active .keytile { cursor: pointer; }
+.codekey.active { animation: keyglow 1.6s ease infinite; border-radius: 14px; }
+@keyframes keyglow { 50% { box-shadow: 0 0 0 6px rgba(255, 200, 61, 0.5); } }
+.keytile.hit { background: var(--leaf); color: var(--card); box-shadow: none; }
+.keytile.hit .kn { color: var(--card); }
+.keytile.wrong { animation: wobble 0.4s ease; background: #FFE0EA; }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition: none !important; }
   .cheer { animation: none; transform: translate(-50%, -50%); opacity: 1; }

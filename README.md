@@ -51,6 +51,10 @@ Spelet fungerar på två sätt:
   - **Tillsammans** (lagkamp): spelarna turas om och hjälps åt mot klockan, t.ex. 12 rätt på 90 sekunder. Den som väntar ser frågan och hejar. Ett fel visar rätt svar och turen går vidare.
   - Spelare 2 kan vändas upp och ner för att sitta mittemot.
   - Man väljer talkamrater, tiokamrater, minus eller dubblor.
+- **Fler utmaningar** (nästa steg efter plus, minus och dubblor), var och en med nivåer som låses upp med minst ★★:
+  - 📏 **Tallinjen:** Plutt-pilen pekar på ett streck. Vilket tal är det? Eller tryck på strecket där talet bor, t.ex. 46 mellan 40 och 60. Sex nivåer från 0–10 till tallinjer där bara några tal står ut.
+  - 🦘 **Plutts hopp:** hur stora är hoppen mellan strecken? Rätt svar och Plutt studsar hela vägen till flaggan. Fel svar och han räknar fel, märker att det inte stämmer med talet som står där och ramlar ner.
+  - 🔤 **Hemliga ordet:** räkna ut talet, leta upp det i kodnyckeln och tryck på bokstaven. Bokstäverna blir ett ord, t.ex. KATT 🐱. Nivåer från plus upp till 10 till tiotal utan minnessiffra.
 - **Kluriga kamrater**: spelet minns svåra uppgifter i alla världar och låter eleven öva extra på dem.
 - **Belöningar**:
   - Svenska hejarop, konfetti, ljud och röst.

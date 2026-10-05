@@ -163,6 +163,15 @@
       </div>
     </div>
 
+    <div class="panel extras" id="extrasCard">
+      <div class="label">Fler utmaningar <small>Nästa steg efter plus, minus och dubblor</small></div>
+      <div class="extra-row">
+        <button class="extra-btn" data-extra="line"><span class="ex-ic" aria-hidden="true">📏</span><b>Tallinjen</b><small>Var bor talet?</small><span class="ex-lv" data-lv="line"></span></button>
+        <button class="extra-btn" data-extra="jump"><span class="ex-ic" aria-hidden="true">🦘</span><b>Plutts hopp</b><small>Hur stora är hoppen?</small><span class="ex-lv" data-lv="jump"></span></button>
+        <button class="extra-btn" data-extra="word"><span class="ex-ic" aria-hidden="true">🔤</span><b>Hemliga ordet</b><small>Räkna fram bokstäverna</small><span class="ex-lv" data-lv="word"></span></button>
+      </div>
+    </div>
+
     <div class="panel installcard" id="installCard" hidden>
       <span class="install-icon" aria-hidden="true"><img src="icon-192.png" alt="" width="48" height="48"></span>
       <div><b>Installera spelet</b><p id="installText"></p></div>
@@ -213,6 +222,57 @@
       <summary>Titta på alla kamrater först</summary>
       <div class="pairs" id="pairs"></div>
     </details>
+  </section>
+
+  <!-- FLER UTMANINGAR: välj nivå -->
+  <section class="screen" id="extra" hidden>
+    <button class="chunky ghost back" data-home>← Hem</button>
+    <h2 class="mode-title" id="extraTitle"></h2>
+    <div class="buddy-row">
+      <div class="mascot happy" aria-hidden="true"><div class="eyes"><i></i><i></i></div><div class="mouth"></div></div>
+      <p class="speech" aria-live="polite"></p>
+    </div>
+    <div class="levels" id="extraLevels"></div>
+  </section>
+
+  <!-- TALLINJEN OCH PLUTTS HOPP -->
+  <section class="screen" id="line" hidden>
+    <div class="playhead">
+      <button class="chunky ghost" id="lineBack">← Nivåer</button>
+      <span class="playlabel" id="lineLabel"></span>
+      <span class="streak" id="lineStreak">🔥 0</span>
+    </div>
+    <div class="progress" id="lineProgress" aria-label="Framsteg"></div>
+    <div class="buddy-row">
+      <div class="mascot" aria-hidden="true"><div class="eyes"><i></i><i></i></div><div class="mouth"></div></div>
+      <p class="speech" aria-live="polite"></p>
+    </div>
+    <div class="stage">
+      <p class="line-q" id="lineQ"></p>
+      <div class="numline" id="numline"></div>
+      <div class="answers" id="lineAnswers"></div>
+      <p class="explain" id="lineExplain" aria-live="polite"></p>
+    </div>
+  </section>
+
+  <!-- HEMLIGA ORDET -->
+  <section class="screen" id="word" hidden>
+    <div class="playhead">
+      <button class="chunky ghost" id="wordBack">← Nivåer</button>
+      <span class="playlabel" id="wordLabel"></span>
+      <span class="streak" id="wordStreak">🔥 0</span>
+    </div>
+    <div class="buddy-row">
+      <div class="mascot" aria-hidden="true"><div class="eyes"><i></i><i></i></div><div class="mouth"></div></div>
+      <p class="speech" aria-live="polite"></p>
+    </div>
+    <div class="stage">
+      <div class="wordslots" id="wordSlots"></div>
+      <div class="equation" id="wordEq"></div>
+      <div class="answers" id="wordAnswers"></div>
+      <div class="codekey-wrap"><span class="codekey-title">Kodnyckel</span><div class="codekey" id="codeKey"></div></div>
+      <p class="explain" id="wordExplain" aria-live="polite"></p>
+    </div>
   </section>
 
   <!-- INTRO TILL PROV / UTMANING -->
