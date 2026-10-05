@@ -25,7 +25,7 @@ Startsidan har en meny längst ner med fyra flikar. I sidhuvudet syns jordgubbar
 
 | Flik | Innehåll |
 |---|---|
-| 🏠 **Hem** | Titeln, nyheter, listan **Idag** (nästa steg på vägen, lärarens fokus, Plutts önskan, kompisutmaning, kluriga, klassens uppdrag, klasskampen, dubbletter), dagens utmaning och Plutt i litet format. |
+| 🏠 **Hem** | Titeln, nyheter, listan **Idag** (nästa steg på vägen, lärarens fokus, Plutts önskan, kompisutmaning och obesvarade inbjudningar, Kom ihåg-prov, kluriga, klassens uppdrag, klasskampen, dubbletter, och ett tips om dagen om något man inte provat, t.ex. att utmana en kompis eller tallinjen), dagens utmaning och Plutt i litet format. |
 | ✏️ **Träna** | Plus, minus och dubblor: vägen till expert (kortet visar tydligt vilket räknesätt den gäller), kluriga, fri träning med alla tal och hur många stjärnor av max man har, fler utmaningar och spela två. |
 | Plutt (mini-Plutt som ikon) | Husdjuret och dess önskan, korgen med jordgubbar, garderoben med alla plagg (pris, låst eller ägt) och klistermärken per nivå. |
 | 👥 **Klassen** | Veckans uppdrag, kompisutmaning och att gå med i en klass. |

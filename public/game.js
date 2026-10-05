@@ -400,7 +400,7 @@
   /* ================= Ändringslogg ================= */
   // Det nyaste först. Höj APP_VERSION och lägg till en rad när något ändras i spelet.
   const CHANGELOG = [
-    ['1.15', '5 okt 2026', ['Ändringslogg under Inställningar.', 'Testläge för vuxna: se hur en inbjudan, lärarens fokus eller en kompisutmaning ser ut, utan att röra riktiga elever.', 'Mer luft runt titeln på Hem, och stjärnan rymmer fyra siffror.', 'Mer luft längst ner, ovanför menyn.']],
+    ['1.15', '5 okt 2026', ['Ändringslogg under Inställningar.', 'Testläge för vuxna: se hur en inbjudan, lärarens fokus eller en kompisutmaning ser ut, utan att röra riktiga elever.', 'Mer luft runt titeln på Hem, och stjärnan rymmer fyra siffror.', 'Mer luft längst ner, ovanför menyn.', 'Idag påminner om Kom ihåg-prov och obesvarade inbjudningar, och ger ett tips om dagen.']],
     ['1.14', '5 okt 2026', ['Plutts nivå syns på Hem, med en mätare till nästa nivå.', 'Idag-rutan har blivit solig och färgglad.']],
     ['1.13', '5 okt 2026', ['🍓 i sidhuvudet och ⚙️ Inställningar för ljud, röst och konto.', '27 nya klistermärken, 60 totalt.', 'Tryck på en medalj så står det hur du får den.', 'Fri träning visar hur många stjärnor du tagit av max.', 'Klasskampen syns i Idag.']],
     ['1.12', '5 okt 2026', ['Ny startsida med flikarna Hem, Träna, Plutt och Klassen.', 'Plutts korg med jordgubbar.', 'Svårare att bli expert: tre stjärnor på allt.']],
@@ -1648,6 +1648,10 @@
     const c = net.buddy && net.buddy.challenge;
     if (c && c.status === 'pending' && c.role === 'to') items.push({ ic: '🤝', t: `${c.mate.name} vill utmana dig`, s: c.title, go: 'Svara', fn: () => setTab('class') });
     else if (c && c.status === 'active') items.push({ ic: '🤝', t: 'Kompisutmaning', s: `${c.progress} av ${c.goal} ${c.unit} med ${c.mate.name}`, go: 'Visa', fn: () => setTab('class') });
+    else if (c && c.status === 'pending' && c.role === 'from') items.push({ ic: '⏳', t: `Väntar på ${c.mate.name}`, s: 'Din inbjudan till kompisutmaning', go: 'Visa', fn: () => setTab('class') });
+    // Kom ihåg-provet: få en medalj att glänsa
+    const rc = recallsWaiting()[0];
+    if (rc) items.push({ ic: '✨', t: 'Kom ihåg-prov', s: `Få medaljen från ${rc.zone.name} att glänsa`, go: 'Kör', fn: () => { roadContext = true; showIntro(rc); } });
     const tricky = Object.values(save.tricky).filter(v => v > 0).length;
     if (tricky) items.push({ ic: '🧩', t: 'Kluriga uppgifter', s: `${tricky} ${tricky === 1 ? 'uppgift' : 'uppgifter'} att öva på`, go: 'Öva', fn: () => { roadContext = false; startTricky(); } });
     const m = net.classInfo && net.classInfo.mission;
@@ -1658,16 +1662,23 @@
     if (kMine) items.push({ ic: '🏔️', t: k.title, s: `Vårt ${k.mountain} är på ${kMine.percent} %. Nu bygger vi!`, go: 'Heja', fn: () => openClass() });
     const d = stickerDups();
     if (d) items.push({ ic: '🃏', t: `${d} ${d === 1 ? 'dubblett' : 'dubbletter'}`, s: 'Byt mot jordgubbar till kläder och mat', go: 'Byt', fn: () => openBook() });
+    // Ett tips om dagen om något man inte har gjort än, så att det inte blir tjat
+    const tips = [];
+    if (canBuddy() && !c) tips.push({ ic: '🤝', t: 'Utmana en kompis', s: 'Klara ett mål tillsammans och få varsin kompisbricka', go: 'Bjud in', fn: () => openBuddy() });
+    for (const [id, X] of Object.entries(EXTRAS)) {
+      if (!Object.keys(save.best).some(k => k.startsWith(X.prefix) && k.endsWith(':' + X.mode))) tips.push({ ic: X.icon, t: `Har du provat ${X.title.startsWith('Plutt') ? X.title : X.title.toLowerCase()}?`, s: { line: 'Hitta var talen bor på linjen', jump: 'Hjälp Plutt att hoppa rätt', word: 'Räkna fram ett hemligt ord' }[id] || X.title, go: 'Testa', fn: () => openExtra(id) });
+    }
+    const tip = tips.length ? { ...tips[today() % tips.length], tip: true } : null;
     $('#todaySub').textContent = new Date().toLocaleDateString('sv-SE', { weekday: 'long', day: 'numeric', month: 'long' });
     const box = $('#todoList'); box.innerHTML = '';
-    items.slice(0, 6).forEach(it => {
+    [...items.slice(0, tip ? 5 : 6), ...(tip ? [tip] : [])].forEach(it => {
       const b = document.createElement('button');
-      b.className = 'todo-row' + (it.main ? ' main' : '');
+      b.className = 'todo-row' + (it.main ? ' main' : '') + (it.tip ? ' tip' : '');
       b.innerHTML = `<span class="ti" aria-hidden="true">${it.ic}</span><span><b>${esc(it.t)}</b><small>${esc(it.s)}</small></span><span class="tg">${it.go}</span>`;
       b.addEventListener('click', () => { sfx.select(); it.fn(); });
       box.appendChild(b);
     });
-    if (!items.length) box.innerHTML = '<p class="stats">Allt klart för idag! Spela gärna mer under Träna.</p>';
+    if (!items.length && !tip) box.innerHTML = '<p class="stats">Allt klart för idag! Spela gärna mer under Träna.</p>';
     // Prickar i menyn: något väntar i den fliken
     const dot = (tab, on) => { const el = $(`#tabbar [data-tab="${tab}"] .dot`); if (el) el.hidden = !on; };
     const fresh = net.classInfo && net.player ? net.classInfo.myCheers - (prefs.seenCheers[net.player.id] || 0) : 0;
