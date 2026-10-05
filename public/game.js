@@ -63,13 +63,23 @@
     $('#rankLevel').textContent = `Nivå ${tier + 1} av ${TITLES.length}`;
     // Resan: alla nivåer som en väg, med märket för varje nivå och var man är nu
     badge.onclick = () => {
-      openSheet(`<h3>Din resa</h3><p>Varje stjärna du tar för dig framåt. Du är på nivå ${tier + 1} av ${TITLES.length}.</p>
-        <ol class="journey">${TITLES.map(([min, n], i) => {
+      // Stigen slingrar sig fram och tillbaka: märkena turas om att stå till vänster och höger
+      const R = 92, X = i => (i % 2 ? 80 : 20), Y = i => i * R + R / 2;
+      const seg = i => `C ${X(i - 1)} ${Y(i - 1) + R / 2} ${X(i)} ${Y(i) - R / 2} ${X(i)} ${Y(i)}`;
+      const trail = upto => `M ${X(0)} ${Y(0)} ` + TITLES.slice(1, upto + 1).map((_, k) => seg(k + 1)).join(' ');
+      openSheet(`<h3>Din resa</h3><p>Varje stjärna du tar för dig framåt på stigen. Du är på nivå ${tier + 1} av ${TITLES.length}.</p>
+        <div class="journey" style="height:${TITLES.length * R}px">
+          <svg class="jr-path" viewBox="0 0 100 ${TITLES.length * R}" preserveAspectRatio="none" aria-hidden="true">
+            <path class="jr-road" d="${trail(TITLES.length - 1)}"/>
+            ${tier ? `<path class="jr-road-done" d="${trail(tier)}"/>` : ''}
+            <path class="jr-dash" d="${trail(TITLES.length - 1)}"/>
+          </svg>
+          <ol>${TITLES.map(([min, n], i) => {
           const st = i < tier ? 'done' : i === tier ? 'here' : 'next'; // klassen blir jr-done osv.
-          const sub = st === 'done' ? 'Klar ✓' : st === 'here' ? (next ? `Du är här · ${next[0] - t} ★ kvar till nästa` : 'Du är här · högsta nivån! 🏆') : `${min} ★ · ${min - t} kvar`;
-          return `<li class="jr jr-${st}"><span class="jr-badge" aria-hidden="true">${TITLE_BADGES[i]}${st === 'next' ? '<i>🔒</i>' : ''}</span>
+          const sub = st === 'done' ? 'Klar ✓' : st === 'here' ? (next ? `Du är här · ${next[0] - t} ★ kvar` : 'Du är här · högsta nivån! 🏆') : `${min} ★ · ${min - t} kvar`;
+          return `<li class="jr jr-${st} ${i % 2 ? 'jr-right' : 'jr-left'}" style="height:${R}px"><span class="jr-badge" aria-hidden="true">${TITLE_BADGES[i]}${st === 'next' ? '<i>🔒</i>' : ''}</span>
             <span class="jr-txt"><small>Nivå ${i + 1}</small><b>${esc(n)}</b><em>${sub}</em>${st === 'here' && next ? `<span class="jr-meter"><i style="width:${Math.round(100 * (t - from) / (next[0] - from))}%"></i></span>` : ''}</span></li>`;
-        }).join('')}</ol>
+        }).join('')}</ol></div>
         <p class="jr-note">Varje nivå har ett eget märke. Du får det när du når nivån.</p>
         <button class="chunky ghost" data-close>Stäng</button>`);
       const here = $('#sheetBody .jr-here');
