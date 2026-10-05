@@ -45,7 +45,7 @@ read -rp "Skriv ja för att fortsätta: " OK
 [ "$OK" = "ja" ] || { echo "Avbrutet. Inget ändrat."; exit 0; }
 
 echo "== Tar en extra backup av läget just nu"
-svc nu fore-aterstallning
+./backup.sh fore-aterstallning
 
 HAS_APP=0
 docker compose config --services | grep -qx "$APP" && HAS_APP=1

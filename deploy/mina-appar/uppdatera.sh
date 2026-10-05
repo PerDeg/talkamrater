@@ -27,7 +27,7 @@ if [ -f docker-compose.backup.yml ] && ! grep -q '^COMPOSE_FILE=' .env 2>/dev/nu
 fi
 
 if docker compose ps --status running --services 2>/dev/null | grep -qx db; then
-  ./backup.sh fore-uppdatering
+  ./backup.sh fore-uppdatering || { echo "Backupen gick inte att ta, så inget uppdaterades. Se felet ovan." >&2; exit 1; }
 fi
 
 docker compose build --pull

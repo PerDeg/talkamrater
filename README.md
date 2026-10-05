@@ -278,6 +278,8 @@ cd /mnt/user/appdata/mina-appar
 git -C src/talkamrater pull && cp src/talkamrater/deploy/mina-appar/uppdatera.sh . && ./uppdatera.sh
 ```
 
+Backup-containern loggar in i databasen med lösenordet i `env/db.env`. Stämmer det inte med databasen (Postgres sparar det bara när databasen skapas första gången) sätter `backup.sh` databasens lösenord till det som står i `env/db.env` och försöker igen.
+
 `uppdatera.sh` lägger då till backup-containern (via `COMPOSE_FILE` i `.env`, så att din `docker-compose.yml` inte ändras), skapar `env/backup.env` och håller `backup.sh`, `aterstall.sh` och `backup-tjanst.sh` uppdaterade. Har du lagt in en backup i User Scripts kan du ta bort den.
 
 Äldre backuper från före den här ändringen heter `backup/postgres-ÅÅÅÅ-MM-DD-TTMM.sql.gz` och innehåller allt i en fil. En sådan återställs för hand:

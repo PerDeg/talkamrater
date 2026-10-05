@@ -9,8 +9,21 @@ set -euo pipefail
 cd "$(dirname "$0")"
 mkdir -p backup
 
+# Postgres sparar adminlösenordet bara när databasen skapas första gången. Har
+# env/db.env ändrats efter det kommer backup-containern inte in. Då sätts
+# lösenordet från env/db.env (inifrån databascontainern, där inget lösenord behövs).
+synka_losenord() {
+  PW=$(sed -n 's/^POSTGRES_PASSWORD=//p' env/db.env | head -1)
+  [ -n "$PW" ] || { echo "Hittar inget POSTGRES_PASSWORD i env/db.env" >&2; return 1; }
+  printf "ALTER USER postgres PASSWORD :'pw';\n" | docker compose exec -T db psql -U postgres -q -v ON_ERROR_STOP=1 -v pw="$PW" >/dev/null
+}
+
 if docker compose config --services 2>/dev/null | grep -qx backup; then
-  docker compose run --rm -T --no-deps backup nu "${1:-}"
+  if ! docker compose run --rm -T --no-deps backup nu "${1:-}"; then
+    echo "Backup-containern kom inte in i databasen. Sätter lösenordet från env/db.env och försöker igen."
+    synka_losenord
+    docker compose run --rm -T --no-deps backup nu "${1:-}"
+  fi
 else
   # Äldre uppsättning utan backup-containern: en enda fil med allt
   FILE="backup/postgres-$(date +%F-%H%M).sql.gz"
