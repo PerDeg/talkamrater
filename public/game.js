@@ -379,6 +379,21 @@
     } catch (e) { return null; }
   }
 
+  // Medan spelet är öppet: titta efter nytt från klassen (t.ex. en inbjudan från en
+  // kompis) när man kommer tillbaka till appen, och då och då på startsidan
+  let lastClassCheck = 0;
+  function checkClassNews(force) {
+    if (!net.player || isSolo() || !net.online || document.hidden || current !== 'start') return;
+    // Stör inte när man skriver något eller har en ruta öppen
+    const el = document.activeElement;
+    if ((el && /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName)) || !$('#sheet').hidden) return;
+    if (!force && Date.now() - lastClassCheck < 60000) return;
+    lastClassCheck = Date.now();
+    refreshClassInfo();
+  }
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) checkClassNews(true); });
+  setInterval(() => checkClassNews(false), 15000);
+
   async function boot() {
     if (DEMO) return bootDemo();
     const cached = ls.get(ACCOUNT_KEY);
@@ -420,7 +435,7 @@
   /* ================= Ändringslogg ================= */
   // Det nyaste först. Höj APP_VERSION och lägg till en rad när något ändras i spelet.
   const CHANGELOG = [
-    ['1.17', '5 okt 2026', ['Tydligare sammanfattning efter en runda, en rad per sak.', 'En tydlig huvudknapp för att gå vidare, och Spela igen under.', 'Lärarens fokus står alltid överst i Idag, och läraren kan välja flera fokus och se vem som tränat.', 'Plutt hoppar själv i Plutts hopp, ingen känguru.', 'Talkamraterna hälsar alltid på Hem, och din figur är profilbilden uppe till höger.', 'Tallinjen och Plutts hopp har ett tal i mitten på de lättare nivåerna.', 'Titeln visar vilken nivå du är på. Tryck på den så ser du hela resan, med ett eget märke för varje nivå.', 'Hejarop visas en gång, med rätt antal.']],
+    ['1.17', '5 okt 2026', ['Tydligare sammanfattning efter en runda, en rad per sak.', 'En tydlig huvudknapp för att gå vidare, och Spela igen under.', 'Lärarens fokus står alltid överst i Idag, och läraren kan välja flera fokus och se vem som tränat.', 'Plutt hoppar själv i Plutts hopp, ingen känguru.', 'Talkamraterna hälsar alltid på Hem, och din figur är profilbilden uppe till höger.', 'Tallinjen och Plutts hopp har ett tal i mitten på de lättare nivåerna.', 'Titeln visar vilken nivå du är på. Tryck på den så ser du hela resan, med ett eget märke för varje nivå.', 'Hejarop visas en gång, med rätt antal.', 'En inbjudan från en kompis syns direkt i Idag, även när spelet redan är öppet.']],
     ['1.16', '5 okt 2026', ['Klappa Plutt på Hem så säger han något.', 'Petar man för många gånger blir han sur, säger till fröken och tar till slut en tupplur.']],
     ['1.15', '5 okt 2026', ['Ändringslogg under Inställningar.', 'Testläge för vuxna: se hur en inbjudan, lärarens fokus eller en kompisutmaning ser ut, utan att röra riktiga elever.', 'Mer luft runt titeln på Hem, och stjärnan rymmer fyra siffror.', 'Mer luft längst ner, ovanför menyn.', 'Idag påminner om Kom ihåg-prov och obesvarade inbjudningar, och ger ett tips om dagen.']],
     ['1.14', '5 okt 2026', ['Plutts nivå syns på Hem, med en mätare till nästa nivå.', 'Idag-rutan har blivit solig och färgglad.']],
@@ -1982,7 +1997,8 @@
       net.buddy = await api('GET', 'me/buddies');
       const c = net.buddy.challenge;
       if (c && c.status === 'done' && !c.claimed) claimBuddy(c);
-      if (current === 'start') renderBuddyCard();
+      // Både kortet i Klassen, listan Idag och pricken i menyn ska visa inbjudan direkt
+      if (current === 'start') { renderBuddyCard(); renderToday(); }
       return net.buddy;
     } catch (e) { return null; }
   }
@@ -1991,6 +2007,7 @@
       const r = await api('POST', `me/challenge/${c.id}/${action}`);
       if (net.buddy) net.buddy.challenge = r.challenge;
       renderBuddyCard();
+      if (current === 'start') renderToday();
       return r;
     } catch (e) { cheer(e.message); return null; }
   }
