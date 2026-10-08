@@ -127,9 +127,10 @@ export function createApp({ db, t, client, adminKey, publicDir, trustProxy = 'lo
     req.tokenHash = s.token_hash;
     next();
   }
-  // Två sorters nycklar till lärarsidan:
-  //  - ADMIN_KEY (huvudadmin) ser allt och skapar skolor
+  // Tre sorters nycklar till lärarsidan:
+  //  - ADMIN_KEY (huvudadmin) ser allt och skapar skolor och lärare
   //  - en skolas lärarnyckel ser bara den skolans klasser och klasskamper
+  //  - en lärares egen nyckel ser bara lärarens klasser (och skolans klasskamp)
   const adminLimit = rateLimiter({ windowMs: 60_000, max: 60 });
   async function admin(req, res, next) {
     const key = req.get('x-admin-key') || '';
@@ -137,17 +138,28 @@ export function createApp({ db, t, client, adminKey, publicDir, trustProxy = 'lo
     if (key.length >= 16) {
       const school = await db(t.schools).where({ key_hash: hashToken(key) }).first();
       if (school) { req.scope = { super: false, schoolId: Number(school.id), schoolName: school.name }; return next(); }
+      const teacher = await db(t.teachers).where({ key_hash: hashToken(key) }).first();
+      if (teacher) {
+        const links = await db(t.teacherClasses).where({ teacher_id: teacher.id }).select('class_id');
+        const school = teacher.school_id ? await db(t.schools).where({ id: teacher.school_id }).first() : null;
+        const now = Date.now();
+        if (now - Number(teacher.last_seen || 0) > 3_600_000) await db(t.teachers).where({ id: teacher.id }).update({ last_seen: now });
+        req.scope = { super: false, teacher: { id: Number(teacher.id), name: teacher.name }, classIds: links.map(l => Number(l.class_id)),
+          schoolId: school ? Number(school.id) : null, schoolName: school ? school.name : null };
+        return next();
+      }
     }
-    if (!adminKey && !(await db(t.schools).whereNotNull('key_hash').first())) {
+    if (!adminKey && !(await db(t.schools).whereNotNull('key_hash').first()) && !(await db(t.teachers).first())) {
       return res.status(503).json({ error: 'Adminläget är avstängt. Sätt ADMIN_KEY på servern.' });
     }
     return adminLimit(req, res, () => res.status(401).json({ error: 'Fel nyckel' }));
   }
   const superOnly = (req, res, next) => (req.scope.super ? next() : res.status(403).json({ error: 'Bara huvudadmin kan göra det här.' }));
-  // Klassen/eleven måste höra till lärarens skola
+  // Klassen/eleven måste höra till lärarens skola, eller vara en av lärarens klasser
+  const canSeeClass = (scope, c) => scope.super || (scope.teacher ? scope.classIds.includes(Number(c.id)) : Number(c.school_id) === scope.schoolId);
   async function ownClass(req, id) {
     const c = await db(t.classes).where({ id: Number(id) || 0 }).first();
-    if (!c || (!req.scope.super && Number(c.school_id) !== req.scope.schoolId)) fail(404, 'Klassen finns inte.');
+    if (!c || !canSeeClass(req.scope, c)) fail(404, 'Klassen finns inte.');
     return c;
   }
   async function ownPlayer(req, id) {
@@ -528,12 +540,14 @@ export function createApp({ db, t, client, adminKey, publicDir, trustProxy = 'lo
     return Object.entries(by).map(([w, ns]) => `${WORLD_NAME[w]}: ${ns.sort((a, b) => a - b).join(', ')}`);
   };
   api.get('/admin/me', admin, async (req, res) => {
-    res.json(req.scope.super ? { super: true } : { super: false, school: { id: req.scope.schoolId, name: req.scope.schoolName } });
+    const school = req.scope.schoolId ? { id: req.scope.schoolId, name: req.scope.schoolName } : null;
+    res.json(req.scope.super ? { super: true } : { super: false, school, teacher: req.scope.teacher || null });
   });
 
   api.get('/admin/classes', admin, async (req, res) => {
     let cq = db(t.classes).orderBy('name');
-    if (!req.scope.super) cq = cq.where({ school_id: req.scope.schoolId });
+    if (req.scope.teacher) cq = cq.whereIn('id', req.scope.classIds.length ? req.scope.classIds : [0]);
+    else if (!req.scope.super) cq = cq.where({ school_id: req.scope.schoolId });
     const classes = await cq;
     const classIds = classes.map(c => c.id);
     const players = classIds.length ? await db(t.players).leftJoin(t.progress, `${t.players}.id`, `${t.progress}.player_id`)
@@ -624,6 +638,8 @@ export function createApp({ db, t, client, adminKey, publicDir, trustProxy = 'lo
     if (schoolId && !(await db(t.schools).where({ id: schoolId }).first())) fail(400, 'Skolan finns inte.');
     const code = await newCode();
     const id = await insertId(db, client, t.classes, { code, name, goal, school_id: schoolId, created_at: Date.now() });
+    // En lärare som skapar en klass får den som sin
+    if (req.scope.teacher) await db(t.teacherClasses).insert({ teacher_id: req.scope.teacher.id, class_id: id });
     res.status(201).json({ id, name, code, goal, schoolId });
   });
 
@@ -651,6 +667,7 @@ export function createApp({ db, t, client, adminKey, publicDir, trustProxy = 'lo
   });
 
   api.delete('/admin/classes/:id', admin, async (req, res) => {
+    if (req.scope.teacher) fail(403, 'Bara huvudadmin kan radera klasser.');
     await ownClass(req, req.params.id);
     await db(t.classes).where({ id: Number(req.params.id) }).del();
     res.status(204).end();
@@ -675,6 +692,56 @@ export function createApp({ db, t, client, adminKey, publicDir, trustProxy = 'lo
     await ownPlayer(req, req.params.id);
     const rows = await db(t.rounds).where({ player_id: Number(req.params.id) }).orderBy('created_at', 'desc').limit(50);
     res.json(rows.map(r => ({ level: r.level, mode: r.mode, stars: r.stars, score: r.score, total: r.total, mistakes: r.mistakes, at: Number(r.created_at) })));
+  });
+
+  /* ---------- Lärare (huvudadmin) ---------- */
+  async function teacherView(row) {
+    const links = await db(t.teacherClasses).join(t.classes, `${t.teacherClasses}.class_id`, `${t.classes}.id`)
+      .where(`${t.teacherClasses}.teacher_id`, row.id).select(`${t.classes}.id`, `${t.classes}.name`).orderBy(`${t.classes}.name`);
+    return { id: Number(row.id), name: row.name, schoolId: row.school_id ? Number(row.school_id) : null,
+      classes: links.map(c => ({ id: Number(c.id), name: c.name })), lastSeen: row.last_seen ? Number(row.last_seen) : null };
+  }
+  async function setTeacherClasses(teacherId, ids) {
+    const valid = (await db(t.classes).whereIn('id', (Array.isArray(ids) ? ids : []).map(Number).filter(Boolean).slice(0, 50)).andWhere({ solo: false }).select('id')).map(c => Number(c.id));
+    await db(t.teacherClasses).where({ teacher_id: teacherId }).del();
+    if (valid.length) await db(t.teacherClasses).insert(valid.map(id => ({ teacher_id: teacherId, class_id: id })));
+  }
+  async function validSchool(v) {
+    const id = Number(v) || null;
+    if (id && !(await db(t.schools).where({ id }).first())) fail(400, 'Skolan finns inte.');
+    return id;
+  }
+  api.get('/admin/teachers', admin, superOnly, async (req, res) => {
+    const rows = await db(t.teachers).orderBy('name');
+    res.json(await Promise.all(rows.map(teacherView)));
+  });
+  api.post('/admin/teachers', admin, superOnly, async (req, res) => {
+    const name = cleanTitle(req.body?.name);
+    if (name.length < 2) fail(400, 'Skriv lärarens namn.');
+    const key = newToken(); // visas en gång, sparas bara som hash
+    const id = await insertId(db, client, t.teachers, { name, school_id: await validSchool(req.body?.schoolId), key_hash: hashToken(key), created_at: Date.now() });
+    await setTeacherClasses(id, req.body?.classIds);
+    res.status(201).json({ ...(await teacherView(await db(t.teachers).where({ id }).first())), key });
+  });
+  api.patch('/admin/teachers/:id', admin, superOnly, async (req, res) => {
+    const row = await db(t.teachers).where({ id: Number(req.params.id) || 0 }).first();
+    if (!row) fail(404, 'Läraren finns inte.');
+    const patch = {};
+    if (req.body?.name != null) { patch.name = cleanTitle(req.body.name); if (patch.name.length < 2) fail(400, 'Skriv lärarens namn.'); }
+    if (req.body?.schoolId !== undefined) patch.school_id = await validSchool(req.body.schoolId);
+    if (Object.keys(patch).length) await db(t.teachers).where({ id: row.id }).update(patch);
+    if (req.body?.classIds !== undefined) await setTeacherClasses(row.id, req.body.classIds);
+    res.json(await teacherView(await db(t.teachers).where({ id: row.id }).first()));
+  });
+  api.post('/admin/teachers/:id/key', admin, superOnly, async (req, res) => {
+    const key = newToken();
+    const n = await db(t.teachers).where({ id: Number(req.params.id) || 0 }).update({ key_hash: hashToken(key) });
+    if (!n) fail(404, 'Läraren finns inte.');
+    res.json({ key });
+  });
+  api.delete('/admin/teachers/:id', admin, superOnly, async (req, res) => {
+    await db(t.teachers).where({ id: Number(req.params.id) || 0 }).del();
+    res.status(204).end();
   });
 
   /* ---------- Skolor (huvudadmin) ---------- */

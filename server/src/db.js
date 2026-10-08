@@ -63,7 +63,9 @@ export const tableNames = prefix => ({
   contests: `${prefix}contests`,
   contestClasses: `${prefix}contest_classes`,
   buddies: `${prefix}buddy_challenges`,
-  cheers: `${prefix}cheers`
+  cheers: `${prefix}cheers`,
+  teachers: `${prefix}teachers`,
+  teacherClasses: `${prefix}teacher_classes`
 });
 
 // Migrationerna ligger i koden så att de fungerar likadant i alla databaser.
@@ -285,6 +287,31 @@ function migrations(t, client) {
     async down(knex) {
       await knex.schema.alterTable(t.players, tb => { tb.dropColumn('focus_at'); });
       await knex.schema.alterTable(t.classes, tb => { tb.dropColumn('focus_at'); });
+    }
+  }, {
+    // Lärare: huvudadmin skapar dem. Varje lärare har en egen nyckel och ser bara sina klasser.
+    name: '010_teachers',
+    async up(knex) {
+      await knex.schema.createTable(t.teachers, tb => {
+        cs(tb);
+        tb.increments('id').primary();
+        tb.string('name', 64).notNullable();
+        tb.integer('school_id').unsigned().nullable().references('id').inTable(t.schools).onDelete('SET NULL');
+        tb.string('key_hash', 64).notNullable().unique();
+        tb.bigInteger('created_at').notNullable();
+        tb.bigInteger('last_seen').nullable();
+      });
+      await knex.schema.createTable(t.teacherClasses, tb => {
+        cs(tb);
+        tb.integer('teacher_id').unsigned().notNullable().references('id').inTable(t.teachers).onDelete('CASCADE');
+        tb.integer('class_id').unsigned().notNullable().references('id').inTable(t.classes).onDelete('CASCADE');
+        tb.primary(['teacher_id', 'class_id']);
+        tb.index(['class_id']);
+      });
+    },
+    async down(knex) {
+      await knex.schema.dropTableIfExists(t.teacherClasses);
+      await knex.schema.dropTableIfExists(t.teachers);
     }
   }];
 }

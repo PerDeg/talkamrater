@@ -122,3 +122,11 @@ td select.saved { border-color: var(--leaf); }
 .adm-modal .adm-embed { margin-top: 10px; }
 .adm-modal .check { display: flex; gap: 8px; align-items: center; font-weight: 800; }
 @media (max-width: 560px) { .adm-head .actions { width: 100%; } }
+
+/* Lärare */
+.adm-teacher { border-top: 2px solid var(--sky-2); padding: 10px 0; display: grid; gap: 6px; }
+.adm-teacher .adm-head { margin: 0; }
+.adm-teacher details summary { cursor: pointer; font-weight: 800; color: var(--blue); }
+.adm-teacher details[open] { display: grid; gap: 8px; }
+#teachersBox .adm-checks { padding: 8px 12px; }
+#teachersBox .check { display: flex; gap: 6px; align-items: center; font-weight: 700; }

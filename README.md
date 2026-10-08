@@ -68,6 +68,13 @@ Startsidan har en meny längst ner med fyra flikar. Överst hälsar alltid **tal
   - 📏 **Tallinjen:** Plutt-pilen pekar på ett streck. Vilket tal är det? Eller tryck på strecket där talet bor, t.ex. 46 mellan 40 och 60. Sex nivåer från 0–10 till tallinjer där bara några tal står ut.
   - **Plutts hopp:** hur stora är hoppen mellan strecken? De två första nivåerna har ett tal i mitten som hjälp. Egna nivåer: blandade hopp om 1, 2 och 5, hopp om 3 och 4, stora hopp om 20, 25 och 50, och linjer där Plutt börjar mitt i. Rätt svar och Plutt studsar hela vägen till flaggan. Fel svar och han räknar fel, märker att det inte stämmer med talet som står där och ramlar ner.
   - 🔤 **Hemliga ordet:** räkna ut talet, leta upp det i kodnyckeln och tryck på bokstaven. Bokstäverna blir ett ord, t.ex. KATT 🐱. Nivåer från plus upp till 10 till tiotal utan minnessiffra.
+  - 📖 **Räknesagor**: korta berättelser med bilder som läses upp, t.ex. *"Alva har 7 kulor men vill ha 10. Hur många till behöver hon?"*. Nivåer: får fler, hur många till, ger bort, blandat till 20, dubbelt och hälften.
+  - 🔍 **Saknas-talet**: *3 + ? = 10*, *? − 4 = 8* och *4 + ? = 3 + 5*. Nivåer: plus till 10 och 20, minus, blandat och lika på båda sidor.
+  - 🪙 **Pengar**: mynt och tjugolapp. Räkna mynten, hur mycket fattas till 10 och 20, och handla: hur mycket får du tillbaka?
+- **Spela med Plutt** (i Träna): tre spel som låses upp av nivåerna på resan. Frågorna kommer från tal eleven redan kan (★★ eller mer), och man trycker på rätt svar i scenen:
+  - ☁️ **Plutt flyger** (nivå 3): flyg genom molnet med rätt svar.
+  - 🎯 **Kasta prick** (nivå 4): kasta bollen på burken med rätt svar.
+  - 🏀 **Studsboll** (nivå 5): hoppa upp på plattan med rätt svar.
 - **Kluriga kamrater**: spelet minns svåra uppgifter i alla världar och låter eleven öva extra på dem.
 - **Belöningar**:
   - Svenska hejarop, konfetti, ljud och röst.
@@ -121,6 +128,7 @@ Den som spelar hemma kan skapa ett **eget konto**: namn, figur och en hemlig bil
 
 ## Skolor och klasskamp
 
+- **Lärare:** huvudadmin skapar lärare under **Lärare** på lärarsidan: namn, skola (valfritt) och vilka klasser läraren har. Varje lärare får en **egen nyckel** som visas en gång, och loggar in med den på `/admin.html`. En lärare kan göra det mesta som admin i sina klasser (följa eleverna, fokus, mål, nya klasser, klasskamp på sin skola). En ny klass som läraren skapar blir lärarens. Läraren ser inte andra klasser och kan inte radera klasser eller hantera skolor och andra lärare. Huvudadmin kan ändra lärarens klasser, ge en ny nyckel (den gamla slutar gälla) och ta bort läraren.
 - **Skolor:** huvudadmin (den med `ADMIN_KEY`) skapar skolor på lärarsidan. Varje skola får en **lärarnyckel** som visas en gång. Med den loggar skolans lärare in på `/admin.html` och ser bara sin skolas klasser. En ny nyckel kan skapas när som helst, och då slutar den gamla gälla.
 - **Klasskamp:** skolans lärare startar en kamp, t.ex. *Skolans bubbelberg*, väljer vilka klasser som är med och kan pausa, avsluta eller ta bort den. Kampen kan byggas av bubbelpar, rätta svar, rundor eller stjärnor.
   - Varje klass bygger sitt **eget berg mot ett eget mål** efter hur många elever klassen har, så att små och stora klasser har samma chans.
@@ -337,7 +345,8 @@ Huvudversionen är låst (`postgres:17-alpine`). Så här byter du till en ny:
 | `GET /api/me/buddies` · `POST /api/me/challenge` · `POST /api/me/challenge/:id/{accept,decline,cancel,seen,claim}` | Kompisutmaning: kompisar och aktuell utmaning, bjud in, svara, avbryt, hämta bricka |
 | `POST /api/me/gift` · `POST /api/me/gifts/seen` | Hemlig present till en klasskompis · markera fått presenter som sedda |
 | `POST /api/logout` | Logga ut |
-| `/api/admin/...` | Klasser, elever, skolor, klasskamper, ny bildkod, radera. Kräver headern `X-Admin-Key` med adminnyckeln eller en skolas lärarnyckel. |
+| `/api/admin/...` | Klasser, elever, skolor, lärare, klasskamper, ny bildkod, radera. Kräver headern `X-Admin-Key` med adminnyckeln, en skolas lärarnyckel eller en lärares egen nyckel. |
+| `GET/POST /api/admin/teachers` · `PATCH/DELETE /api/admin/teachers/:id` · `POST /api/admin/teachers/:id/key` | Lärare (bara huvudadmin): `{name, schoolId?, classIds[]}`, nyckeln visas bara när den skapas |
 
 ## Utveckling
 

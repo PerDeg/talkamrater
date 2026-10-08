@@ -329,7 +329,7 @@ for (const [label, envFor] of targets) {
       const sch = await call('POST', '/admin/schools', { name: 'Ängsskolan' }, ADMIN);
       assert.equal(sch.status, 201);
       const TEACH = { 'x-admin-key': sch.body.key };
-      assert.deepEqual((await call('GET', '/admin/me', null, TEACH)).body, { super: false, school: { id: sch.body.id, name: 'Ängsskolan' } });
+      assert.deepEqual((await call('GET', '/admin/me', null, TEACH)).body, { super: false, school: { id: sch.body.id, name: 'Ängsskolan' }, teacher: null });
       assert.equal((await call('POST', '/admin/schools', { name: 'Fusk' }, TEACH)).status, 403);
       assert.equal((await call('GET', '/admin/me', null, { 'x-admin-key': 'x'.repeat(40) })).status, 401);
       // Läraren skapar klasser i sin skola och ser bara dem
@@ -380,6 +380,41 @@ for (const [label, envFor] of targets) {
       assert.equal((await call('GET', '/admin/me', null, TEACH)).status, 401);
       const all = (await call('GET', '/admin/classes', null, ADMIN)).body;
       assert.equal(all.find(c => c.name === '2A').schoolId, null);
+    });
+
+    test('lärarkonton: admin skapar lärare som bara ser sina klasser', async () => {
+      const c1 = (await call('POST', '/admin/classes', { name: 'Lärarklass 1' }, ADMIN)).body;
+      const c2 = (await call('POST', '/admin/classes', { name: 'Lärarklass 2' }, ADMIN)).body;
+      const c3 = (await call('POST', '/admin/classes', { name: 'Någon annans' }, ADMIN)).body;
+      const tch = await call('POST', '/admin/teachers', { name: 'Anna Lärare', classIds: [c1.id, c2.id, 99999] }, ADMIN);
+      assert.equal(tch.status, 201);
+      assert.ok(tch.body.key.length >= 32);
+      assert.deepEqual(tch.body.classes.map(c => c.name), ['Lärarklass 1', 'Lärarklass 2']);
+      const T = { 'x-admin-key': tch.body.key };
+      const me = (await call('GET', '/admin/me', null, T)).body;
+      assert.equal(me.teacher.name, 'Anna Lärare');
+      assert.deepEqual((await call('GET', '/admin/classes', null, T)).body.map(c => c.name), ['Lärarklass 1', 'Lärarklass 2']);
+      // Små begränsningar: inga andra klasser, inga lärare, inga skolor, ingen radering av klasser
+      assert.equal((await call('PATCH', `/admin/classes/${c3.id}`, { goal: 99 }, T)).status, 404);
+      assert.equal((await call('GET', '/admin/teachers', null, T)).status, 403);
+      assert.equal((await call('POST', '/admin/teachers', { name: 'Fusk' }, T)).status, 403);
+      assert.equal((await call('POST', '/admin/schools', { name: 'Fusk' }, T)).status, 403);
+      assert.equal((await call('DELETE', `/admin/classes/${c1.id}`, null, T)).status, 403);
+      // Men fokus, mål och nya klasser går bra, och en ny klass blir lärarens
+      assert.equal((await call('PATCH', `/admin/classes/${c1.id}`, { focus: 'p7', goal: 300 }, T)).status, 200);
+      const nc = await call('POST', '/admin/classes', { name: 'Ny av Anna' }, T);
+      assert.equal(nc.status, 201);
+      assert.equal((await call('GET', '/admin/classes', null, T)).body.length, 3);
+      // Admin byter klasser och nyckel: den gamla slutar gälla
+      const up = await call('PATCH', `/admin/teachers/${tch.body.id}`, { classIds: [c3.id] }, ADMIN);
+      assert.deepEqual(up.body.classes.map(c => c.name), ['Någon annans']);
+      assert.deepEqual((await call('GET', '/admin/classes', null, T)).body.map(c => c.name), ['Någon annans']);
+      const nk = await call('POST', `/admin/teachers/${tch.body.id}/key`, null, ADMIN);
+      assert.equal((await call('GET', '/admin/me', null, T)).status, 401);
+      assert.equal((await call('GET', '/admin/me', null, { 'x-admin-key': nk.body.key })).status, 200);
+      assert.equal((await call('GET', '/admin/teachers', null, ADMIN)).body.length, 1);
+      assert.equal((await call('DELETE', `/admin/teachers/${tch.body.id}`, null, ADMIN)).status, 204);
+      assert.equal((await call('GET', '/admin/me', null, { 'x-admin-key': nk.body.key })).status, 401);
     });
 
     test('kompisutmaning: bjuda in, avbryta, svara, klara och hämta bricka', async () => {

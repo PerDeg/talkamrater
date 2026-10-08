@@ -97,12 +97,13 @@
     });
   }
 
-  let me = { super: true }, schools = [];
+  let me = { super: true }, schools = [], teachers = [];
   async function load() {
     let classes, contests;
     try {
       me = await api('GET', 'admin/me');
       [classes, schools, contests] = await Promise.all([api('GET', 'admin/classes'), api('GET', 'admin/schools'), api('GET', 'admin/contests')]);
+      teachers = me.super ? await api('GET', 'admin/teachers') : [];
     }
     catch (e) {
       $('#loginBox').hidden = false; $('#main').hidden = true;
@@ -111,7 +112,7 @@
     }
     try { sessionStorage.setItem('tk-admin', key); } catch (e) {}
     $('#loginBox').hidden = true; $('#main').hidden = false;
-    $('#whoami').textContent = me.super ? 'Huvudadmin' : `Lärare · ${me.school.name}`;
+    $('#whoami').textContent = me.super ? 'Huvudadmin' : me.teacher ? `Lärare · ${me.teacher.name}` : `Lärare · ${me.school.name}`;
     renderSchools();
     renderContests(contests, classes);
     $('#classSchoolWrap').hidden = !me.super || !schools.length;
@@ -121,6 +122,7 @@
     const solos = classes.filter(c => c.solo);
     classes = classes.filter(c => !c.solo);
     for (const c of classes) wrap.appendChild(classSection(c));
+    renderTeachers(classes);
     if (solos.length) { const el = soloSection(solos); el.dataset.view = 'egna'; wrap.appendChild(el); }
     renderNav(classes, solos);
   }
@@ -133,6 +135,7 @@
       ...classes.map(c => [`c${c.id}`, `${esc(c.name)} <small>${c.players.length}</small>`]),
       ...(solos.length ? [['egna', `Egna konton <small>${solos.length}</small>`]] : []),
       ...(me.super || me.school ? [['skola', me.super ? 'Skolor och klasskamp' : 'Klasskamp']] : []),
+      ...(me.super ? [['larare', `Lärare <small>${teachers.length}</small>`]] : []),
       ['ny', '＋ Ny klass']
     ];
     if (!items.some(([v]) => v === view)) view = classes.length ? `c${classes[0].id}` : 'ny';
@@ -140,6 +143,7 @@
     $$('#admNav button').forEach(b => b.addEventListener('click', () => { view = b.dataset.v; try { sessionStorage.setItem('tk-admin-view', view); } catch (e) {} renderNav(classes, solos); }));
     $$('[data-view]').forEach(el => { el.hidden = el.dataset.view !== view; });
     if (me.super) $('#schoolsBox').hidden = view !== 'skola';
+    $('#teachersBox').hidden = !me.super || view !== 'larare';
   }
 
   /* ---------- Rutor (modal) ---------- */
@@ -224,12 +228,13 @@
         <div class="adm-form">
           <label>Stjärnburkens mål <span class="goal-edit"><input type="number" min="10" value="${c.goal}"><button class="small-btn" data-goal>Spara</button></span></label>
           ${me.super && schools.length ? `<label>Skola <select class="adm-select" data-school><option value="">Ingen skola</option>${schools.map(x => `<option value="${x.id}" ${x.id === c.schoolId ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</select></label>` : ''}
-          <p class="actions"><button class="small-btn danger" data-del-class>Radera klassen</button></p>
+          ${me.teacher ? '<p class="muted small">Vill du radera klassen? Be huvudadmin.</p>' : '<p class="actions"><button class="small-btn danger" data-del-class>Radera klassen</button></p>'}
         </div>`, m => {
         $('[data-goal]', m).onclick = async () => { await api('PATCH', `admin/classes/${c.id}`, { goal: Number($('.goal-edit input', m).value) }); $('#modal').close(); load(); };
         const sel = $('[data-school]', m);
         if (sel) sel.onchange = async e => { await api('PATCH', `admin/classes/${c.id}`, { schoolId: Number(e.target.value) || null }); load(); };
-        confirmClick($('[data-del-class]', m), 'Radera klassen och alla elever? Klicka igen', async () => { await api('DELETE', `admin/classes/${c.id}`); $('#modal').close(); load(); });
+        const del = $('[data-del-class]', m);
+        if (del) confirmClick(del, 'Radera klassen och alla elever? Klicka igen', async () => { await api('DELETE', `admin/classes/${c.id}`); $('#modal').close(); load(); });
       }));
     return el;
   }
@@ -260,6 +265,49 @@
     confirmClick($('[data-del]', el), 'Radera allt?', async () => { await api('DELETE', `admin/players/${p.id}`); load(); });
     return el;
   }
+
+  /* ---------- Lärare (huvudadmin) ---------- */
+  const classChecks = (classes, chosen, name) => classes.map(c => `<label class="check"><input type="checkbox" name="${name}" value="${c.id}" ${chosen.includes(c.id) ? 'checked' : ''}> ${esc(c.name)}</label>`).join('') || '<span class="muted">Inga klasser än.</span>';
+  function showTeacherKey(name, key) {
+    const box = $('#teacherKeyBox'); box.hidden = false;
+    box.innerHTML = `<p><b>Nyckel för ${esc(name)}</b>. Ge den till läraren, som loggar in med den här på lärarsidan. Den visas bara nu, men du kan alltid skapa en ny.</p>
+      <code class="adm-key">${esc(key)}</code> <button class="small-btn" data-copy-key>Kopiera</button>`;
+    $('[data-copy-key]', box).onclick = e => copyText(key, e.target);
+  }
+  function renderTeachers(classes) {
+    if (!me.super) return;
+    $('#teacherSchool').innerHTML = '<option value="">Ingen skola</option>' + schools.map(x => `<option value="${x.id}">${esc(x.name)}</option>`).join('');
+    $('#teacherSchoolWrap').hidden = !schools.length;
+    $('#teacherClasses').innerHTML = '<legend>Klasser</legend>' + classChecks(classes, [], 'tc');
+    const list = $('#teachers');
+    list.innerHTML = teachers.length ? '' : '<p class="muted">Inga lärare än.</p>';
+    for (const tch of teachers) {
+      const row = document.createElement('div');
+      row.className = 'adm-teacher';
+      const school = schools.find(x => x.id === tch.schoolId);
+      row.innerHTML = `<div class="adm-head"><div><b>${esc(tch.name)}</b><div class="muted small">${school ? esc(school.name) + ' · ' : ''}senast inloggad ${ago(tch.lastSeen)}</div></div>
+          <span class="actions"><button class="small-btn" data-key>Ny nyckel</button><button class="small-btn danger" data-del>Ta bort</button></span></div>
+        <div class="st-row">${tch.classes.map(c => `<span class="schip">${esc(c.name)}</span>`).join('') || '<span class="muted small">Inga klasser</span>'}</div>
+        <details><summary class="st-more-s">Ändra klasser</summary><div class="adm-checks">${classChecks(classes, tch.classes.map(c => c.id), 'ec')}</div>
+          <button class="small-btn" data-save>Spara</button></details>`;
+      $('[data-save]', row).onclick = async () => {
+        await api('PATCH', `admin/teachers/${tch.id}`, { classIds: $$('input[name=ec]:checked', row).map(x => Number(x.value)) });
+        load();
+      };
+      confirmClick($('[data-key]', row), 'Gamla nyckeln slutar gälla. Klicka igen', async () => { const r = await api('POST', `admin/teachers/${tch.id}/key`); await load(); showTeacherKey(tch.name, r.key); });
+      confirmClick($('[data-del]', row), 'Ta bort läraren? Klicka igen', async () => { await api('DELETE', `admin/teachers/${tch.id}`); load(); });
+      list.appendChild(row);
+    }
+  }
+  $('#newTeacher').addEventListener('submit', async e => {
+    e.preventDefault(); $('#teacherErr').textContent = '';
+    try {
+      const r = await api('POST', 'admin/teachers', { name: $('#teacherName').value, schoolId: Number($('#teacherSchool').value) || null,
+        classIds: $$('#teacherClasses input:checked').map(x => Number(x.value)) });
+      $('#teacherName').value = '';
+      await load(); showTeacherKey(r.name, r.key);
+    } catch (err) { $('#teacherErr').textContent = err.message; }
+  });
 
   /* ---------- Skolor (huvudadmin) ---------- */
   function showKey(name, key) {

@@ -22,7 +22,7 @@
   <section class="panel" id="loginBox">
     <div class="label">Logga in som lärare eller förälder</div>
     <form id="loginForm" class="adm-form">
-      <label for="adminKey">Skolans lärarnyckel, eller adminnyckeln (ADMIN_KEY på servern)</label>
+      <label for="adminKey">Din lärarnyckel, skolans lärarnyckel eller adminnyckeln (ADMIN_KEY på servern)</label>
       <input class="textfield" id="adminKey" type="password" autocomplete="current-password">
       <button class="chunky" type="submit">Logga in</button>
       <p class="error" id="loginErr"></p>
@@ -42,6 +42,21 @@
       <div id="schools"></div>
     </section>
     <div id="contests" data-view="skola"></div>
+    <section class="panel" id="teachersBox" data-view="larare" hidden>
+      <div class="label">Lärare <small>Varje lärare får en egen nyckel och ser bara sina klasser</small></div>
+      <p class="muted">En lärare kan göra det mesta som admin i sina klasser: följa eleverna, sätta fokus, skapa klasser och klasskamp på sin skola. En lärare kan inte se andra klasser, radera klasser eller hantera skolor och andra lärare.</p>
+      <form id="newTeacher" class="adm-form">
+        <div class="adm-form inline two">
+          <div><label for="teacherName">Namn</label><input class="textfield" id="teacherName" placeholder="Anna Andersson" maxlength="64" required></div>
+          <div id="teacherSchoolWrap"><label for="teacherSchool">Skola (valfritt)</label><select id="teacherSchool" class="adm-select"></select></div>
+        </div>
+        <fieldset class="adm-checks" id="teacherClasses"><legend>Klasser</legend></fieldset>
+        <button class="chunky coral" type="submit">Skapa lärare</button>
+        <p class="error" id="teacherErr"></p>
+      </form>
+      <div class="adm-keybox" id="teacherKeyBox" hidden></div>
+      <div id="teachers"></div>
+    </section>
     <section class="panel" data-view="ny">
       <div class="label">Ny klass</div>
       <form id="newClass" class="adm-form inline">
