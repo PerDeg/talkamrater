@@ -151,7 +151,15 @@
         <button class="extra-btn" data-extra="line"><span class="ex-ic" aria-hidden="true">📏</span><b>Tallinjen</b><small>Var bor talet?</small><span class="ex-lv" data-lv="line"></span></button>
         <button class="extra-btn" data-extra="jump"><span class="ex-ic" aria-hidden="true"><span class="tb-plutt"><i></i><i></i></span></span><b>Plutts hopp</b><small>Hur stora är hoppen?</small><span class="ex-lv" data-lv="jump"></span></button>
         <button class="extra-btn" data-extra="word"><span class="ex-ic" aria-hidden="true">🔤</span><b>Hemliga ordet</b><small>Räkna fram bokstäverna</small><span class="ex-lv" data-lv="word"></span></button>
+        <button class="extra-btn" data-extra="story"><span class="ex-ic" aria-hidden="true">📖</span><b>Räknesagor</b><small>Korta sagor att räkna på</small><span class="ex-lv" data-lv="story"></span></button>
+        <button class="extra-btn" data-extra="gap"><span class="ex-ic" aria-hidden="true">🔍</span><b>Saknas-talet</b><small>Vilket tal har gömt sig?</small><span class="ex-lv" data-lv="gap"></span></button>
+        <button class="extra-btn" data-extra="money"><span class="ex-ic" aria-hidden="true">🪙</span><b>Pengar</b><small>Räkna mynt och handla</small><span class="ex-lv" data-lv="money"></span></button>
       </div>
+    </div>
+
+    <div class="panel extras gamescard" id="gamesCard">
+      <div class="label">🎮 Spela med Plutt <small>Låses upp när du når nya nivåer</small></div>
+      <div class="extra-row" id="gamesRow"></div>
     </div>
 
       <div class="panel duelcard">
@@ -371,6 +379,26 @@
       <div class="numline" id="numline"></div>
       <div class="answers" id="lineAnswers"></div>
       <p class="explain" id="lineExplain" aria-live="polite"></p>
+    </div>
+  </section>
+
+  <!-- RÄKNESAGOR, SAKNAS-TALET, PENGAR OCH SPELEN MED PLUTT -->
+  <section class="screen" id="quiz" hidden>
+    <div class="playhead">
+      <button class="chunky ghost" id="quizBack">← Nivåer</button>
+      <span class="playlabel" id="quizLabel"></span>
+      <span class="streak" id="quizStreak">🔥 0</span>
+    </div>
+    <div class="progress" id="quizProgress" aria-label="Framsteg"></div>
+    <div class="buddy-row">
+      <div class="mascot" aria-hidden="true"><div class="eyes"><i></i><i></i></div><div class="mouth"></div><i class="pal"></i></div>
+      <p class="speech" aria-live="polite"></p>
+    </div>
+    <div class="stage">
+      <p class="quiz-q"><span id="quizQ"></span> <button class="textbtn" id="quizRead" aria-label="Läs upp igen">🔊</button></p>
+      <div class="quiz-scene" id="quizScene"></div>
+      <div class="answers" id="quizAnswers"></div>
+      <p class="explain" id="quizExplain" aria-live="polite"></p>
     </div>
   </section>
 

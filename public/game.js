@@ -80,7 +80,7 @@
           const st = i < tier ? 'done' : i === tier ? 'here' : 'next'; // klassen blir jr-done osv.
           const sub = st === 'done' ? 'Klar ✓' : st === 'here' ? (next ? `Du är här · ${next[0] - t} ★ kvar` : 'Du är här · högsta nivån! 🏆') : `${min} ★ · ${min - t} kvar`;
           return `<li class="jr jr-${st} ${i % 2 ? 'jr-right' : 'jr-left'}" style="height:${R}px"><span class="jr-badge" aria-hidden="true">${TITLE_BADGES[i]}${st === 'next' ? '<i>🔒</i>' : ''}</span>
-            <span class="jr-txt"><small>Nivå ${i + 1}</small><b>${esc(n)}</b><em>${sub}</em>${st === 'here' && next ? `<span class="jr-meter"><i style="width:${Math.round(100 * (t - from) / (next[0] - from))}%"></i></span>` : ''}</span></li>`;
+            <span class="jr-txt"><small>Nivå ${i + 1}</small><b>${esc(n)}</b><em>${sub}</em>${GAMES.filter(x => x.tier === i).map(x => `<em class="jr-game">🎮 ${i <= tier ? 'Spelet' : 'Låser upp'} ${esc(x.title)}</em>`).join('')}${st === 'here' && next ? `<span class="jr-meter"><i style="width:${Math.round(100 * (t - from) / (next[0] - from))}%"></i></span>` : ''}</span></li>`;
         }).join('')}</ol></div>
         <p class="jr-note">Varje nivå har ett eget märke. Du får det när du når nivån.</p>
         <button class="chunky ghost" data-close>Stäng</button>`);
@@ -435,6 +435,7 @@
   /* ================= Ändringslogg ================= */
   // Det nyaste först. Höj APP_VERSION och lägg till en rad när något ändras i spelet.
   const CHANGELOG = [
+    ['1.19', '8 okt 2026', ['Nya övningar under Fler utmaningar: Räknesagor (som läses upp), Saknas-talet och Pengar.', 'Spela med Plutt: Plutt flyger, Kasta prick och Studsboll. De låses upp när du når nivå 3, 4 och 5, och frågorna kommer från tal du redan kan.']],
     ['1.18', '8 okt 2026', ['Jordgubbarna hamnar i korgen. Du väljer själv om de blir mat till Plutt eller saker i garderoben.', 'Mata Plutt en jordgubbe i taget.', 'Fler jordgubbar ju fler rätt och stjärnor du får, och lite fler klistermärken.', 'Nya saker till Plutt: guldkedja, ballong, glasstrut, kycklingkompis, trollstav, skateboard, gitarr, eget moln och raketryggsäck.', 'På tid! låses upp för ett tal när du har ★★★ på Lära och Öva och inga kluriga uppgifter kvar.', 'Klassen-fliken är nu hela klassidan: uppdraget, kompisutmaningen, klasskampen, flödet och kompisarna.']],
     ['1.17', '5 okt 2026', ['Tydligare sammanfattning efter en runda, en rad per sak.', 'En tydlig huvudknapp för att gå vidare, och Spela igen under.', 'Lärarens fokus står alltid överst i Idag, och läraren kan välja flera fokus och se vem som tränat.', 'Plutt hoppar själv i Plutts hopp, ingen känguru.', 'Talkamraterna hälsar alltid på Hem, och din figur är profilbilden uppe till höger.', 'Tallinjen och Plutts hopp har ett tal i mitten på de lättare nivåerna.', 'Titeln visar vilken nivå du är på. Tryck på den så ser du hela resan, med ett eget märke för varje nivå.', 'Hejarop visas en gång, med rätt antal.', 'En inbjudan från en kompis syns direkt i Idag, även när spelet redan är öppet.']],
     ['1.16', '5 okt 2026', ['Klappa Plutt på Hem så säger han något.', 'Petar man för många gånger blir han sur, säger till fröken och tar till slut en tupplur.']],
@@ -1784,7 +1785,7 @@
     const tips = [];
     if (canBuddy() && !c) tips.push({ ic: '🤝', t: 'Utmana en kompis', s: 'Klara ett mål tillsammans och få varsin kompisbricka', go: 'Bjud in', fn: () => openBuddy() });
     for (const [id, X] of Object.entries(EXTRAS)) {
-      if (!Object.keys(save.best).some(k => k.startsWith(X.prefix) && k.endsWith(':' + X.mode))) tips.push({ ic: X.icon, t: `Har du provat ${X.title.startsWith('Plutt') ? X.title : X.title.toLowerCase()}?`, s: { line: 'Hitta var talen bor på linjen', jump: 'Hjälp Plutt att hoppa rätt', word: 'Räkna fram ett hemligt ord' }[id] || X.title, go: 'Testa', fn: () => openExtra(id) });
+      if (!Object.keys(save.best).some(k => k.startsWith(X.prefix) && k.endsWith(':' + X.mode))) tips.push({ ic: X.icon, t: `Har du provat ${X.title.startsWith('Plutt') ? X.title : X.title.toLowerCase()}?`, s: { line: 'Hitta var talen bor på linjen', jump: 'Hjälp Plutt att hoppa rätt', word: 'Räkna fram ett hemligt ord', story: 'Korta sagor att räkna på', gap: 'Hitta talet som gömt sig', money: 'Räkna mynt och handla' }[id] || X.title, go: 'Testa', fn: () => openExtra(id) });
     }
     const tip = tips.length ? { ...tips[today() % tips.length], tip: true } : null;
     $('#todaySub').textContent = new Date().toLocaleDateString('sv-SE', { weekday: 'long', day: 'numeric', month: 'long' });
@@ -1913,6 +1914,7 @@
 
     renderVoicePick();
     renderExtrasCard();
+    renderGamesCard();
     renderNews();
     renderBuddyCard();
     renderPetTab();
@@ -2553,6 +2555,27 @@
     { name: 'Stora hopp', hint: 'Hopp om 10, 20, 25 och 50' },
     { name: 'Mitt i linjen', hint: 'Plutt startar mitt på linjen' }
   ];
+  const STORY_LEVELS = [
+    { name: 'Får fler', hint: 'Plus upp till 10' },
+    { name: 'Hur många till?', hint: 'Talkamrater i vardagen' },
+    { name: 'Ger bort', hint: 'Minus upp till 10' },
+    { name: 'Blandat till 20', hint: 'Plus, minus och hur många till' },
+    { name: 'Dubbelt och hälften', hint: 'Lika många och dela lika' }
+  ];
+  const GAP_LEVELS = [
+    { name: 'Plus till 10', hint: '3 + ? = 10' },
+    { name: 'Plus till 20', hint: '? + 6 = 15' },
+    { name: 'Minus', hint: '12 − ? = 5' },
+    { name: 'Blandat', hint: 'Luckan kan stå var som helst' },
+    { name: 'Lika på båda sidor', hint: '4 + ? = 3 + 5' }
+  ];
+  const MONEY_LEVELS = [
+    { name: 'Räkna mynten', hint: 'Upp till 10 kronor' },
+    { name: 'Hur mycket fattas till 10?', hint: 'Talkamrater med pengar' },
+    { name: 'Räkna till 20', hint: 'Med tiokronor' },
+    { name: 'Fattas till 20', hint: 'Hur mycket mer behövs?' },
+    { name: 'Handla', hint: 'Hur mycket får du tillbaka?' }
+  ];
   const WORD_LEVELS = [
     { name: 'Plus upp till 10', hint: 'Korta ord' },
     { name: 'Plus upp till 20', hint: 'Ord med fyra bokstäver' },
@@ -2566,7 +2589,13 @@
     jump: { title: 'Plutts hopp', icon: MINI_PLUTT, prefix: 'nj', mode: 'jump', levels: JUMP_LEVELS, count: 6,
       talk: 'Säg hur stora hoppen är mellan strecken. Svarar du rätt studsar jag hela vägen. Annars ramlar jag!' },
     word: { title: 'Hemliga ordet', icon: '🔤', prefix: 'w', mode: 'word', levels: WORD_LEVELS,
-      talk: 'Räkna ut talet, leta upp det i kodnyckeln och få fram bokstaven. Vilket ord blir det?' }
+      talk: 'Räkna ut talet, leta upp det i kodnyckeln och få fram bokstaven. Vilket ord blir det?' },
+    story: { title: 'Räknesagor', icon: '📖', prefix: 'sa', mode: 'story', levels: STORY_LEVELS,
+      talk: 'Lyssna på sagan och titta på bilden. Hur många blir det?' },
+    gap: { title: 'Saknas-talet', icon: '🔍', prefix: 'sg', mode: 'gap', levels: GAP_LEVELS,
+      talk: 'Ett tal har gömt sig. Vilket tal fattas?' },
+    money: { title: 'Pengar', icon: '🪙', prefix: 'pg', mode: 'money', levels: MONEY_LEVELS,
+      talk: 'Räkna mynten! Hur mycket pengar är det?' }
   };
   const extraStars = (id, i) => save.best[`${EXTRAS[id].prefix}${i}:${EXTRAS[id].mode}`] || 0;
   const extraOpen = (id, i) => i === 0 || extraStars(id, i - 1) >= 2;
@@ -2601,6 +2630,7 @@
   }
   function startExtra(id, i) {
     if (id === 'word') return startWord(i);
+    if (QUIZ_MAKE[id]) return startQuiz(id, i);
     return startLine(id, i);
   }
   // Låser rundan upp nästa nivå? Räknas ut innan finish() sparar stjärnorna.
@@ -3085,7 +3115,7 @@
     }
     timer = setTimeout(() => { if (G && G.game === 'word') nextWordTask(); }, 700);
   }
-  $$('.extra-btn').forEach(b => b.addEventListener('click', () => { roadContext = false; openExtra(b.dataset.extra); }));
+  $$('.extra-btn[data-extra]').forEach(b => b.addEventListener('click', () => { roadContext = false; openExtra(b.dataset.extra); }));
 
   /* ================= Kompisduell ================= */
   const DUEL_MODES = [
@@ -3378,6 +3408,8 @@
     const rows = [];
     const row = (ic, t, sub = '', tone = '') => rows.push({ ic, t, s: sub, tone });
     if (medal) row(medal[0], `Du vann ${esc(medal[1])}!`, 'Den finns nu i klistermärkesboken', 'big');
+    const newGame = newTitle !== oldTitle && GAMES.find(x => x.tier === tierFor(save.total));
+    if (newGame) row(newGame.icon, `Nytt spel: ${esc(newGame.title)}!`, 'Du hittar det under Träna, Spela med Plutt', 'big');
     if (newTitle !== oldTitle) row(TITLE_BADGES[tierFor(save.total)], `Ny nivå: ${esc(newTitle)}!`, `Nivå ${tierFor(save.total) + 1} av ${TITLES.length} · du fick ett nytt märke`, 'big');
     if (daily) row('🔥', 'Dagens utmaning klar!', `${daily} ${daily === 1 ? 'dag' : 'dagar'} i rad`, 'big');
     const step = g.stepId ? stationById(g.stepId) : null;
@@ -3428,6 +3460,7 @@
     const fromRoad = roadContext || !!g.station;
     let goText, goFn;
     if (g.extra) { goText = 'Välj nivå'; goFn = () => openExtra(g.extra); }
+    else if (g.reward) { goText = 'Fler spel'; goFn = () => setTab('train'); }
     else if (step && (!step.done || g.station?.kind === 'timed')) { goText = !step.done && r.passed ? 'Nästa moment' : `Till ${step.name}`; goFn = () => openStep(stationById(step.id)); }
     else if (fromRoad) { goText = 'Vägen till expert'; goFn = () => openRoad(wid); }
     else { goText = 'Till Hem'; goFn = () => goHome(); }
@@ -3489,6 +3522,225 @@
   function noteRow(html) {
     const m = /^([^\s\p{L}\p{N}<]+)\s+([\s\S]*)$/u.exec(html);
     return m ? { ic: m[1], t: m[2], s: '' } : { ic: '⭐', t: html, s: '' };
+  }
+
+  /* ================= Räknesagor, saknas-talet, pengar och spelen med Plutt ================= */
+  // En gemensam motor: varje uppgift har en bild (scene), en fråga, ett svar och
+  // svarsalternativ. Spelen har egna scener där svaren är moln, burkar eller plattor.
+  function nearOpts(ans, max, n = 4) {
+    const set = new Set([ans]);
+    for (const c of shuffle([ans - 1, ans + 1, ans - 2, ans + 2, ans + 3, ans - 3, ...(max >= 15 ? [ans + 10, ans - 10] : [])])) { if (set.size >= n) break; if (c >= 0 && c <= max) set.add(c); }
+    for (let g = 0; set.size < n && g < 50; g++) set.add(rnd(0, max));
+    return shuffle([...set]);
+  }
+  const eqParts = parts => parts.map(p => (typeof p === 'number' ? `<span class="a">${p}</span>` : p === '?' ? '<span class="gap">?</span>' : `<span class="op">${p}</span>`)).join('');
+
+  // Räknesagor: korta berättelser med bilder, som läses upp
+  const STORY_NAMES = ['Alva', 'Sam', 'Leo', 'Nora', 'Elsa', 'Omar', 'Maja', 'Ali', 'Plutt'];
+  const STORY_THINGS = [['äpple', 'äpplen', '🍎'], ['kula', 'kulor', '🔵'], ['bil', 'bilar', '🚗'], ['kaka', 'kakor', '🍪'], ['ballong', 'ballonger', '🎈'],
+    ['penna', 'pennor', '✏️'], ['jordgubbe', 'jordgubbar', '🍓'], ['boll', 'bollar', '⚽'], ['snäcka', 'snäckor', '🐚'], ['stjärna', 'stjärnor', '⭐']];
+  const things = (n, t) => `${n} ${n === 1 ? t[0] : t[1]}`;
+  const pics = (n, t, cls = '') => (n <= 12 ? `<span class="pics ${cls}">${Array(n).fill(t[2]).join('')}</span>` : `<span class="pics-n ${cls}">${n} ${t[2]}</span>`);
+  function storyTask(lv) {
+    const [A, B] = shuffle(STORY_NAMES.slice()), t = pick(STORY_THINGS), max = lv <= 2 ? 10 : 20;
+    const kind = [() => 'plus', () => 'more', () => 'minus', () => pick(['plus', 'more', 'minus']), () => pick(['double', 'half'])][lv]();
+    if (kind === 'plus') { const a = rnd(1, max - 2), b = rnd(1, max - a); return { scene: `${pics(a, t)}<span class="op">+</span>${pics(b, t, 'new')}`, q: `${A} har ${things(a, t)}. ${A} får ${b} till. Hur många ${t[1]} har ${A} nu?`, ans: a + b, max: max + 3, explain: `${a} + ${b} = ${a + b}` }; }
+    if (kind === 'more') { const n = lv >= 3 ? rnd(11, 20) : rnd(5, 10), a = rnd(1, n - 1); return { scene: `${pics(a, t)}<span class="op">+ ?</span>`, q: `${A} har ${things(a, t)} men vill ha ${n}. Hur många till behöver ${A}?`, ans: n - a, max: n, explain: `${a} + ${n - a} = ${n}` }; }
+    if (kind === 'minus') { const a = rnd(4, max), b = rnd(1, a - 1); return { scene: pics(a, t), q: `${A} har ${things(a, t)} och ger ${b} till ${B}. Hur många har ${A} kvar?`, ans: a - b, max: a, explain: `${a} ${MINUS} ${b} = ${a - b}` }; }
+    if (kind === 'double') { const a = rnd(2, 10); return { scene: `${pics(a, t)}<span class="op">+</span>${pics(a, t, 'new')}`, q: `${A} har ${things(a, t)}. ${B} har lika många. Hur många har de tillsammans?`, ans: 2 * a, max: 22, explain: `${a} + ${a} = ${2 * a}` }; }
+    const a = rnd(2, 10);
+    return { scene: pics(2 * a, t), q: `${A} och ${B} delar lika på ${things(2 * a, t)}. Hur många får var och en?`, ans: a, max: 2 * a, explain: `${a} + ${a} = ${2 * a}` };
+  }
+
+  // Saknas-talet: plus, minus och dubblor med luckan på olika ställen
+  function gapTask(lv) {
+    const kinds = [['plusA', 'plusB'], ['plusA', 'plusB'], ['minusA', 'minusB'], ['plusA', 'plusB', 'minusA', 'minusB'], ['balance', 'balance', 'double']][lv];
+    const kind = pick(kinds), lo = lv === 1 ? 11 : 4, hi = lv === 0 ? 10 : 20;
+    const n = rnd(lo, hi), a = rnd(1, n - 1), b = n - a;
+    if (kind === 'plusA') return { scene: eqParts([a, '+', '?', '=', n]), q: 'Vilket tal fattas?', ans: b, max: n, explain: `${a} + ${b} = ${n}` };
+    if (kind === 'plusB') return { scene: eqParts(['?', '+', b, '=', n]), q: 'Vilket tal fattas?', ans: a, max: n, explain: `${a} + ${b} = ${n}` };
+    if (kind === 'minusA') return { scene: eqParts([n, MINUS, '?', '=', b]), q: 'Vilket tal fattas?', ans: a, max: n, explain: `${n} ${MINUS} ${a} = ${b}` };
+    if (kind === 'minusB') return { scene: eqParts(['?', MINUS, a, '=', b]), q: 'Vilket tal fattas?', ans: n, max: 20, explain: `${n} ${MINUS} ${a} = ${b}` };
+    if (kind === 'double') { const d = rnd(2, 10); return { scene: eqParts(['?', '+', '?', '=', 2 * d]), q: 'Samma tal två gånger. Vilket?', ans: d, max: 12, explain: `${d} + ${d} = ${2 * d}` }; }
+    // Lika på båda sidor: 4 + ? = 3 + 5
+    const x = rnd(1, 9), y = rnd(1, 9), s = x + y, p = rnd(1, s - 1);
+    return { scene: eqParts([p, '+', '?', '=', x, '+', y]), q: 'Båda sidor ska bli lika mycket. Vilket tal fattas?', ans: s - p, max: s, explain: `${p} + ${s - p} = ${x} + ${y} = ${s}` };
+  }
+
+  // Pengar: svenska mynt och en tjugolapp
+  const SHOP = [['en glass', '🍦'], ['en bok', '📕'], ['en boll', '⚽'], ['en kaka', '🍪'], ['en leksaksbil', '🚗'], ['ett klistermärke', '⭐'], ['en ballong', '🎈']];
+  const coinHTML = v => `<span class="coin c${v}">${v}</span>`;
+  function coinsFor(sum, ten) {
+    const out = [];
+    for (let left = sum; left > 0;) { const v = pick((ten ? [10, 5, 2, 1] : [5, 2, 1]).filter(x => x <= left)); out.push(v); left -= v; }
+    return out.sort((x, y) => y - x);
+  }
+  function moneyTask(lv) {
+    if (lv === 4) {
+      const [what, ic] = pick(SHOP), p = rnd(3, 19);
+      return { scene: `<span class="price"><span class="pics">${ic}</span>${p} kr</span><span class="note">20</span>`, q: `${what[0].toUpperCase()}${what.slice(1)} kostar ${p} kronor. Du betalar med en tjugolapp. Hur mycket får du tillbaka?`, ans: 20 - p, max: 20, unit: 'kr', explain: `${p} + ${20 - p} = 20` };
+    }
+    const target = lv <= 1 ? 10 : 20;
+    const sum = lv === 0 ? rnd(3, 10) : lv === 1 ? rnd(2, 9) : lv === 2 ? rnd(8, 20) : rnd(6, 19);
+    const coins = coinsFor(sum, lv >= 2);
+    const scene = `<span class="coins">${coins.map(coinHTML).join('')}</span>`;
+    if (lv === 0 || lv === 2) return { scene, q: 'Hur mycket pengar är det?', ans: sum, max: target + 3, unit: 'kr', explain: `${coins.join(' + ')} = ${sum} kr` };
+    return { scene, q: `Hur mycket fattas till ${target} kronor?`, ans: target - sum, max: target, unit: 'kr', explain: `${sum} + ${target - sum} = ${target}` };
+  }
+
+  // Spelen med Plutt: låses upp av nivåerna på resan. Frågorna kommer från tal man kan.
+  const GAMES = [
+    { id: 'fly', title: 'Plutt flyger', icon: '☁️', tier: 2, text: 'Flyg genom molnet med rätt svar' },
+    { id: 'throw', title: 'Kasta prick', icon: '🎯', tier: 3, text: 'Träffa burken med rätt svar' },
+    { id: 'bounce', title: 'Studsboll', icon: '🏀', tier: 4, text: 'Hoppa upp på plattan med rätt svar' }
+  ];
+  const gameOpen = gm => tierFor(save.total) >= gm.tier;
+  function gamePool() {
+    const pool = [];
+    for (const w of WORLD_IDS) for (const n of WORLDS[w].levels) if (bestOf(w, n) >= 2) pool.push([w, n]);
+    return pool.length >= 3 ? pool : range(3, 10).map(n => ['plus', n]);
+  }
+  function gameTask() {
+    const [w, n] = pick(gamePool());
+    const q = prepQ(rndQ(w, n, n));
+    const opts = choicesFor(q).filter(v => v !== q.ans).slice(0, 2).concat(q.ans);
+    return { eq: true, scene: equationHTML(q, false), done: equationHTML(q, true), q: '', ans: q.ans, opts: shuffle(opts), explain: '' };
+  }
+
+  const QUIZ_COUNT = { story: 6, gap: 8, money: 6 };
+  const QUIZ_MAKE = { story: storyTask, gap: gapTask, money: moneyTask };
+  function startQuiz(id, lv) {
+    stopGame();
+    const X = EXTRAS[id];
+    G = { game: 'quiz', kind: 'train', world: 'plus', extra: id, lv, level: `${X.prefix}${lv}`, mode: X.mode, idx: 0, count: QUIZ_COUNT[id],
+      mistakes: 0, score: 0, streak: 0, bestStreak: 0, marks: [], make: () => QUIZ_MAKE[id](lv), again: () => startQuiz(id, lv) };
+    show('quiz');
+    $('#quizLabel').innerHTML = `${X.icon} ${esc(X.title)}: ${esc(X.levels[lv].name)}`;
+    $('#quizBack').textContent = '← Nivåer';
+    $('#quizBack').onclick = () => openExtra(id);
+    $('#quiz').className = 'screen quiz-' + id;
+    talk(X.talk, 'happy');
+    nextQuiz();
+  }
+  function startGame(gid) {
+    const gm = GAMES.find(x => x.id === gid);
+    if (!gm || !gameOpen(gm)) return;
+    stopGame();
+    G = { game: 'quiz', kind: 'game', reward: gid, world: 'plus', level: 'g-' + gid, mode: gid, idx: 0, count: 10,
+      mistakes: 0, score: 0, streak: 0, bestStreak: 0, marks: [], make: gameTask, again: () => startGame(gid) };
+    show('quiz');
+    $('#quizLabel').innerHTML = `${gm.icon} ${esc(gm.title)}`;
+    $('#quizBack').textContent = '← Träna';
+    $('#quizBack').onclick = () => setTab('train');
+    $('#quiz').className = 'screen quiz-game game-' + gid;
+    talk(gm.text + '!', 'happy');
+    nextQuiz();
+  }
+  function petInScene() {
+    const st = petStage(save.pet.xp);
+    return st > 0 ? petHTML(st, 'mood-happy', petWear()) : `<span class="tb-plutt big"><i></i><i></i></span>`;
+  }
+  // Scenen för spelen: alternativen blir moln, burkar eller plattor
+  function gameScene(gid, opts) {
+    const t = (cls, v, style) => `<button class="g-target ${cls}" data-v="${v}" style="${style}"><span>${v}</span></button>`;
+    if (gid === 'fly') return `<div class="gscene fly"><div class="g-actor" style="left:6%;top:42%">${petInScene()}</div>${opts.map((v, i) => t('cloud', v, `right:9%;top:${12 + i * 30}%`)).join('')}</div>`;
+    if (gid === 'throw') return `<div class="gscene throw"><div class="shelf"></div>${opts.map((v, i) => t('can', v, `left:${12 + i * 30}%;top:14%`)).join('')}<span class="g-ball" style="left:46%;bottom:6%">⚽</span></div>`;
+    const tops = shuffle([12, 34, 56]);
+    return `<div class="gscene bounce"><div class="g-actor" style="left:6%;bottom:4%">${petInScene()}</div>${opts.map((v, i) => t('plat', v, `left:${26 + i * 22}%;top:${tops[i]}%`)).join('')}</div>`;
+  }
+  function nextQuiz() {
+    if (!G || G.game !== 'quiz') return;
+    const task = G.make();
+    G.cur = task; G.locked = false;
+    renderProgress($('#quizProgress'), G.idx, G.count, G.idx, G.marks);
+    setStreak($('#quizStreak'), G.streak);
+    $('#quizExplain').textContent = '';
+    $('#quizQ').textContent = task.q;
+    $('#quizRead').hidden = !task.q || G.extra === 'gap';
+    const scene = $('#quizScene'), ans = $('#quizAnswers');
+    if (G.reward) {
+      scene.innerHTML = `<div class="equation g-eq">${task.scene}</div>` + gameScene(G.reward, task.opts);
+      ans.innerHTML = ''; ans.hidden = true;
+      $$('#quizScene .g-target').forEach(b => b.addEventListener('click', () => answerQuiz(b, +b.dataset.v)));
+    } else {
+      scene.innerHTML = `<div class="quiz-pic">${task.scene}</div>`;
+      ans.hidden = false; ans.innerHTML = '';
+      (task.opts || nearOpts(task.ans, task.max)).forEach(v => {
+        const b = document.createElement('button');
+        b.className = 'ans'; b.dataset.v = v; b.textContent = task.unit ? `${v} ${task.unit}` : v;
+        b.addEventListener('click', () => answerQuiz(b, v));
+        ans.appendChild(b);
+      });
+      if (task.q && G.extra !== 'gap') say(task.q);
+    }
+  }
+  $('#quizRead').addEventListener('click', () => { if (G && G.cur && G.cur.q) say(G.cur.q); });
+  // Spelens rörelser: Plutt flyger eller hoppar, bollen kastas
+  function moveTo(el, target, scene, opts = {}) {
+    if (!el || !el.animate) return Promise.resolve();
+    const a = el.getBoundingClientRect(), b = target.getBoundingClientRect();
+    const dx = b.left + b.width / 2 - (a.left + a.width / 2), dy = b.top + (opts.onTop ? -a.height / 2 + 6 : b.height / 2 - a.height / 2) - a.top;
+    const lift = opts.arc ? -Math.max(60, Math.abs(dy) * 0.6) : 0;
+    const frames = [{ transform: 'translate(0,0)' }, { transform: `translate(${dx / 2}px, ${dy / 2 + lift}px)` }, { transform: `translate(${dx}px, ${dy}px)` }];
+    const back = opts.back ? [{ transform: `translate(${dx}px, ${dy}px)` }, { transform: `translate(${dx * 0.6}px, ${dy + 30}px) rotate(20deg)` }, { transform: 'translate(0,0)' }] : null;
+    return el.animate(frames, { duration: opts.ms || 520, easing: 'ease-in-out', fill: 'forwards' }).finished
+      .then(() => (back ? el.animate(back, { duration: 650, easing: 'ease-in', fill: 'forwards' }).finished : null)).catch(() => {});
+  }
+  async function answerQuiz(btn, v) {
+    if (!G || G.game !== 'quiz' || G.locked) return;
+    G.locked = true;
+    const task = G.cur, right = v === task.ans, g = G;
+    $$('#quizAnswers .ans, #quizScene .g-target').forEach(x => { x.disabled = true; });
+    btn.classList.add(right ? 'right' : 'wrong');
+    if (G.reward) {
+      const scene = $('#quizScene'), actor = $('.g-actor', scene) || $('.g-ball', scene);
+      await moveTo(actor, btn, scene, { arc: G.reward !== 'fly', onTop: G.reward === 'bounce', back: !right, ms: G.reward === 'throw' ? 480 : 600 });
+      if (G !== g) return;
+      if (right) btn.classList.add(G.reward === 'throw' ? 'hit' : 'pop');
+      else if (G.reward === 'bounce') btn.classList.add('crumble');
+    }
+    if (right) {
+      G.score++; G.streak++; G.bestStreak = Math.max(G.bestStreak, G.streak); G.marks[G.idx] = true;
+      celebrate(btn, G.streak, true);
+      if (task.done) $('.g-eq', $('#quizScene')).innerHTML = task.done;
+      $('#quizExplain').textContent = task.explain ? `Rätt! ${task.explain}` : 'Rätt!';
+    } else {
+      G.mistakes++; G.streak = 0; G.marks[G.idx] = false;
+      sfx.wrong();
+      $$('#quizAnswers .ans, #quizScene .g-target').forEach(x => { if (+x.dataset.v === task.ans) x.classList.add('correct-was'); });
+      if (task.done) $('.g-eq', $('#quizScene')).innerHTML = task.done;
+      $('#quizExplain').textContent = `Rätt svar var ${task.ans}${task.unit ? ' ' + task.unit : ''}.${task.explain ? ' ' + task.explain : ''}`;
+      if (G.reward) talk(pick(['Oj, nästan!', 'Hoppsan! Nästa gång!', 'Det gör inget, vi kör vidare!']), 'oops');
+    }
+    setStreak($('#quizStreak'), G.streak);
+    timer = setTimeout(() => {
+      if (G !== g) return;
+      G.idx++;
+      if (G.idx < G.count) return nextQuiz();
+      const stars = extraStarsFor(G.mistakes, G.count);
+      const note = G.extra ? unlockNote(G.extra, G.lv, stars) : null;
+      const gm = G.reward && GAMES.find(x => x.id === G.reward);
+      finish({ passed: true, stars, score: G.score, total: G.count, notes: note ? [note] : [],
+        stats: `${G.score} rätt av ${G.count}${G.bestStreak > 2 ? ` · bästa svit ${G.bestStreak} i rad` : ''}${gm ? ` · ${gm.title}` : ''}` });
+    }, right ? 1100 : 2200);
+  }
+
+  // Kortet "Spela med Plutt" i Träna: spelen och vad som låser upp dem
+  function renderGamesCard() {
+    const box = $('#gamesRow'); if (!box) return;
+    box.innerHTML = '';
+    for (const gm of GAMES) {
+      const open = gameOpen(gm);
+      const b = document.createElement('button');
+      b.className = 'extra-btn game-btn' + (open ? '' : ' locked');
+      b.innerHTML = `<span class="ex-ic" aria-hidden="true">${open ? gm.icon : '🔒'}</span><b>${esc(gm.title)}</b>
+        <small>${open ? esc(gm.text) : `Låses upp på nivå ${gm.tier + 1}: ${esc(TITLES[gm.tier][1])}`}</small>`;
+      b.addEventListener('click', () => {
+        if (open) { sfx.select(); startGame(gm.id); }
+        else { sfx.select(); cheer(`Samla ${TITLES[gm.tier][0] - save.total} ★ till!`); }
+      });
+      box.appendChild(b);
+    }
   }
 
   /* ================= Diplom ================= */

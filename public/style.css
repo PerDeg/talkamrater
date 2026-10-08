@@ -1080,3 +1080,56 @@ body.on-start .tabbar { display: grid; grid-template-columns: repeat(4, 1fr); po
 .foldpanel[open] > summary::after { content: "▴"; }
 .foldpanel > summary small { font-family: var(--body); font-size: 0.85rem; color: var(--ink-soft); font-weight: 700; }
 .foldpanel[open] > summary { margin-bottom: 12px; }
+/* Räknesagor, saknas-talet och pengar */
+.quiz-q { font-family: var(--display); font-weight: 800; font-size: 1.25rem; line-height: 1.25; margin: 0 0 10px; text-align: center; }
+.quiz-q .textbtn { text-decoration: none; font-size: 1.2rem; padding: 0 4px; }
+.quiz-scene { display: grid; justify-items: center; margin-bottom: 14px; }
+.quiz-pic { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 8px 12px; min-height: 70px; background: var(--sky-2); border-radius: 20px; padding: 12px; width: 100%; }
+.quiz-gap .quiz-pic { font-family: var(--display); font-weight: 800; font-size: clamp(2rem, 9vw, 3rem); gap: 10px; background: transparent; }
+.quiz-pic .op { font-family: var(--display); font-weight: 800; font-size: 1.8rem; color: var(--ink-soft); }
+.quiz-pic .gap { display: inline-grid; place-items: center; min-width: 1.6em; border-radius: 14px; border: 4px dashed var(--coral); color: var(--coral); }
+.pics { font-size: 1.7rem; letter-spacing: 2px; max-width: 12em; line-height: 1.25; text-align: center; }
+.pics.new { filter: drop-shadow(0 0 4px #FFD84D); }
+.pics-n { font-family: var(--display); font-weight: 800; font-size: 1.8rem; }
+.coins { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+.coin { width: 46px; height: 46px; border-radius: 50%; display: grid; place-items: center; font-family: var(--display); font-weight: 800; font-size: 1.2rem; color: #4A4030;
+  background: radial-gradient(circle at 35% 30%, #FFFFFF, #CFD4DC 55%, #9AA2AE); box-shadow: inset 0 0 0 3px rgba(0,0,0,0.12), 0 2px 0 rgba(0,0,0,0.15); }
+.coin.c2 { width: 50px; height: 50px; }
+.coin.c5, .coin.c10 { background: radial-gradient(circle at 35% 30%, #FFF5C8, #F2C94C 55%, #C9962C); }
+.coin.c10 { width: 56px; height: 56px; font-size: 1.3rem; }
+.note, .price { display: inline-grid; place-items: center; font-family: var(--display); font-weight: 800; font-size: 1.4rem; }
+.note { width: 96px; height: 52px; border-radius: 8px; background: linear-gradient(135deg, #B7E4C7, #74C69D); box-shadow: inset 0 0 0 3px rgba(0,0,0,0.1); color: #14532D; }
+.note::after { content: " kr"; font-size: 0.9rem; }
+.price { grid-auto-flow: column; gap: 8px; background: var(--card); border-radius: 14px; padding: 6px 12px; }
+/* Spelen med Plutt */
+.gamescard .game-btn.locked { opacity: 0.6; }
+.quiz-game .stage { overflow: hidden; }
+.g-eq { margin-bottom: 10px; }
+.gscene { position: relative; width: 100%; height: 260px; border-radius: 22px; overflow: hidden; }
+.gscene.fly { background: linear-gradient(#8FD3FF, #DDF3FF); }
+.gscene.throw { background: linear-gradient(#FFF1D6, #FFE2B3); }
+.gscene.bounce { background: linear-gradient(#C9F0FF, #E9F9FF 70%, #9BE3A8 70%); }
+.g-actor { position: absolute; z-index: 3; width: 70px; height: 70px; display: grid; place-items: end center; }
+.g-actor .pet { --s: 1.15 !important; }
+.tb-plutt.big { transform: scale(2); }
+.g-target { position: absolute; border: 0; font: inherit; font-family: var(--display); font-weight: 800; font-size: 1.8rem; color: var(--ink); cursor: pointer; display: grid; place-items: center; transition: transform 0.2s; }
+.g-target:not(:disabled):active { transform: scale(0.95); }
+.g-target.cloud { width: 110px; height: 64px; border-radius: 40px; background: #fff; box-shadow: 0 6px 0 rgba(0,0,0,0.08); animation: cloudin 0.5s ease both; }
+.g-target.cloud::before, .g-target.cloud::after { content: ""; position: absolute; background: #fff; border-radius: 50%; z-index: -1; }
+.g-target.cloud::before { width: 50px; height: 50px; top: -22px; left: 18px; }
+.g-target.cloud::after { width: 40px; height: 40px; top: -14px; right: 16px; }
+@keyframes cloudin { from { transform: translateX(120px); opacity: 0; } }
+.g-target.can { width: 72px; height: 96px; border-radius: 10px 10px 14px 14px; background: linear-gradient(90deg, #E23D3D, #FF7A7A 45%, #B92B2B); color: #fff; box-shadow: inset 0 6px 0 rgba(255,255,255,0.35), inset 0 -6px 0 rgba(0,0,0,0.2); }
+.shelf { position: absolute; left: 6%; right: 6%; top: calc(14% + 96px); height: 12px; border-radius: 6px; background: #A0522D; }
+.g-ball { position: absolute; font-size: 2.4rem; z-index: 3; line-height: 1; }
+.g-target.plat { width: 78px; height: 34px; border-radius: 12px; background: linear-gradient(#7BD38A, #3BA55C); color: #fff; font-size: 1.4rem; box-shadow: 0 6px 0 #2B7A43; }
+.g-target.right.pop { animation: gpop 0.5s ease forwards; }
+@keyframes gpop { 50% { transform: scale(1.25); } 100% { transform: scale(0); opacity: 0; } }
+.g-target.right.hit { animation: canfall 0.7s ease-in forwards; }
+@keyframes canfall { 30% { transform: rotate(-25deg) translateY(-12px); } 100% { transform: rotate(80deg) translate(40px, 160px); opacity: 0; } }
+.g-target.crumble { animation: crumble 0.6s ease-in forwards; }
+@keyframes crumble { 100% { transform: translateY(120px) rotate(12deg); opacity: 0; } }
+.g-target.wrong { filter: grayscale(0.6); }
+.g-target.correct-was { box-shadow: 0 0 0 4px var(--sun), 0 6px 0 rgba(0,0,0,0.08); }
+.jr-game { display: block; color: var(--grape) !important; font-weight: 800; }
+@media (max-width: 380px) { .g-target.cloud { width: 92px; } .g-target.can { width: 60px; } .g-target.plat { width: 78px; } }
