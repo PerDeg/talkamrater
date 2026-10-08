@@ -1,6 +1,7 @@
 (() => {
   'use strict';
   const $ = (s, r = document) => r.querySelector(s);
+  const $$ = (s, r = document) => [...r.querySelectorAll(s)];
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   let key = '';
   try { key = sessionStorage.getItem('tk-admin') || ''; } catch (e) {}
@@ -116,102 +117,148 @@
     $('#classSchoolWrap').hidden = !me.super || !schools.length;
     $('#classSchool').innerHTML = '<option value="">Ingen skola</option>' + schools.map(x => `<option value="${x.id}">${esc(x.name)}</option>`).join('');
     const wrap = $('#classes'); wrap.innerHTML = '';
-    // Egna konton (utan klass) visas för sig, längst ner
+    // Egna konton (utan klass) visas för sig
     const solos = classes.filter(c => c.solo);
     classes = classes.filter(c => !c.solo);
-    if (!classes.length) wrap.innerHTML = '<p class="panel adm-class muted">Inga klasser än. Skapa en ovanför.</p>';
-    for (const c of classes) {
-      const el = document.createElement('section');
-      el.className = 'panel adm-class';
-      const stars = c.players.reduce((s, p) => s + p.stars, 0);
-      el.innerHTML = `
-        <div class="adm-head">
-          <h2>${esc(c.name)}</h2>
-          <span class="adm-code" title="Klasskod">${esc(c.code)}</span>
-        </div>
-        <div class="adm-share">
-          <span>Till eleverna: Gå till <b>${esc(gameUrl)}</b>, tryck <b>Gå med i klassen</b> och skriv koden <b>${esc(c.code)}</b>.</span>
-          <button class="small-btn" data-copy>Kopiera</button>
-        </div>
-        ${me.super && schools.length ? `<p class="muted"><label>Skola: <select class="adm-select" data-school><option value="">Ingen skola</option>${schools.map(x => `<option value="${x.id}" ${x.id === c.schoolId ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</select></label></p>` : ''}
-        <p class="muted">${c.players.length} ${c.players.length === 1 ? 'elev' : 'elever'} · stjärnburken ${stars} av
-          <span class="goal-edit"><input type="number" min="10" value="${c.goal}" aria-label="Mål för stjärnburken"><button class="small-btn" data-goal>Spara</button></span></p>
-        <div class="adm-public">
-          <label class="check"><input type="checkbox" data-public ${c.public ? 'checked' : ''}> Visa klassens status på en annan webbsida (widget)</label>
-          <div class="adm-embed" ${c.public ? '' : 'hidden'}>
-            <p class="muted">Klistra in på klassens sida. Byt <b>namn=</b> mot elevens namn. Rutan syns bara när eleven finns i klassen. Mer om färger och stilar i docs/API.md.</p>
-            <pre class="adm-code-block">${esc(embedCode(c.code))}</pre>
-            <button class="small-btn" data-copy-embed>Kopiera kod</button>
-            <a class="small-btn" href="${esc(widgetUrl(c.code))}" target="_blank" rel="noopener">Förhandsgranska</a>
-            <p class="muted">Sajten som bäddar in måste stå i <b>ALLOWED_ORIGINS</b> på servern.</p>
-          </div>
-        </div>
-        <div class="adm-focus">
-          <b>Fokus för hela klassen</b>
-          <div data-class-focus></div>
-          <span class="muted">Visas överst i elevens lista Idag och kommer oftare i blandade rundor. En elev kan få ett eget fokus nedan.
-            ${c.focus ? (() => { const n = c.players.filter(p => !p.focus && (p.focusDone || []).some(f => f.rounds)).length, all = c.players.filter(p => !p.focus).length;
-              return `<br><b>${n} av ${all}</b> elever har tränat på klassens fokus${c.focusAt ? ` sedan ${dateText(c.focusAt)}` : ' den senaste veckan'}.`; })() : ''}</span>
-        </div>
-        <p class="muted">Veckans uppdrag: <b>${esc(c.mission.title)}</b>
-          · Alla med: <b>${c.everyone.contributed} av ${c.everyone.players}</b> har spelat den här veckan${c.everyone.allIn ? ' 🌟' : ''}
-          · ${esc(c.pet.icon)} ${esc(c.pet.moodText)}</p>
-        ${wallHTML(c)}
-        <div class="tablewrap"><table>
-          <thead><tr><th>Elev</th><th>Kan bra</th><th>Behöver träna</th><th>Tränat</th><th>Bidrag i veckan</th><th>Fokus</th><th></th></tr></thead>
-          <tbody></tbody>
-        </table></div>
-        <p class="actions" style="margin-top:12px"><button class="small-btn danger" data-del-class>Radera klassen</button></p>`;
-      const tb = $('tbody', el);
-      if (!c.players.length) tb.innerHTML = '<tr><td colspan="7" class="muted">Inga elever har gått med än.</td></tr>';
-      for (const p of c.players) {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td><span class="em">${esc(p.avatar)}</span> <b>${esc(p.name)}</b>${p.hasPin ? '' : ' <span class="muted">(väljer ny kod)</span>'}
-            <div class="muted small">★ ${p.stars} · ${p.medals} medaljer${(p.experts || []).length ? ' · expert' : ''} · senast ${ago(p.lastSeen)}</div></td>
-          <td class="good">${p.strong.length ? p.strong.map(esc).join('<br>') : '<span class="muted">Inget säkert än</span>'}</td>
-          <td class="tricky">${p.practice.length ? p.practice.map(esc).join('<br>') : '<span class="muted">–</span>'}</td>
-          <td>${p.training.weekRounds} rundor, ${p.training.weekAnswers} rätt i veckan<div class="muted small">${p.training.rounds} rundor totalt</div></td>
-          <td>${p.contribution} ${esc(c.mission.unit)}</td>
-          <td class="fcell"><div class="fdone-list">${focusDoneHTML(p)}</div><div data-focus></div></td>
-          <td><div class="actions">
-            <button class="small-btn" data-reset>Ny bildkod</button>
-            <button class="small-btn danger" data-del>Ta bort</button>
-          </div></td>`;
-        $('[data-focus]', tr).replaceWith(focusPicker(p.focus, c.focus ? 'Klassens fokus' : 'Inget eget', async v => {
-          await api('PATCH', `admin/players/${p.id}`, { focus: v });
-        }));
-        confirmClick($('[data-reset]', tr), 'Säker? Klicka igen', async () => { await api('POST', `admin/players/${p.id}/reset-pin`); load(); });
-        confirmClick($('[data-del]', tr), 'Radera allt?', async () => { await api('DELETE', `admin/players/${p.id}`); load(); });
-        tb.appendChild(tr);
-      }
-      $('[data-copy]', el).addEventListener('click', async e => {
-        const text = $('.adm-share span', el).textContent.trim();
-        try { await navigator.clipboard.writeText(text); e.target.textContent = 'Kopierat!'; }
-        catch (err) { const r = document.createRange(); r.selectNodeContents($('.adm-share span', el)); getSelection().removeAllRanges(); getSelection().addRange(r); }
-      });
-      $('[data-goal]', el).addEventListener('click', async () => {
-        await api('PATCH', `admin/classes/${c.id}`, { goal: Number($('.goal-edit input', el).value) });
-        load();
-      });
-      const schoolSel = $('[data-school]', el);
-      if (schoolSel) schoolSel.addEventListener('change', async e => { await api('PATCH', `admin/classes/${c.id}`, { schoolId: Number(e.target.value) || null }); load(); });
-      $('[data-class-focus]', el).replaceWith(focusPicker(c.focus, 'Inget fokus', async v => {
-        await api('PATCH', `admin/classes/${c.id}`, { focus: v });
+    for (const c of classes) wrap.appendChild(classSection(c));
+    if (solos.length) { const el = soloSection(solos); el.dataset.view = 'egna'; wrap.appendChild(el); }
+    renderNav(classes, solos);
+  }
+
+  /* ---------- Meny: en klass i taget ---------- */
+  let view = '';
+  try { view = sessionStorage.getItem('tk-admin-view') || ''; } catch (e) {}
+  function renderNav(classes, solos) {
+    const items = [
+      ...classes.map(c => [`c${c.id}`, `${esc(c.name)} <small>${c.players.length}</small>`]),
+      ...(solos.length ? [['egna', `Egna konton <small>${solos.length}</small>`]] : []),
+      ...(me.super || me.school ? [['skola', me.super ? 'Skolor och klasskamp' : 'Klasskamp']] : []),
+      ['ny', '＋ Ny klass']
+    ];
+    if (!items.some(([v]) => v === view)) view = classes.length ? `c${classes[0].id}` : 'ny';
+    $('#admNav').innerHTML = items.map(([v, label]) => `<button data-v="${v}" aria-pressed="${v === view}">${label}</button>`).join('');
+    $$('#admNav button').forEach(b => b.addEventListener('click', () => { view = b.dataset.v; try { sessionStorage.setItem('tk-admin-view', view); } catch (e) {} renderNav(classes, solos); }));
+    $$('[data-view]').forEach(el => { el.hidden = el.dataset.view !== view; });
+    if (me.super) $('#schoolsBox').hidden = view !== 'skola';
+  }
+
+  /* ---------- Rutor (modal) ---------- */
+  function openModal(html, wire) {
+    $('#modalBody').innerHTML = html;
+    if (wire) wire($('#modalBody'));
+    $('#modal').showModal();
+  }
+  async function copyText(text, btn) {
+    try { await navigator.clipboard.writeText(text); btn.textContent = 'Kopierat!'; } catch (e) { btn.textContent = 'Markera och kopiera själv'; }
+  }
+
+  /* ---------- En klass ---------- */
+  const daysAgo = ms => (ms ? Math.floor((Date.now() - ms) / 86400000) : 999);
+  const activity = p => { const d = daysAgo(p.lastSeen); return d <= 1 ? 'today' : d <= 7 ? 'week' : 'away'; };
+  function classSection(c) {
+    const el = document.createElement('section');
+    el.className = 'panel adm-class';
+    el.dataset.view = `c${c.id}`;
+    const n = c.players.length;
+    const stars = c.players.reduce((sum, p) => sum + p.stars, 0);
+    const own = c.players.filter(p => !p.focus);
+    const focusTrained = own.filter(p => (p.focusDone || []).some(f => f.rounds)).length;
+    // Att hålla koll på: inte spelat på länge, inte tränat på fokus, mycket att träna på
+    const away = c.players.filter(p => daysAgo(p.lastSeen) > 7);
+    const noFocus = c.players.filter(p => (p.focusDone || []).length && !p.focusDone.some(f => f.rounds));
+    const needs = c.players.filter(p => p.practice.length >= 3);
+    const names = list => list.map(p => `<b>${esc(p.avatar)} ${esc(p.name)}</b>`).join(', ');
+    const watch = [
+      away.length ? `<li><span>😴</span><span>Inte spelat på över en vecka: ${names(away)}</span></li>` : '',
+      noFocus.length ? `<li><span>✏️</span><span>Inte tränat på sitt fokus än: ${names(noFocus)}</span></li>` : '',
+      needs.length ? `<li><span>🧩</span><span>Har flera saker att träna på: ${names(needs)}</span></li>` : ''
+    ].join('');
+    el.innerHTML = `
+      <div class="adm-head">
+        <div><h2>${esc(c.name)}</h2><span class="muted">${n} ${n === 1 ? 'elev' : 'elever'} · klasskod <b class="adm-code-s">${esc(c.code)}</b></span></div>
+        <span class="actions">
+          <button class="small-btn" data-share>📣 Dela med eleverna</button>
+          <button class="small-btn" data-widget>🌐 Klassens webbsida${c.public ? ' ✓' : ''}</button>
+          <button class="small-btn" data-settings>⚙️ Inställningar</button>
+        </span>
+      </div>
+      <div class="adm-stats">
+        <div class="adm-stat"><small>Har spelat i veckan</small><b>${c.everyone.contributed} av ${c.everyone.players}${c.everyone.allIn ? ' 🌟' : ''}</b><span class="adm-bar"><i style="width:${c.everyone.players ? 100 * c.everyone.contributed / c.everyone.players : 0}%"></i></span></div>
+        <div class="adm-stat"><small>Stjärnburken</small><b>${stars} av ${c.goal} ★</b><span class="adm-bar"><i style="width:${Math.min(100, 100 * stars / c.goal)}%"></i></span></div>
+        <div class="adm-stat"><small>Veckans uppdrag</small><b class="adm-stat-t">${esc(c.mission.title)}</b></div>
+        <div class="adm-stat"><small>Klassens husdjur</small><b class="adm-stat-t">${esc(c.pet.icon)} ${esc(c.pet.moodText)}</b></div>
+      </div>
+      <div class="adm-focus">
+        <div class="adm-focus-head"><b>✏️ Fokus för hela klassen</b><div data-class-focus></div></div>
+        <span class="muted">${c.focus ? `<b>${focusTrained} av ${own.length}</b> har tränat på det${c.focusAt ? ` sedan ${dateText(c.focusAt)}` : ' den senaste veckan'}. ` : ''}Står överst i elevernas lista Idag. En elev kan få ett eget fokus under Mer på elevkortet.</span>
+      </div>
+      ${watch ? `<div class="adm-watch"><b>Håll koll på</b><ul>${watch}</ul></div>` : ''}
+      <div class="adm-students">${n ? '' : '<p class="muted">Inga elever har gått med än. Tryck på Dela med eleverna.</p>'}</div>
+      <details class="adm-wallbox"><summary>📊 Kunskapsväggen: vad klassen kan</summary>${wallHTML(c)}</details>`;
+    const list = $('.adm-students', el);
+    for (const p of c.players) list.appendChild(studentCard(c, p));
+    $('[data-class-focus]', el).replaceWith(focusPicker(c.focus, 'Inget fokus', async v => { await api('PATCH', `admin/classes/${c.id}`, { focus: v }); }));
+    // Dela: instruktion och en länk som öppnar "Gå med i klassen" med koden ifylld
+    $('[data-share]', el).addEventListener('click', () => {
+      const link = `${gameUrl}?klass=${encodeURIComponent(c.code)}`;
+      const text = `Gå till ${gameUrl}, tryck Gå med i klassen och skriv koden ${c.code}. Eller öppna länken: ${link}`;
+      openModal(`<h3>Dela med eleverna</h3>
+        <p>Klasskod:</p><p><span class="adm-code">${esc(c.code)}</span></p>
+        <p class="muted">${esc(text)}</p>
+        <p class="actions"><button class="small-btn" data-c1>Kopiera texten</button><button class="small-btn" data-c2>Kopiera bara länken</button></p>`,
+        m => { $('[data-c1]', m).onclick = e => copyText(text, e.target); $('[data-c2]', m).onclick = e => copyText(link, e.target); });
+    });
+    // Klassens webbsida: widgeten och koden att klistra in, bara i en ruta
+    $('[data-widget]', el).addEventListener('click', () => openModal(`<h3>Klassens webbsida</h3>
+        <label class="check"><input type="checkbox" data-public ${c.public ? 'checked' : ''}> Visa klassens status på en annan webbsida (widget)</label>
+        <div class="adm-embed" ${c.public ? '' : 'hidden'}>
+          <p class="muted">Klistra in på klassens sida. Byt <b>namn=</b> mot elevens namn. Rutan syns bara när eleven finns i klassen. Sajten måste stå i <b>ALLOWED_ORIGINS</b> på servern. Mer i docs/API.md.</p>
+          <pre class="adm-code-block">${esc(embedCode(c.code))}</pre>
+          <p class="actions"><button class="small-btn" data-copy-embed>Kopiera koden</button><a class="small-btn" href="${esc(widgetUrl(c.code))}" target="_blank" rel="noopener">Förhandsgranska</a></p>
+        </div>`, m => {
+        $('[data-public]', m).addEventListener('change', async e => { await api('PATCH', `admin/classes/${c.id}`, { public: e.target.checked }); c.public = e.target.checked; $('.adm-embed', m).hidden = !c.public; load(); });
+        $('[data-copy-embed]', m).onclick = e => copyText(embedCode(c.code), e.target);
       }));
-      $('[data-public]', el).addEventListener('change', async e => {
-        await api('PATCH', `admin/classes/${c.id}`, { public: e.target.checked });
-        load();
-      });
-      const copyEmbed = $('[data-copy-embed]', el);
-      if (copyEmbed) copyEmbed.addEventListener('click', async e => {
-        try { await navigator.clipboard.writeText(embedCode(c.code)); e.target.textContent = 'Kopierat!'; }
-        catch (err) { const r = document.createRange(); r.selectNodeContents($('.adm-code-block', el)); getSelection().removeAllRanges(); getSelection().addRange(r); }
-      });
-      confirmClick($('[data-del-class]', el), 'Radera klassen och alla elever? Klicka igen', async () => { await api('DELETE', `admin/classes/${c.id}`); load(); });
-      wrap.appendChild(el);
-    }
-    if (solos.length) wrap.appendChild(soloSection(solos));
+    // Inställningar: mål, skola och radera
+    $('[data-settings]', el).addEventListener('click', () => openModal(`<h3>Inställningar för ${esc(c.name)}</h3>
+        <div class="adm-form">
+          <label>Stjärnburkens mål <span class="goal-edit"><input type="number" min="10" value="${c.goal}"><button class="small-btn" data-goal>Spara</button></span></label>
+          ${me.super && schools.length ? `<label>Skola <select class="adm-select" data-school><option value="">Ingen skola</option>${schools.map(x => `<option value="${x.id}" ${x.id === c.schoolId ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</select></label>` : ''}
+          <p class="actions"><button class="small-btn danger" data-del-class>Radera klassen</button></p>
+        </div>`, m => {
+        $('[data-goal]', m).onclick = async () => { await api('PATCH', `admin/classes/${c.id}`, { goal: Number($('.goal-edit input', m).value) }); $('#modal').close(); load(); };
+        const sel = $('[data-school]', m);
+        if (sel) sel.onchange = async e => { await api('PATCH', `admin/classes/${c.id}`, { schoolId: Number(e.target.value) || null }); load(); };
+        confirmClick($('[data-del-class]', m), 'Radera klassen och alla elever? Klicka igen', async () => { await api('DELETE', `admin/classes/${c.id}`); $('#modal').close(); load(); });
+      }));
+    return el;
+  }
+
+  // Ett kort per elev: det viktigaste syns direkt, resten under "Mer"
+  const ACT = { today: ['🟢', 'Spelat idag eller igår'], week: ['🟡', 'Spelat den här veckan'], away: ['⚪', 'Inte spelat på över en vecka'] };
+  function studentCard(c, p) {
+    const el = document.createElement('article');
+    const a = activity(p);
+    el.className = 'adm-student act-' + a;
+    const chips = (list, cls, max = 3) => list.slice(0, max).map(x => `<span class="schip ${cls}">${esc(x)}</span>`).join('') + (list.length > max ? `<span class="schip more">+${list.length - max}</span>` : '');
+    el.innerHTML = `
+      <div class="st-top"><span class="st-av" aria-hidden="true">${esc(p.avatar)}</span>
+        <div class="st-name"><b>${esc(p.name)}</b><small title="${ACT[a][1]}">${ACT[a][0]} senast ${ago(p.lastSeen)}${p.hasPin ? '' : ' · väljer ny bildkod'}</small></div></div>
+      <div class="st-nums"><span><b>${p.training.weekRounds}</b> ${p.training.weekRounds === 1 ? 'runda' : 'rundor'} i veckan</span><span><b>${p.training.weekAnswers}</b> rätt</span><span>★ ${p.stars}</span>${p.medals ? `<span>🏅 ${p.medals}</span>` : ''}</div>
+      ${(p.focusDone || []).length ? `<div class="st-focus">${focusDoneHTML(p)}</div>` : ''}
+      <div class="st-row"><small>Kan bra</small>${p.strong.length ? chips(p.strong, 'good') : '<span class="muted small">Inget säkert än</span>'}</div>
+      <div class="st-row"><small>Träna på</small>${p.practice.length ? chips(p.practice, 'tricky') : '<span class="muted small">–</span>'}</div>
+      <details class="st-more"><summary>Mer</summary>
+        <div class="st-row"><small>Kan bra</small>${p.strong.map(x => `<span class="schip good">${esc(x)}</span>`).join('') || '–'}</div>
+        <div class="st-row"><small>Träna på</small>${p.practice.map(x => `<span class="schip tricky">${esc(x)}</span>`).join('') || '–'}</div>
+        <p class="muted small">${p.training.rounds} rundor totalt · bidrag i veckan: ${p.contribution} ${esc(c.mission.unit)}${(p.experts || []).length ? ' · expert' : ''}</p>
+        <div class="st-row"><small>Eget fokus</small><div data-focus></div></div>
+        <p class="actions"><button class="small-btn" data-reset>Ny bildkod</button><button class="small-btn danger" data-del>Ta bort</button></p>
+      </details>`;
+    $('[data-focus]', el).replaceWith(focusPicker(p.focus, c.focus ? 'Klassens fokus' : 'Inget eget', async v => { await api('PATCH', `admin/players/${p.id}`, { focus: v }); }));
+    confirmClick($('[data-reset]', el), 'Säker? Klicka igen', async () => { await api('POST', `admin/players/${p.id}/reset-pin`); load(); });
+    confirmClick($('[data-del]', el), 'Radera allt?', async () => { await api('DELETE', `admin/players/${p.id}`); load(); });
+    return el;
   }
 
   /* ---------- Skolor (huvudadmin) ---------- */

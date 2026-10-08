@@ -30,7 +30,8 @@
   </section>
 
   <div id="main" hidden>
-    <section class="panel" id="schoolsBox" hidden>
+    <nav class="adm-nav" id="admNav" aria-label="Välj klass"></nav>
+    <section class="panel" id="schoolsBox" data-view="skola" hidden>
       <div class="label">Skolor <small>Varje skola får en egen lärarnyckel</small></div>
       <form id="newSchool" class="adm-form inline two">
         <div><label for="schoolName">Ny skola</label><input class="textfield" id="schoolName" placeholder="Ängsskolan" maxlength="64" required></div>
@@ -40,8 +41,8 @@
       <div class="adm-keybox" id="keyBox" hidden></div>
       <div id="schools"></div>
     </section>
-    <div id="contests"></div>
-    <section class="panel">
+    <div id="contests" data-view="skola"></div>
+    <section class="panel" data-view="ny">
       <div class="label">Ny klass</div>
       <form id="newClass" class="adm-form inline">
         <div><label for="className">Namn</label><input class="textfield" id="className" placeholder="Klass 2B" maxlength="24" required></div>
@@ -55,6 +56,7 @@
     <p class="adm-foot"><button class="textbtn" id="logout">Logga ut från lärarsidan</button></p>
   </div>
 </div>
+<dialog class="adm-modal" id="modal"><form method="dialog" class="adm-modal-close"><button class="small-btn" aria-label="Stäng">✕</button></form><div id="modalBody"></div></dialog>
 <script src="admin.js"></script>
 </body>
 </html>

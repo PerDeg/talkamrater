@@ -77,3 +77,48 @@ td select.saved { border-color: var(--leaf); }
 .adm-checks { border: 2px solid var(--sky-2); border-radius: 12px; display: flex; flex-wrap: wrap; gap: 6px 14px; }
 .adm-contests label { font-weight: 800; display: grid; gap: 4px; }
 .adm-contests .check { display: flex; gap: 6px; align-items: center; }
+/* Meny överst: en klass i taget */
+.adm-nav { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0; }
+.adm-nav button { border: 0; border-radius: 999px; padding: 8px 14px; font: inherit; font-weight: 800; background: var(--card); box-shadow: 0 3px 0 var(--shadow); cursor: pointer; }
+.adm-nav button small { background: var(--sky-2); border-radius: 999px; padding: 0 7px; margin-left: 4px; font-size: 0.8rem; }
+.adm-nav button[aria-pressed="true"] { background: var(--ink); color: #fff; }
+.adm-nav button[aria-pressed="true"] small { background: rgba(255,255,255,0.2); }
+.adm-code-s { font-family: var(--display); letter-spacing: 0.05em; background: var(--sun); border-radius: 8px; padding: 0 6px; color: var(--ink); }
+/* Översikt */
+.adm-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin: 12px 0; }
+.adm-stat { background: var(--sky-2); border-radius: 16px; padding: 10px 12px; display: grid; gap: 4px; align-content: start; }
+.adm-stat small { font-weight: 800; color: var(--ink-soft); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.04em; }
+.adm-stat b { font-family: var(--display); font-size: 1.4rem; line-height: 1.1; }
+.adm-stat b.adm-stat-t { font-family: var(--body); font-size: 0.95rem; }
+.adm-focus-head { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; }
+.adm-watch { background: #FFF0F4; border-radius: 16px; padding: 10px 14px; margin-bottom: 12px; }
+.adm-watch ul { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 4px; }
+.adm-watch li { display: grid; grid-template-columns: 1.6em 1fr; gap: 6px; }
+/* Elevkort */
+.adm-students { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; margin-bottom: 12px; }
+.adm-student { border: 2px solid var(--sky-2); border-radius: 18px; padding: 12px; display: grid; gap: 8px; align-content: start; background: var(--card); }
+.adm-student.act-away { background: #FAFAFC; }
+.st-top { display: flex; gap: 10px; align-items: center; }
+.st-av { font-size: 2rem; width: 46px; height: 46px; display: grid; place-items: center; background: var(--sky-2); border-radius: 50%; flex: none; }
+.st-name b { display: block; font-family: var(--display); font-size: 1.2rem; line-height: 1.1; }
+.st-name small { font-weight: 700; color: var(--ink-soft); }
+.st-nums { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 0.9rem; font-weight: 700; color: var(--ink-soft); }
+.st-nums b { color: var(--ink); }
+.st-row { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.st-row > small { width: 100%; font-weight: 800; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-soft); }
+.schip { border-radius: 999px; padding: 1px 8px; font-size: 0.82rem; font-weight: 800; background: var(--sky-2); }
+.schip.good { background: #E3F7EC; color: #11794A; }
+.schip.tricky { background: #FFEDE5; color: var(--coral-deep); }
+.schip.more { background: transparent; color: var(--ink-soft); }
+.st-focus { background: #FFF6DA; border-radius: 12px; padding: 4px 8px; }
+.st-more summary { cursor: pointer; font-weight: 800; color: var(--blue); }
+.st-more[open] { display: grid; gap: 8px; }
+.adm-wallbox summary { cursor: pointer; font-weight: 800; padding: 6px 0; }
+/* Rutor */
+.adm-modal { border: 0; border-radius: 22px; padding: 20px; width: min(640px, calc(100vw - 32px)); max-height: 85vh; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
+.adm-modal::backdrop { background: rgba(27, 37, 71, 0.45); }
+.adm-modal h3 { font-size: 1.5rem; margin: 0 40px 10px 0; }
+.adm-modal-close { position: absolute; top: 14px; right: 14px; margin: 0; }
+.adm-modal .adm-embed { margin-top: 10px; }
+.adm-modal .check { display: flex; gap: 8px; align-items: center; font-weight: 800; }
+@media (max-width: 560px) { .adm-head .actions { width: 100%; } }
