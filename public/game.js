@@ -39,7 +39,7 @@
     { name: 'Legendarisk', plural: 'Legendariska', weight: 1, boost: 1.5, berries: 12 }
   ];
   // Långt ifrån varje runda ger ett klistermärke. Medaljer och dagens utmaning ger alltid ett.
-  const STICKER_CHANCE = { 1: 0.1, 2: 0.2, 3: 0.35 };
+  const STICKER_CHANCE = { 1: 0.15, 2: 0.3, 3: 0.5 };
   const AVATARS = ['🦊', '🐼', '🐸', '🦁', '🐯', '🐨', '🐵', '🐰', '🐶', '🐱', '🦄', '🐲'];
   const PIN_PICS = ['🐶', '🐱', '🐸', '🦊', '🐼', '🦁', '🍎', '🍕', '🚗', '🚀', '⚽', '🌈'];
   // Titlar efter stjärnor. Höga gränser: man ska inte kunna bli mattegeni på en eftermiddag.
@@ -435,6 +435,7 @@
   /* ================= Ändringslogg ================= */
   // Det nyaste först. Höj APP_VERSION och lägg till en rad när något ändras i spelet.
   const CHANGELOG = [
+    ['1.18', '8 okt 2026', ['Jordgubbarna hamnar i korgen. Du väljer själv om de blir mat till Plutt eller saker i garderoben.', 'Mata Plutt en jordgubbe i taget.', 'Fler jordgubbar ju fler rätt och stjärnor du får, och lite fler klistermärken.', 'Nya saker till Plutt: guldkedja, ballong, glasstrut, kycklingkompis, trollstav, skateboard, gitarr, eget moln och raketryggsäck.', 'På tid! låses upp för ett tal när du har ★★★ på Lära och Öva och inga kluriga uppgifter kvar.']],
     ['1.17', '5 okt 2026', ['Tydligare sammanfattning efter en runda, en rad per sak.', 'En tydlig huvudknapp för att gå vidare, och Spela igen under.', 'Lärarens fokus står alltid överst i Idag, och läraren kan välja flera fokus och se vem som tränat.', 'Plutt hoppar själv i Plutts hopp, ingen känguru.', 'Talkamraterna hälsar alltid på Hem, och din figur är profilbilden uppe till höger.', 'Tallinjen och Plutts hopp har ett tal i mitten på de lättare nivåerna.', 'Titeln visar vilken nivå du är på. Tryck på den så ser du hela resan, med ett eget märke för varje nivå.', 'Hejarop visas en gång, med rätt antal.', 'En inbjudan från en kompis syns direkt i Idag, även när spelet redan är öppet.']],
     ['1.16', '5 okt 2026', ['Klappa Plutt på Hem så säger han något.', 'Petar man för många gånger blir han sur, säger till fröken och tar till slut en tupplur.']],
     ['1.15', '5 okt 2026', ['Ändringslogg under Inställningar.', 'Testläge för vuxna: se hur en inbjudan, lärarens fokus eller en kompisutmaning ser ut, utan att röra riktiga elever.', 'Mer luft runt titeln på Hem, och stjärnan rymmer fyra siffror.', 'Mer luft längst ner, ovanför menyn.', 'Idag påminner om Kom ihåg-prov och obesvarade inbjudningar, och ger ett tips om dagen.']],
@@ -978,9 +979,22 @@
     { id: 'hogatt', icon: '🎩', name: 'Hög hatt', slot: 'head', price: 180, stage: 5 },
     { id: 'mantel', icon: '🦸', name: 'Supermantel', slot: 'back', price: 250, stage: 5 },
     { id: 'guldkrona', icon: '👑', name: 'Guldkrona', slot: 'head', price: 450, stage: 6 },
-    { id: 'regnbage', icon: '🌈', name: 'Regnbågsmantel', slot: 'back', price: 600, stage: 7 }
+    { id: 'regnbage', icon: '🌈', name: 'Regnbågsmantel', slot: 'back', price: 600, stage: 7 },
+    // Nya läggs sist. Inte bara kläder: saker att hålla i, stå på eller ha med sig.
+    { id: 'ballong', icon: '🎈', name: 'Ballong', slot: 'hand', price: 25, stage: 1 },
+    { id: 'glass', icon: '🍦', name: 'Glasstrut', slot: 'hand', price: 30, stage: 1 },
+    { id: 'kyckling', icon: '🐥', name: 'Kycklingkompis', slot: 'side', price: 80, stage: 2 },
+    { id: 'trollstav', icon: '🪄', name: 'Trollstav', slot: 'hand', price: 90, stage: 3 },
+    { id: 'skateboard', icon: '🛹', name: 'Skateboard', slot: 'feet', price: 130, stage: 3 },
+    { id: 'gitarr', icon: '🎸', name: 'Gitarr', slot: 'hand', price: 160, stage: 4 },
+    { id: 'moln', icon: '⛅', name: 'Eget litet moln', slot: 'above', price: 220, stage: 5 },
+    { id: 'guldkedja', icon: '📿', name: 'Guldkedja', slot: 'neck', price: 300, stage: 5 },
+    { id: 'raket', icon: '🚀', name: 'Raketryggsäck', slot: 'back', price: 500, stage: 7 }
   ];
-  const SLOT_NAME = { head: 'huvudet', face: 'ögonen', neck: 'halsen', back: 'ryggen' };
+  const SLOT_NAME = { head: 'huvudet', face: 'ögonen', neck: 'halsen', back: 'ryggen', hand: 'handen', feet: 'fötterna', side: 'sidan', above: 'huvudet' };
+  // Vad det står under en sak man har: "Sitter på huvudet", "Håller i handen" …
+  const SLOT_ON = { head: 'Sitter på huvudet', face: 'Sitter på ögonen', neck: 'Sitter på halsen', back: 'Sitter på ryggen', hand: 'Håller i handen',
+    feet: 'Står på den', side: 'Följer med', above: 'Svävar ovanför' };
   const ownsItem = id => (save.records['it-' + id] || 0) > 0;
   const petWear = () => String(save.pet.wear || '').split(',').filter(id => ownsItem(id));
   // Högst en önskan per dag, och inte alla dagar, så att det inte blir tjat
@@ -1051,13 +1065,13 @@
     const st = petStage(p.xp);
     if (st === 0) {
       const left = PET_STAGES[1][0] - p.xp;
-      return { cls: p.last ? 'mood-happy' : 'mood-new', text: p.last ? `Ägget gungar! ${left} 🍓 till så kläcks det.` : 'Ägget väntar på dig. Varje stjärna du tar värmer det!' };
+      return { cls: p.last ? 'mood-happy' : 'mood-new', text: p.last ? `Ägget gungar! ${left} ★ till så kläcks det.` : 'Ägget väntar på dig. Varje stjärna du tar värmer det!' };
     }
     const days = p.last ? today() - p.last : 99;
     if (days >= 2) {
-      if (st === 1) return { cls: 'mood-hungry', text: `Bu-hu! ${petName()} gråter av hunger 😢 Spela en runda så blir det bra igen.` };
+      if (st === 1) return { cls: 'mood-hungry', text: `Bu-hu! ${petName()} gråter av hunger 😢 Mata med jordgubbar från korgen.` };
       if (st >= 8) return { cls: 'mood-hungry', text: `${st === 8 ? 'Kungen' : 'Legenden'} är hungrig! Ett kungligt mål mat, tack. 👑` };
-      return { cls: 'mood-hungry', text: days <= 3 ? `${petName()} är hungrig! Spela en runda för att mata.` : `${petName()} har längtat efter dig! En runda så blir allt bra igen.` };
+      return { cls: 'mood-hungry', text: days <= 3 ? `${petName()} är hungrig! Mata med jordgubbar från korgen.` : `${petName()} har längtat efter dig! Spela en runda och mata med jordgubbar.` };
     }
     if (prefs.lastGift && prefs.lastGift.day === today()) {
       const t = treatOf({ treat: prefs.lastGift.treat });
@@ -1075,10 +1089,12 @@
   function petHTML(stage, moodCls, wear = []) {
     if (stage === 0) return `<div class="pet egg ${moodCls}" aria-hidden="true"><i class="spot s1"></i><i class="spot s2"></i><i class="spot s3"></i></div>`;
     const has = id => wear.includes(id);
-    const cape = has('mantel') ? 'cape red' : has('regnbage') ? 'cape rainbow' : stage === 6 || stage === 7 ? 'cape red' : stage === 9 ? 'cape gold' : '';
+    const cape = has('raket') ? '' : has('mantel') ? 'cape red' : has('regnbage') ? 'cape rainbow' : stage === 6 || stage === 7 ? 'cape red' : stage === 9 ? 'cape gold' : '';
     const head = WARDROBE.find(w => w.slot === 'head' && has(w.id));
     const face = WARDROBE.find(w => w.slot === 'face' && has(w.id));
     const neck = WARDROBE.find(w => w.slot === 'neck' && has(w.id));
+    const slot = s => WARDROBE.find(w => w.slot === s && has(w.id));
+    const hand = slot('hand'), feet = slot('feet'), side = slot('side'), above = slot('above');
     return `<div class="pet stage-${stage} ${moodCls}${stage === 9 ? ' legend' : ''}" aria-hidden="true">
       ${cape ? `<i class="${cape}"></i>` : ''}
       ${stage >= 3 ? '<i class="horn h1"></i><i class="horn h2"></i>' : ''}
@@ -1089,7 +1105,12 @@
       ${stage === 1 ? '<i class="tear t1"></i><i class="tear t2"></i>' : ''}
       ${face ? `<span class="acc face">${face.icon}</span>` : stage === 4 ? '<i class="specs"></i>' : stage >= 8 ? '<span class="acc face">🕶️</span>' : ''}
       ${head ? `<span class="acc head">${head.icon}</span>` : stage >= 8 ? '<span class="crown">👑</span>' : ''}
-      ${neck ? `<span class="acc neck">${neck.icon}</span>` : ''}
+      ${neck ? (neck.id === 'guldkedja' ? '<i class="chain"><b></b></i>' : `<span class="acc neck">${neck.icon}</span>`) : ''}
+      ${has('raket') ? '<span class="acc jet">🚀</span>' : ''}
+      ${hand ? `<span class="acc hand${hand.id === 'ballong' ? ' balloon' : ''}">${hand.icon}</span>` : ''}
+      ${feet ? `<span class="acc feet">${feet.icon}</span>` : ''}
+      ${side ? `<span class="acc side">${side.icon}</span>` : ''}
+      ${above ? `<span class="acc above">${above.icon}</span>` : ''}
       ${stage === 9 ? '<i class="sparkle k1">✨</i><i class="sparkle k2">✨</i>' : ''}
     </div>`;
   }
@@ -1493,6 +1514,19 @@
     return list;
   }
   const stationById = id => WORLD_IDS.flatMap(stations).find(s => s.id === id);
+  // "På tid!": låses upp för ett tal när Lära och Öva har ★★★, talprovet är klart
+  // och det inte finns några kluriga uppgifter kvar för talet
+  const TIMED_GOAL = { plus: 12, minus: 10, dubbel: 10 };
+  function timedFor(s) {
+    const w = WORLDS[s.world], key = `${s.world[0]}${s.n}`;
+    const notThree = s.moments.filter(m => m.id !== 'master' && (m.stars || 0) < 3);
+    const tricky = Object.entries(save.tricky).filter(([k, v]) => v > 0 && k.startsWith(`${w.prefix}${s.n}:`)).length;
+    return {
+      world: s.world, kind: 'timed', id: 'pt-' + key, stepId: s.id, n: s.n, name: `På tid: ${w.level(s.n)}`,
+      lo: s.world === 'dubbel' ? 1 : s.n, hi: s.n, secs: 45, goal: TIMED_GOAL[s.world],
+      open: s.done && !notThree.length && !tricky, notThree, tricky, record: save.records['pt-' + key] || 0
+    };
+  }
   // Framsteg på vägen räknat i moment: ett tal är tre moment, allt annat ett
   function pathUnits(wid) {
     const all = stations(wid);
@@ -1631,7 +1665,19 @@
       b.addEventListener('click', () => startMoment(s, m));
       box.appendChild(b);
     });
-    talk(first < 0 ? `Du kan ${what}! Bra jobbat, ${nm()}!` : STEP_TALK[first](s.n), 'happy');
+    // På tid! som en belöning när allt är klart med ★★★ och inga kluriga finns kvar
+    const T = timedFor(s);
+    const tb = document.createElement('button');
+    tb.className = 'moment timed' + (T.open ? ' open' : '');
+    tb.disabled = !T.open;
+    const why = !s.done ? 'Klara de tre momenten först'
+      : T.notThree.length ? `★★★ på ${T.notThree.map(m => m.label).join(' och ')} först`
+      : `Öva ${T.tricky === 1 ? 'den kluriga uppgiften' : `de ${T.tricky} kluriga uppgifterna`} först`;
+    tb.innerHTML = `<span class="mi" aria-hidden="true">${T.open ? '⏱️' : '🔒'}</span>
+      <span class="mt"><b>På tid!</b><small>${T.open ? `Hur många hinner du på ${T.secs} sekunder? Mål: ${T.goal}${T.record ? ` · ditt rekord: ${T.record}` : ''}` : esc(why)}</small></span>`;
+    tb.addEventListener('click', () => showIntro(T));
+    box.appendChild(tb);
+    talk(first < 0 ? (T.open ? `Du kan ${what}! Nu kan du köra På tid!` : `Du kan ${what}! Bra jobbat, ${nm()}!`) : STEP_TALK[first](s.n), 'happy');
     $('#stepBack').onclick = () => openRoad(s.world);
     const cur = $('#moments .moment.open:not(.done)');
     if (cur) cur.focus({ preventScroll: true });
@@ -1650,7 +1696,7 @@
     const list = $('#introList');
     const w = WORLDS[s.world];
     const what = w.id === 'dubbel' ? `dubblor och halvor ${s.lo}–${s.hi}` : w.id === 'minus' ? `minus med talen ${s.lo}–${s.hi}` : `talen ${s.lo}–${s.hi}`;
-    if (s.kind === 'challenge') {
+    if (s.kind === 'challenge' || s.kind === 'timed') {
       $('#introTitle').textContent = s.name;
       list.innerHTML = `<li>⏱️ ${s.secs} sekunder</li><li>🎯 Mål: ${s.goal} rätt</li><li>${s.lo === s.hi ? (w.id === 'minus' ? `Minus från ${s.lo}` : `Bara kamrater till ${s.lo}`) : `Blandat: ${what}`}</li>`;
       talk(save.records[s.id] ? `Ditt rekord är ${save.records[s.id]}. Kan du slå det?` : 'Svara så snabbt du kan. Fel gör inget, fortsätt bara!');
@@ -1665,7 +1711,7 @@
       list.innerHTML = `<li>📝 ${s.count} frågor: ${what}</li><li>🎯 ${s.pass} rätt behövs för att klara</li><li>🙈 Inga pärlor nu, du har dem i huvudet!</li>`;
       talk(s.kind === 'final' ? `Det här är det stora provet, ${nm()}. Klarar du det blir du ${w.expertTitle}!` : 'Ett svar per fråga. Ta det lugnt och tänk efter.');
     }
-    $('#introGo').onclick = () => (s.kind === 'challenge' ? startChallenge(s) : startTest(s));
+    $('#introGo').onclick = () => (s.kind === 'challenge' || s.kind === 'timed' ? startChallenge(s) : startTest(s));
     $('#introBack').onclick = () => openRoad();
   }
 
@@ -1787,10 +1833,10 @@
       return `<div class="st-tier r${i}"><span>${r.plural}</span><span class="st-bar"><i style="width:${100 * got / tier.length}%"></i></span><b>${got}/${tier.length}</b></div>`;
     }).join('');
     $('#basketFeed').disabled = b === 0 || st === 0;
-    $('#basketFeed').textContent = b ? `Mata ${Math.min(10, b)} 🍓` : 'Korgen är tom';
+    $('#basketFeed').textContent = st === 0 ? 'Ägget äter inte än' : b ? `Mata ${petName()} 1 🍓` : 'Korgen är tom';
   }
   $('#homePetOpen').addEventListener('click', () => { sfx.select(); setTab('pet'); });
-  $('#basketFeed').addEventListener('click', () => feedFromBasket(10));
+  $('#basketFeed').addEventListener('click', e => feedOne(e.currentTarget));
   $('#basketWardrobe').addEventListener('click', openWardrobe);
   $('#wardRow').addEventListener('click', openWardrobe);
 
@@ -2421,7 +2467,7 @@
   /* ================= Spel: Utmaning på tid ================= */
   function startChallenge(s) {
     stopGame();
-    G = { game: 'challenge', kind: 'challenge', world: s.world, mode: 'challenge', level: s.id, station: s, score: 0, mistakes: 0, streak: 0, bestStreak: 0, locked: true, last: null };
+    G = { game: 'challenge', kind: 'challenge', world: s.world, mode: 'challenge', level: s.id, station: s, stepId: s.stepId, score: 0, mistakes: 0, streak: 0, bestStreak: 0, locked: true, last: null };
     show('challenge');
     $('#chScore').textContent = '0';
     $('#chSecs').textContent = s.secs;
@@ -3307,10 +3353,12 @@
     const bookDone = !save.path.book && STICKERS.every(([e]) => save.stickers.includes(e));
     if (bookDone) save.path.book = 1;
 
-    // Mata husdjuret
-    // Mata husdjuret: en stjärnfrukt per stjärna
-    const food = r.stars;
-    let grew = feedPet(food);
+    // Jordgubbar till korgen: en per stjärna, en per fem rätt svar och en extra för tre stjärnor.
+    // Eleven väljer själv om de ska bli mat till Plutt eller något i garderoben.
+    const berries = r.passed === false ? Math.min(1, r.stars) : r.stars + Math.floor((r.score || 0) / 5) + (r.stars === 3 ? 1 : 0);
+    if (berries) earnBerries(berries);
+    // Ägget kan inte äta: det värms av stjärnorna tills det kläcks
+    let grew = petStage(save.pet.xp) === 0 ? feedPet(r.stars) : 0;
     wishProgress({ kind: 'round', game: g.game, world: wid, n: g.n, stars: r.stars, daily: !!daily, kindOf: g.kind, focus: !!g.focus });
     if (wishNote && wishNote.grew) grew = wishNote.grew;
 
@@ -3377,9 +3425,9 @@
     if (r.notes) r.notes.forEach(n => rows.push(noteRow(n)));
     if (wishNote) row(wishNote.t[1], 'Önskan uppfylld!', `${esc(petName())} fick ${wishNote.t[2]}`, 'pet');
     wishNote = null;
-    const pst = petStage(save.pet.xp), pnext = PET_STAGES[pst + 1];
+    const pnext = PET_STAGES[petStage(save.pet.xp) + 1];
     if (grew) row('🎉', `${esc(petName())} växte!`, `Nu är ${esc(petName())} ${PET_STAGES[grew][1].toLowerCase()}`, 'pet');
-    else if (food) row('🍓', `${esc(petName())} fick ${food} ${food === 1 ? 'jordgubbe' : 'jordgubbar'}`, pnext ? `${pnext[0] - save.pet.xp} kvar till nästa nivå` : 'Mums!', 'pet');
+    if (berries) row('🍓', `+${berries} ${berries === 1 ? 'jordgubbe' : 'jordgubbar'} i korgen`, petStage(save.pet.xp) === 0 ? `Ägget blev varmare · ${pnext ? pnext[0] - save.pet.xp : 0} kvar tills det kläcks` : `Nu har du ${basket()}. Mata ${esc(petName())} eller köp något i garderoben.`, 'pet');
     if (!r.passed && g.missed && g.missed.length) row('🧩', 'Öva lite extra på', g.missed.slice(0, 4).map(equationText).join(', '));
     // Klistermärken blir en rad bland de andra, inte en egen stor ruta
     for (const p of prizes) row(p.e, p.isNew ? 'Nytt klistermärke!' : 'Ett klistermärke till', p.isNew ? prizeText(p) : `${prizeText(p)} · byt dubbletter mot jordgubbar`, p.rarity === 3 ? 'legend' : 'sticker');
@@ -3397,7 +3445,7 @@
     const fromRoad = roadContext || !!g.station;
     let goText, goFn;
     if (g.extra) { goText = 'Välj nivå'; goFn = () => openExtra(g.extra); }
-    else if (step && !step.done) { goText = r.passed ? 'Nästa moment' : `Till ${step.name}`; goFn = () => openStep(stationById(step.id)); }
+    else if (step && (!step.done || g.station?.kind === 'timed')) { goText = !step.done && r.passed ? 'Nästa moment' : `Till ${step.name}`; goFn = () => openStep(stationById(step.id)); }
     else if (fromRoad) { goText = 'Vägen till expert'; goFn = () => openRoad(wid); }
     else { goText = 'Till Hem'; goFn = () => goHome(); }
     const ok = !!r.passed;
@@ -3519,14 +3567,19 @@
     save.records.bSpent = (save.records.bSpent || 0) + n;
     return true;
   }
-  function feedFromBasket(n) {
-    n = Math.min(n, basket());
-    if (n <= 0 || !spendBerries(n)) return;
-    const grew = feedPet(n);
+  // Mata en jordgubbe i taget: lätt att styra hur många som går till mat
+  let feedCount = 0;
+  function feedOne(btn) {
+    if (basket() <= 0 || petStage(save.pet.xp) === 0 || !spendBerries(1)) return;
+    const grew = feedPet(1);
     persist();
-    sfx.pop(); cheer(`Mums! ${n} 🍓`, n >= 20);
-    say(pick([`Mums, ${n} jordgubbar!`, 'Tack, det var gott!', 'Smaskens!']));
-    if (grew) setTimeout(() => { cheer(`${petName()} växte och blev ${PET_STAGES[grew][1].toLowerCase()}!`, true); sfx.fanfare(); rain(160); }, 900);
+    sfx.pop();
+    feedCount++;
+    if (btn) { const f = document.createElement('span'); f.className = 'plus-one'; f.textContent = '+1 🍓'; btn.appendChild(f); setTimeout(() => f.remove(), 700); }
+    const pet = $(current === 'wardrobe' ? '#wdPet .pet' : '#petView .pet');
+    if (pet) { pet.classList.remove('jump'); void pet.offsetWidth; pet.classList.add('jump'); }
+    if (feedCount % 8 === 0) say(pick(['Mums!', 'Smaskens!', 'Mer, mer!', 'Tack, det var gott!']));
+    if (grew) { cheer(`${petName()} växte och blev ${PET_STAGES[grew][1].toLowerCase()}!`, true); sfx.fanfare(); rain(160); say(`Titta! Jag växte!`); }
     if (current === 'start') renderStart();
     if (current === 'wardrobe') openWardrobe();
   }
@@ -3567,16 +3620,16 @@
     $('#wdStage').textContent = `${petName()} · ${PET_STAGES[st][1]}`;
     $('#wdText').innerHTML = st === 0
       ? 'Ägget måste kläckas innan det kan ha kläder på sig. Spela några rundor!'
-      : `I korgen: <b class="berries">${b} 🍓</b><br>Köp kläder här, eller mata ${esc(petName())} så växer den. Fler jordgubbar får du genom att byta dubbletter i klistermärkesboken.`;
+      : `I korgen: <b class="berries">${b} 🍓</b><br>Köp kläder och roliga saker, eller mata ${esc(petName())} så växer den.`;
     $('#wdFeed').hidden = st === 0 || b === 0;
-    $('#wdFeed').textContent = `Mata ${petName()} med ${Math.min(10, b)} 🍓`;
+    $('#wdFeed').textContent = `Mata ${petName()} 1 🍓`;
     const grid = $('#wdGrid'); grid.innerHTML = '';
     WARDROBE.forEach(it => {
       const owned = ownsItem(it.id), on = wear.includes(it.id), locked = st < it.stage;
       const el = document.createElement('div');
       el.className = 'wd-item' + (locked && !owned ? ' locked' : '') + (on ? ' on' : '');
       el.innerHTML = `<span class="wi" aria-hidden="true">${it.icon}</span><b>${esc(it.name)}</b>
-        <small>${owned ? `Sitter på ${SLOT_NAME[it.slot]}` : locked ? `🔒 När ${esc(petName())} är ${PET_STAGES[it.stage][1].toLowerCase()}` : `${it.price} 🍓`}</small>`;
+        <small>${owned ? (SLOT_ON[it.slot] || `Sitter på ${SLOT_NAME[it.slot]}`) : locked ? `🔒 När ${esc(petName())} är ${PET_STAGES[it.stage][1].toLowerCase()}` : `${it.price} 🍓`}</small>`;
       const btn = document.createElement('button');
       if (owned) {
         btn.className = 'chunky ' + (on ? 'ghost' : 'sun');
@@ -3601,7 +3654,7 @@
       grid.appendChild(el);
     });
   }
-  $('#wdFeed').addEventListener('click', () => feedFromBasket(10));
+  $('#wdFeed').addEventListener('click', e => feedOne(e.currentTarget));
   $('#petWardrobe').addEventListener('click', openWardrobe);
   $('#wdBook').addEventListener('click', () => openBook());
 

@@ -62,7 +62,7 @@ export function sanitizeProgress(p) {
       wish: sanitizeWish(pet.wish),
       wishDay: int(pet.wishDay, 0, 1e6), wishCount: int(pet.wishCount, 0, 100), treats: int(pet.treats, 0, 1e6),
       // Saker från garderoben som husdjuret har på sig, t.ex. "keps,mantel" ("none" = inget)
-      wear: String(pet.wear ?? '').split(',').filter(w => /^[a-z]{2,12}$/.test(w)).slice(0, 4).join(',').slice(0, 52)
+      wear: String(pet.wear ?? '').split(',').filter(w => /^[a-z]{2,12}$/.test(w)).slice(0, 8).join(',').slice(0, 104)
     },
     daily: { day: int(daily.day, 0, 1e6), streak: int(daily.streak, 0, 1e5), best: int(daily.best, 0, 1e5), count: int(daily.count, 0, 1e6) }
   };

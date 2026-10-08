@@ -523,6 +523,18 @@ details.friends summary { font-family: var(--display); font-weight: 800; font-si
 .pet .acc.head { top: -34%; font-size: calc(22px * var(--s)); z-index: 3; }
 .pet .acc.face { top: 14%; font-size: calc(22px * var(--s)); z-index: 2; }
 .pet .acc.neck { bottom: -8%; font-size: calc(16px * var(--s)); z-index: 2; }
+/* Saker att hålla i, stå på eller ha med sig */
+.pet .acc.hand { left: auto; right: -34%; top: 34%; transform: rotate(12deg); font-size: calc(20px * var(--s)); z-index: 3; }
+.pet .acc.hand.balloon { top: -60%; right: -30%; transform: none; animation: balloon 3s ease-in-out infinite; }
+.pet .acc.hand.balloon::after { content: ""; position: absolute; left: 50%; top: 92%; width: 1px; height: calc(30px * var(--s)); background: #555; transform: rotate(-18deg); transform-origin: top; }
+.pet .acc.feet { top: auto; bottom: -34%; font-size: calc(32px * var(--s)); z-index: 0; }
+.pet .acc.side { left: auto; right: -58%; top: auto; bottom: -6%; transform: none; font-size: calc(18px * var(--s)); animation: petbob 1.8s ease-in-out infinite; }
+.pet .acc.above { top: -80%; font-size: calc(26px * var(--s)); z-index: 1; animation: balloon 4s ease-in-out infinite; }
+.pet .acc.jet { left: -36%; top: 18%; transform: rotate(-30deg); font-size: calc(20px * var(--s)); z-index: -2; }
+@keyframes balloon { 0%, 100% { translate: 0 0; } 50% { translate: 0 -4px; } }
+/* Guldkedjan: en guldbåge med en medaljong */
+.pet .chain { position: absolute; left: 22%; right: 22%; bottom: 4%; height: 26%; border: calc(2.5px * var(--s)) dotted #E9A800; border-top: 0; border-radius: 0 0 50% 50%; z-index: 2; }
+.pet .chain b { position: absolute; left: 50%; bottom: calc(-6px * var(--s)); width: calc(9px * var(--s)); height: calc(9px * var(--s)); transform: translateX(-50%); border-radius: 50%; background: radial-gradient(circle at 35% 35%, #FFF1B8, #FFC83D 50%, #C98A00); box-shadow: 0 1px 2px rgba(0,0,0,0.3); }
 .pet.legend { box-shadow: 0 0 0 4px rgba(255, 216, 77, 0.6), 0 0 22px 6px rgba(255, 200, 61, 0.7); }
 .pet .sparkle { font-style: normal; font-size: calc(10px * var(--s)); animation: sparkle 1.8s ease-in-out infinite; }
 .pet .k1 { left: -22%; top: -10%; } .pet .k2 { right: -24%; top: 30%; animation-delay: 0.9s; }
@@ -1053,3 +1065,8 @@ body.on-start .tabbar { display: grid; grid-template-columns: repeat(4, 1fr); po
   *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition: none !important; }
   .cheer { animation: none; transform: translate(-50%, -50%); opacity: 1; }
 }
+
+/* Mata en i taget: ett litet +1 som flyger upp från knappen */
+#basketFeed, #wdFeed { position: relative; overflow: visible; }
+.plus-one { position: absolute; left: 50%; top: -6px; transform: translateX(-50%); font-weight: 800; color: var(--berry); pointer-events: none; animation: plusone 0.7s ease-out forwards; }
+@keyframes plusone { from { opacity: 1; transform: translate(-50%, 0); } to { opacity: 0; transform: translate(-50%, -34px); } }
