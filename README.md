@@ -28,7 +28,7 @@ Startsidan har en meny längst ner med fyra flikar. Överst hälsar alltid **tal
 | 🏠 **Hem** | Titeln, nyheter, listan **Idag** (lärarens fokus alltid överst, nästa steg på vägen, Plutts önskan, kompisutmaning och obesvarade inbjudningar, Kom ihåg-prov, kluriga, klassens uppdrag, klasskampen, dubbletter, och ett tips om dagen om något man inte provat, t.ex. att utmana en kompis eller tallinjen), dagens utmaning och Plutt i litet format. |
 | ✏️ **Träna** | Plus, minus och dubblor: vägen till expert (kortet visar tydligt vilket räknesätt den gäller), kluriga, fri träning med alla tal och hur många stjärnor av max man har, fler utmaningar och spela två. |
 | Plutt (mini-Plutt som ikon) | Husdjuret och dess önskan, korgen med jordgubbar, garderoben med alla plagg (pris, låst eller ägt) och klistermärken per nivå. |
-| 👥 **Klassen** | Veckans uppdrag, kompisutmaning och att gå med i en klass. |
+| 👥 **Klassen** | Hela klassidan: veckans uppdrag med ditt bidrag, kompisutmaning, klasskamp, händer i klassen (heja), alla i klassen, Klassplutten och stjärnburken. Kunskapsväggen och Byt figur fälls ut. Utan klass: gå med i en klass. |
 
 **Tre världar**, var och en med fri träning, en egen väg till expert, egna medaljer och ett eget diplom:
 
@@ -48,14 +48,15 @@ Startsidan har en meny längst ner med fyra flikar. Överst hälsar alltid **tal
   - Varje område avslutas med ett **prov** utan pärlor, med ett svar per fråga och en medalj för den som klarar det. Provet öppnas först när allt i området är klart.
   - En vecka efter ett prov dyker ett frivilligt **Kom ihåg-prov** upp. Klarar man det börjar medaljen glänsa ✨. Det stoppar aldrig vägen.
   - Längs vägen finns **utmaningar på tid** (60 s).
+  - **På tid!** låses upp för varje tal när Lära och Öva har ★★★, talprovet är klart och inga kluriga uppgifter finns kvar för talet: så många rätt som möjligt på 45 sekunder, med eget rekord.
   - Sist kommer slutprovet med **diplom**. Det öppnas först när allt är klart **och** man har ★★★ på alla Lära- och Öva-moment.
 - **Dagens utmaning**: 8 frågor med ett tema per veckodag (Tiokamratmåndag, Minustisdag, Dubbelonsdag …).
   - Frågorna är samma för alla i klassen samma dag.
   - Den ger en svit 🔥 och ett extra klistermärke.
 - **Husdjuret**: ett ägg som kläcks och sakta växer i tio steg: ägg 🥚, bebis 🐣 (20 🍓), knatte 🧸 (80), liten 🐾 (180), skolplutt 🎒 (350), stor 💜 (600), superplutt 🦸 (1000), jätte ✨ (1600), kung 👑 (2500) och legend 🌟 (4000).
-  - Varje stjärna ger en jordgubbe 🍓. Det tar många hundra rundor att nå kung.
+  - Varje runda ger **jordgubbar till korgen** 🍓: en per stjärna, en per fem rätt svar och en extra för ★★★. Eleven väljer själv om de blir mat (**Mata**, en i taget) eller saker i garderoben. Ägget kläcks av stjärnorna. Det tar många hundra rundor att nå kung.
   - Varje steg har egen personlighet: bebisen gråter lite när den är hungrig, skolplutten har glasögon, superplutten mantel, kungen krona och solglasögon och säger "Jag, Kung Plutt, befaller: mer matte!", legenden glänser.
-  - **Garderoben** 👕: köp keps (20 🍓), rosett, glasögon, hattar, supermantel (250 🍓), guldkrona och regnbågsmantel (600 🍓) med jordgubbar från korgen. Finare saker kräver också ett större husdjur.
+  - **Garderoben** 👕: köp keps (20 🍓), rosett, glasögon, hattar, supermantel (250 🍓), guldkrona och regnbågsmantel (600 🍓), men också roliga saker som inte är kläder: ballong, glasstrut, kycklingkompis, trollstav, skateboard, gitarr, eget moln, guldkedja (300 🍓) och raketryggsäck (500 🍓). Finare saker kräver också ett större husdjur.
   - Husdjuret har **önskningar**, till exempel *"Lös det här så får jag en glass! Poppa alla bubbelpar som blir 9."* Varje uppfylld önskan ger en godsak och extra tillväxt. Det blir högst en önskan om dagen, och inte alla dagar.
   - Har eleven inte spelat på några dagar blir husdjuret hungrigt, men det blir aldrig ledset på riktigt.
 - **Spela två**: två spelare på samma skärm, i två lägen.
@@ -74,7 +75,7 @@ Startsidan har en meny längst ner med fyra flikar. Överst hälsar alltid **tal
   - Stjärnor, titlar i nio nivåer (badgen på Hem har nivåns nummer i stjärnan och visar "Nivå 4 av 9", titeln, en mätare och "211 ★ · 89 kvar", och ett tryck visar hela resan som en slingrande stig med ett eget märke för varje nivå), 60 klistermärken och 13 medaljer. Tryck på en medalj i boken så står det vad som krävs, med en knapp dit.
 - **Glänsande klistermärken** ✨: ungefär vart trettionde klistermärke kommer i en glänsande variant som samlas för sig och är värd tre gånger så många jordgubbar.
 - **Dela med klassen** 🎁: en dubblett kan delas. Den går anonymt till någon i klassen som saknar just det klistermärket (helst någon med få), aldrig till en utvald kompis. Högst fem om dagen.
-- **Klistermärken** ges inte varje runda: 10 % chans med en stjärna, 20 % med två och 35 % med tre. Medaljer, utmaningar och dagens utmaning ger alltid ett. De har fyra nivåer: vanliga (72 %), ovanliga (21 %), sällsynta (6 %) och legendariska (1 %, t.ex. 👑 Krona och 💎 Diamant). Boken är uppdelad per nivå, och ett tryck på ett klistermärke visar stora knappar för att byta eller dela. **Dubbletter byts mot jordgubbar** 🍓 till **Plutts korg**: 1 för en vanlig, 2 ovanlig, 5 sällsynt och 12 legendarisk. Korgens jordgubbar används till **kläder i garderoben** eller som **mat** så att Plutt växer. Det sista exemplaret av ett klistermärke går aldrig att byta bort. Byten sparas i framstegen (`swapped`) och räknas bara uppåt, så att de inte kommer tillbaka när framstegen slås ihop mellan enheter.
+- **Klistermärken** ges inte varje runda: 15 % chans med en stjärna, 30 % med två och 50 % med tre. Medaljer, utmaningar och dagens utmaning ger alltid ett. De har fyra nivåer: vanliga (72 %), ovanliga (21 %), sällsynta (6 %) och legendariska (1 %, t.ex. 👑 Krona och 💎 Diamant). Boken är uppdelad per nivå, och ett tryck på ett klistermärke visar stora knappar för att byta eller dela. **Dubbletter byts mot jordgubbar** 🍓 till **Plutts korg**: 1 för en vanlig, 2 ovanlig, 5 sällsynt och 12 legendarisk. Korgens jordgubbar används till **kläder i garderoben** eller som **mat** så att Plutt växer. Det sista exemplaret av ett klistermärke går aldrig att byta bort. Byten sparas i framstegen (`swapped`) och räknas bara uppåt, så att de inte kommer tillbaka när framstegen slås ihop mellan enheter.
 
 - **Första gången** väljer man mellan att gå med i sin klass, skapa ett eget konto eller bara skriva sitt namn och spela på enheten. Inget namn är förvalt.
 
@@ -151,7 +152,7 @@ Klassidan visar:
 - **Hemliga presenter**: den som klarar dagens utmaning skickar en godsak till en slumpad klasskompis husdjur. Mottagaren får aldrig veta vem den kom från.
 - **Klassens stjärnburk**, ett gemensamt mål som alla fyller tillsammans, och varje elevs stjärnor, klistermärken och medaljer. Listan är sorterad på namn, inte som en topplista.
 
-Lärarsidan visar för varje elev vad den kan bra, vad den behöver träna på, hur mycket den tränat och bidragit, och läraren kan sätta **fokus**: ett eller flera tal (högst sex) för hela klassen eller en elev. Fokus står alltid överst i elevens lista Idag, en rad per tal, och kommer oftare i blandade rundor. I kolumnen Fokus ser läraren för varje tal om eleven tränat på det sedan fokuset sattes (✅ 3 rundor, 27 rätt, eller ⏳ inte än), och för klassen hur många som tränat. För klassen visas "alla med", Klassplutten och kunskapsväggen.
+Lärarsidan visar **en klass i taget** (menyn överst). Överst finns en översikt (hur många som spelat i veckan, stjärnburken, veckans uppdrag, klassens husdjur) och rutan **Håll koll på** med elever som inte spelat på en vecka, inte tränat på sitt fokus eller har flera saker att träna på. Sedan kommer ett **kort per elev** med aktivitet (🟢 idag, 🟡 i veckan, ⚪ längre sedan), rundor och rätt i veckan, fokus, kan bra och träna på. Under **Mer** finns detaljerna, elevens eget fokus, ny bildkod och ta bort. Dela med eleverna, klassens webbsida (widgetkoden) och inställningarna öppnas i egna rutor. Läraren kan sätta **fokus**: ett eller flera tal (högst sex) för hela klassen eller en elev. Fokus står alltid överst i elevens lista Idag, en rad per tal, och kommer oftare i blandade rundor. På elevkortet ser läraren för varje tal om eleven tränat på det sedan fokuset sattes (✅ 3 rundor, 27 rätt, eller ⏳ inte än), och för klassen hur många som tränat. Kunskapsväggen fälls ut längst ner.
 
 **Personuppgifter:** bara förnamn (eller smeknamn), figur och spelresultat sparas. Inga e-postadresser och inga lösenord.
 

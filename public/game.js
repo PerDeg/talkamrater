@@ -435,7 +435,7 @@
   /* ================= Ändringslogg ================= */
   // Det nyaste först. Höj APP_VERSION och lägg till en rad när något ändras i spelet.
   const CHANGELOG = [
-    ['1.18', '8 okt 2026', ['Jordgubbarna hamnar i korgen. Du väljer själv om de blir mat till Plutt eller saker i garderoben.', 'Mata Plutt en jordgubbe i taget.', 'Fler jordgubbar ju fler rätt och stjärnor du får, och lite fler klistermärken.', 'Nya saker till Plutt: guldkedja, ballong, glasstrut, kycklingkompis, trollstav, skateboard, gitarr, eget moln och raketryggsäck.', 'På tid! låses upp för ett tal när du har ★★★ på Lära och Öva och inga kluriga uppgifter kvar.']],
+    ['1.18', '8 okt 2026', ['Jordgubbarna hamnar i korgen. Du väljer själv om de blir mat till Plutt eller saker i garderoben.', 'Mata Plutt en jordgubbe i taget.', 'Fler jordgubbar ju fler rätt och stjärnor du får, och lite fler klistermärken.', 'Nya saker till Plutt: guldkedja, ballong, glasstrut, kycklingkompis, trollstav, skateboard, gitarr, eget moln och raketryggsäck.', 'På tid! låses upp för ett tal när du har ★★★ på Lära och Öva och inga kluriga uppgifter kvar.', 'Klassen-fliken är nu hela klassidan: uppdraget, kompisutmaningen, klasskampen, flödet och kompisarna.']],
     ['1.17', '5 okt 2026', ['Tydligare sammanfattning efter en runda, en rad per sak.', 'En tydlig huvudknapp för att gå vidare, och Spela igen under.', 'Lärarens fokus står alltid överst i Idag, och läraren kan välja flera fokus och se vem som tränat.', 'Plutt hoppar själv i Plutts hopp, ingen känguru.', 'Talkamraterna hälsar alltid på Hem, och din figur är profilbilden uppe till höger.', 'Tallinjen och Plutts hopp har ett tal i mitten på de lättare nivåerna.', 'Titeln visar vilken nivå du är på. Tryck på den så ser du hela resan, med ett eget märke för varje nivå.', 'Hejarop visas en gång, med rätt antal.', 'En inbjudan från en kompis syns direkt i Idag, även när spelet redan är öppet.']],
     ['1.16', '5 okt 2026', ['Klappa Plutt på Hem så säger han något.', 'Petar man för många gånger blir han sur, säger till fröken och tar till slut en tupplur.']],
     ['1.15', '5 okt 2026', ['Ändringslogg under Inställningar.', 'Testläge för vuxna: se hur en inbjudan, lärarens fokus eller en kompisutmaning ser ut, utan att röra riktiga elever.', 'Mer luft runt titeln på Hem, och stjärnan rymmer fyra siffror.', 'Mer luft längst ner, ovanför menyn.', 'Idag påminner om Kom ihåg-prov och obesvarade inbjudningar, och ger ett tips om dagen.']],
@@ -1142,7 +1142,6 @@
       $('#wishBtn').textContent = `Hjälp ${petName()}!`;
     }
   }
-  $('#ctFocusBtn').addEventListener('click', () => startFocus());
   $('#wishBtn').addEventListener('click', () => { const w = save.pet.wish; if (w && WISH_TYPES[w.type]) WISH_TYPES[w.type].go(w); });
   // Petar man för många gånger i rad blir husdjuret trött på det, och till slut tar det en tupplur
   const PET_ANNOYED = ['Aj aj!', 'Aj! Inte så hårt!', 'Det där kittlas inte längre …', 'Nu räcker det faktiskt!', 'Sluta pilla på mig!',
@@ -1745,6 +1744,7 @@
   }
   function setTab(tab) {
     startTab = tab;
+    if (tab === 'class') loadClass();
     if (current !== 'start') { stopGame(); renderStart(); show('start'); }
     else applyTab();
     window.scrollTo({ top: 0 });
@@ -1894,7 +1894,7 @@
     $('#mixB').textContent = w.mixes[1].label;
 
     const acc = !!net.player;
-    renderClassTop();
+    renderClassTab();
     renderInstall();
     const solo = isSolo();
     $('#joinCard').hidden = !net.online || (acc && !solo);
@@ -1955,42 +1955,25 @@
     startFindLevel(focusWorld(f), +f.slice(1), true);
   }
 
-  // Klassen överst på startsidan: veckans uppdrag, ditt bidrag och senaste händelsen
-  function renderClassTop() {
-    const box = $('#classTop');
-    if (!net.player || isSolo()) { box.hidden = true; return; }
-    box.hidden = false;
-    const ci = net.classInfo;
-    $('#ctName').textContent = net.player.className || 'Klassen';
-    const fl = teacherFocuses();
-    $('#ctFocus').hidden = !fl.length;
-    if (fl.length) $('#ctFocusText').textContent = `Läraren vill att du tränar ${focusListText(fl)}`;
-    const fresh = ci ? ci.myCheers - (prefs.seenCheers[net.player.id] || 0) : 0;
-    $('#cheerBadge').hidden = fresh <= 0;
-    $('#cheerBadge').textContent = fresh > 0 ? `👏 ${fresh} ${fresh === 1 ? 'nytt hejarop' : 'nya hejarop'}` : '';
-    if (!ci || !ci.mission) {
-      $('#ctMission').textContent = net.online ? 'Hämtar klassens uppdrag …' : 'Klassen syns när du har internet.';
-      $('#ctMeter').style.width = '0%'; $('#ctMine').textContent = ''; $('#ctEvent').hidden = true;
-      return;
+  // Klassen-fliken är klassidan: uppdraget, kompisutmaningen, kampen, flödet och kompisarna
+  function renderClassTab() {
+    const member = !!net.player && !isSolo();
+    $('#classArea').hidden = !member;
+    if (!member) return;
+    renderAvatarPicker();
+    if (net.classInfo) renderClass(net.classInfo);
+    else {
+      $('#classTitle').textContent = net.player.className || 'Klassen';
+      $('#mates').innerHTML = net.online ? '<p class="stats">Hämtar klassen …</p>' : '<p class="stats">Klassen syns när du har internet.</p>';
     }
-    const m = ci.mission;
-    const done = m.progress >= m.goal;
-    $('#ctMission').textContent = m.title;
-    $('#ctMeter').style.width = Math.min(100, 100 * m.progress / m.goal) + '%';
-    $('#ctProgress').textContent = done ? `Klart! ${m.progress} ${m.unit} 🎉` : `${m.progress} av ${m.goal} ${m.unit}`;
-    $('#ctMine').textContent = m.mine > 0 ? `Du har bidragit med ${m.mine} ${m.unit}. Tack! 🤝` : 'Spela en runda så hjälper du klassen!';
-    const all = m.everyone;
-    $('#ctAll').hidden = !all || all.players < 2;
-    if (all && all.players >= 2) $('#ctAll').textContent = all.allIn ? `🌟 Alla ${all.players} är med den här veckan!` : `👥 ${all.contributed} av ${all.players} har varit med den här veckan`
-      + (ci.pet && ci.pet.stage > 0 ? ` · ${ci.pet.icon} ${ci.pet.name} ${ci.pet.mood === 'längtar' ? 'längtar' : 'är glad'}` : '');
-    const cheerLine = contestCheer(ci.contest);
-    $('#ctContest').hidden = !cheerLine;
-    if (cheerLine) $('#ctContest').textContent = cheerLine;
-    const ev = ci.events && ci.events[0];
-    $('#ctEvent').hidden = !ev;
-    if (ev) $('#ctEvent').innerHTML = `${esc(ev.avatar)} ${eventText(ev)}`;
-    $('#classTop').classList.toggle('is-done', done);
   }
+  async function loadClass() {
+    if (!net.player || isSolo()) return;
+    if (net.inflight || ls.get(ACCOUNT_KEY)?.dirty) await sync();
+    const c = await refreshClassInfo();
+    if (!c && !net.classInfo && current === 'start' && startTab === 'class') $('#mates').innerHTML = '<p class="error">Kommer inte åt klassen just nu. Kolla internet och försök igen.</p>';
+  }
+
 
   /* ================= Nyheter ================= */
   // "Nytt! Nu kan du träna på …" visas tills eleven har sett det. Det som är sett
@@ -3843,29 +3826,18 @@
     const d = Math.floor(h / 24);
     return d === 1 ? 'igår' : `${d} dagar sedan`;
   }
-  async function openClass() {
+  function openClass() {
     stopGame();
-    show('class');
-    $('#classTitle').textContent = net.player.className || 'Klassen';
-    $('#mates').innerHTML = '<p class="stats">Hämtar klassen …</p>';
-    $('#feed').innerHTML = '';
-    $('#cheerNews').hidden = true;
-    renderAvatarPicker();
-    if (net.inflight || ls.get(ACCOUNT_KEY)?.dirty) await sync();
-    const c = await refreshClassInfo();
-    if (current !== 'class') return;
-    if (!c) { $('#mates').innerHTML = '<p class="error">Kommer inte åt klassen just nu. Kolla internet och försök igen.</p>'; return; }
-    renderClass(c);
+    setTab('class');
   }
   function renderClass(c) {
     $('#classTitle').textContent = c.name;
     const seen = prefs.seenCheers[net.player.id] || 0;
     const fresh = c.myCheers - seen;
-    if (fresh > 0) {
-      $('#cheerNews').hidden = false;
-      $('#cheerNews').textContent = fresh === 1 ? '👏 En kompis har hejat på dig!' : `👏 ${fresh} kompisar har hejat på dig!`;
-    }
-    prefs.seenCheers[net.player.id] = c.myCheers; savePrefs();
+    $('#cheerNews').hidden = fresh <= 0;
+    if (fresh > 0) $('#cheerNews').textContent = fresh === 1 ? '👏 En kompis har hejat på dig!' : `👏 Du har fått ${fresh} nya hejarop!`;
+    // Hejaropen räknas som sedda först när man faktiskt tittar på klassen
+    if (current === 'start' && startTab === 'class' && !document.hidden) { prefs.seenCheers[net.player.id] = c.myCheers; savePrefs(); }
     // Veckans uppdrag
     const m = c.mission;
     $('#missionTitle').textContent = m.title;
@@ -3873,7 +3845,7 @@
     const daysLeft = Math.max(0, Math.ceil((m.endsAt - Date.now()) / 86400000));
     $('#missionText').textContent = m.progress >= m.goal
       ? `Uppdraget klart! ${m.progress} ${m.unit}. Grymt jobbat allihop!`
-      : `${m.progress} av ${m.goal} ${m.unit} · ${daysLeft <= 1 ? 'sista dagen' : `${daysLeft} dagar kvar`}`;
+      : `${m.progress} av ${m.goal} ${m.unit} · ${daysLeft <= 1 ? 'sista dagen' : `${daysLeft} dagar kvar`}${m.mine > 0 ? ` · du har hjälpt till med ${m.mine}` : ''}`;
     const all = m.everyone;
     $('#missionAll').hidden = !all || all.players < 2;
     if (all && all.players >= 2) {
@@ -4260,7 +4232,6 @@
   $('#duelAgain').addEventListener('click', startDuel);
   $('#duelSetupBtn').addEventListener('click', openDuel);
   $('#duelQuit').addEventListener('click', goHome);
-  $('#openClass').addEventListener('click', openClass);
   $('#openJoin').addEventListener('click', () => openJoin());
   $('#openAccount').addEventListener('click', () => openAccount());
   $('#logoutBtn').addEventListener('click', () => logout(false));

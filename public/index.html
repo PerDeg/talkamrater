@@ -202,27 +202,63 @@
 
     <!-- KLASSEN -->
     <div class="tabpane" data-pane="class" hidden>
-    <div class="panel classtop" id="classTop" hidden>
-      <div class="ct-head">
-        <span class="kicker">Klassens uppdrag · <span id="ctName">Klassen</span></span>
-        <span class="badge" id="cheerBadge" hidden></span>
-      </div>
-      <div class="ct-focus" id="ctFocus" hidden>
-        <span id="ctFocusText"></span>
-        <button class="chunky sun" id="ctFocusBtn">Träna nu</button>
-      </div>
-      <div class="ct-title" id="ctMission"></div>
-      <div class="meter"><i id="ctMeter"></i></div>
-      <div class="ct-row"><b id="ctProgress"></b><span id="ctMine"></span></div>
-      <p class="ct-all" id="ctAll" hidden></p>
-      <p class="ct-contest" id="ctContest" hidden></p>
-      <p class="ct-event" id="ctEvent" hidden></p>
-      <button class="chunky sun" id="openClass">Till klassen</button>
+    <div class="classarea" id="classArea" hidden>
+    <h2 class="mode-title class-title" id="classTitle">Klassen</h2>
+    <p class="cheer-news" id="cheerNews" hidden></p>
+    <div class="panel mission">
+      <div class="label">Veckans uppdrag <small>Alla hjälps åt</small></div>
+      <div class="mission-title" id="missionTitle"></div>
+      <div class="meter"><i id="missionMeter"></i></div>
+      <p class="stats" id="missionText"></p>
+      <p class="allin" id="missionAll" hidden></p>
     </div>
-
     <div class="panel buddycard" id="buddyCard" hidden>
       <div class="label">🤝 Kompisutmaning <small id="buddySub"></small></div>
       <div id="buddyBody"></div>
+    </div>
+
+    <div class="panel contest" id="contestPanel" hidden>
+      <div class="label"><span id="contestTitle">Klasskamp</span> <small id="contestSub"></small></div>
+      <div class="mountains" id="mountains"></div>
+      <p class="contest-cheer" id="contestText"></p>
+      <p class="stats" id="contestTotal"></p>
+    </div>
+    <div class="panel">
+      <div class="label">Händer i klassen <small>Heja på varandra!</small></div>
+      <div class="feed" id="feed"></div>
+    </div>
+    <div class="panel">
+      <div class="label">Alla i klassen <small>🏅 medaljer · 🎓🧙👯 expert</small></div>
+      <div class="mates" id="mates"></div>
+    </div>
+    <div class="panel classpet" id="classPet" hidden>
+      <div class="label">Klassplutten <small>Växer när alla spelar</small></div>
+      <div class="cp-row">
+        <div class="cp-view" id="cpView"></div>
+        <div class="cp-text">
+          <b id="cpStage"></b>
+          <p id="cpMood"></p>
+          <div class="meter"><i id="cpMeter"></i></div>
+          <small id="cpNext"></small>
+        </div>
+      </div>
+    </div>
+    <div class="panel jar">
+      <div class="label">Klassens stjärnburk <small id="jarGoal"></small></div>
+      <div class="big" id="jarBig"></div>
+      <div class="meter"><i id="jarMeter"></i></div>
+      <p class="stats" id="jarText"></p>
+    </div>
+    <details class="panel wall foldpanel" id="wallPanel" hidden>
+      <summary>📊 Kunskapsväggen <small>Hur många i klassen kan talet</small></summary>
+      <div class="worldtabs" id="wallTabs"></div>
+      <div class="wallgrid" id="wallGrid"></div>
+      <p class="stats" id="wallText"></p>
+    </details>
+    <details class="panel foldpanel">
+      <summary>🎭 Byt figur <small>Den syns för kompisarna och som din profilbild</small></summary>
+      <div class="pickrow" id="myAvatar"></div>
+    </details>
     </div>
 
     <div class="panel joincard" id="joinCard" hidden>
@@ -552,60 +588,6 @@
   </section>
 
   <!-- CLASS -->
-  <section class="screen" id="class" hidden>
-    <button class="chunky ghost back" data-home>← Hem</button>
-    <h2 class="mode-title" id="classTitle">Klassen</h2>
-    <p class="cheer-news" id="cheerNews" hidden></p>
-    <div class="panel mission">
-      <div class="label">Veckans uppdrag <small>Alla hjälps åt</small></div>
-      <div class="mission-title" id="missionTitle"></div>
-      <div class="meter"><i id="missionMeter"></i></div>
-      <p class="stats" id="missionText"></p>
-      <p class="allin" id="missionAll" hidden></p>
-    </div>
-    <div class="panel contest" id="contestPanel" hidden>
-      <div class="label"><span id="contestTitle">Klasskamp</span> <small id="contestSub"></small></div>
-      <div class="mountains" id="mountains"></div>
-      <p class="contest-cheer" id="contestText"></p>
-      <p class="stats" id="contestTotal"></p>
-    </div>
-    <div class="panel classpet" id="classPet" hidden>
-      <div class="label">Klassplutten <small>Växer när alla spelar</small></div>
-      <div class="cp-row">
-        <div class="cp-view" id="cpView"></div>
-        <div class="cp-text">
-          <b id="cpStage"></b>
-          <p id="cpMood"></p>
-          <div class="meter"><i id="cpMeter"></i></div>
-          <small id="cpNext"></small>
-        </div>
-      </div>
-    </div>
-    <div class="panel wall" id="wallPanel" hidden>
-      <div class="label">Kunskapsväggen <small>Hur många i klassen kan talet</small></div>
-      <div class="worldtabs" id="wallTabs"></div>
-      <div class="wallgrid" id="wallGrid"></div>
-      <p class="stats" id="wallText"></p>
-    </div>
-    <div class="panel">
-      <div class="label">Händer i klassen <small>Heja på varandra!</small></div>
-      <div class="feed" id="feed"></div>
-    </div>
-    <div class="panel jar">
-      <div class="label">Klassens stjärnburk <small id="jarGoal"></small></div>
-      <div class="big" id="jarBig"></div>
-      <div class="meter"><i id="jarMeter"></i></div>
-      <p class="stats" id="jarText"></p>
-    </div>
-    <div class="panel">
-      <div class="label">Alla i klassen <small>🏅 medaljer · 🎓🧙👯 expert</small></div>
-      <div class="mates" id="mates"></div>
-    </div>
-    <div class="panel">
-      <div class="label">Din figur</div>
-      <div class="pickrow" id="myAvatar"></div>
-    </div>
-  </section>
 
   <!-- JOIN -->
   <section class="screen join" id="join" hidden>
