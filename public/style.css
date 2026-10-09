@@ -1117,7 +1117,21 @@ body.on-start .tabbar { display: grid; grid-template-columns: repeat(4, 1fr); po
 .g-actor { z-index: 3; width: 70px; height: 70px; display: grid; place-items: end center; }
 .g-actor .pet { --s: 1.1 !important; animation: none; }
 .tb-plutt.big { transform: scale(2); margin-bottom: 14px; }
-.g-hint { position: absolute; left: 10px !important; right: 10px; top: auto !important; bottom: 6px; margin: 0; text-align: center; font-weight: 800; font-size: 0.85rem; color: var(--ink-soft); pointer-events: none; z-index: 4; }
+.g-hint { margin: 10px 0 0; text-align: center; font-weight: 800; font-size: 0.92rem; color: var(--ink-soft); }
+.g-path { width: 100%; height: 100%; pointer-events: none; z-index: 2; overflow: visible; }
+.g-path path { fill: none; stroke: #fff; stroke-width: 4; stroke-dasharray: 2 9; stroke-linecap: round; filter: drop-shadow(0 1px 1px rgba(0,0,0,0.25)); }
+.g-path circle { fill: none; stroke: var(--coral); stroke-width: 4; opacity: 0; }
+.g-target.fall.waiting { animation: dangle 0.9s ease-in-out infinite; }
+@keyframes dangle { 0%, 100% { rotate: -6deg; } 50% { rotate: 6deg; } }
+.pyr { width: 84px; height: 104px; z-index: 1; }
+.pyr .mini-can { position: absolute; width: 36px; height: 38px; border-radius: 6px 6px 8px 8px; background: linear-gradient(90deg, #E23D3D, #FF7A7A 45%, #B92B2B); box-shadow: inset 0 4px 0 rgba(255,255,255,0.35), inset 0 -4px 0 rgba(0,0,0,0.2); }
+.pyr .g-tag { position: absolute; left: 50%; top: -6px; translate: -50% -50%; min-width: 44px; padding: 2px 10px; border-radius: 12px; background: var(--card); font-family: var(--display); font-weight: 800; font-size: 1.5rem; text-align: center; box-shadow: 0 3px 0 rgba(0,0,0,0.12); }
+.pyr.wrong { filter: grayscale(0.7); }
+.pyr.wobble { animation: wobble 0.5s ease 2; }
+@keyframes wobble { 25% { rotate: -6deg; } 75% { rotate: 6deg; } }
+.pyr.correct-was .g-tag { box-shadow: 0 0 0 5px var(--sun); }
+.pyr .g-tag.pop { animation: tagpop 0.6s ease forwards; }
+@keyframes tagpop { 40% { scale: 1.5; } 100% { scale: 1.2; background: var(--sun); } }
 .g-target { display: grid; place-items: center; font-family: var(--display); font-weight: 800; font-size: 1.8rem; color: var(--ink); }
 .g-target.cloud { width: 80px; height: 52px; border-radius: 40px; background: #fff; box-shadow: 0 6px 0 rgba(0,0,0,0.08); }
 .g-target.cloud::before, .g-target.cloud::after { content: ""; position: absolute; background: #fff; border-radius: 50%; z-index: -1; }

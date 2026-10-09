@@ -72,9 +72,9 @@ Startsidan har en meny längst ner med fyra flikar. Överst hälsar alltid **tal
   - 🔍 **Saknas-talet**: *3 + ? = 10*, *? − 4 = 8* och *4 + ? = 3 + 5*. Nivåer: plus till 10 och 20, minus, blandat och lika på båda sidor.
   - 🪙 **Pengar**: mynt och tjugolapp. Räkna mynten, hur mycket fattas till 10 och 20, och handla: hur mycket får du tillbaka?
 - **Spela med Plutt** (i Träna): tre spel som låses upp av nivåerna på resan. Frågorna kommer från tal eleven redan kan (★★ eller mer). Låsta spel visar vilken nivå som behövs och hur många stjärnor som är kvar. I testläget är alla upplåsta.
-  - ☁️ **Plutt flyger** (nivå 3): en slangbella. Håll in mellanslag eller fingret, styrkan går upp och ner, och släpp när den är lagom så att Plutt landar på molnet med rätt svar. För kort eller för långt: försök igen.
-  - 🧺 **Fånga talet** (nivå 4): talen faller från himlen. Flytta Plutt med piltangenterna eller fingret och fånga rätt tal i korgen.
-  - 🎯 **Kasta prick** (nivå 5): dra bollen bakåt som ett gummiband, sikta och släpp mot burken med rätt svar. Med tangentbord: pilarna siktar och mellanslag ger kraft.
+  - ☁️ **Plutt flyger** (nivå 3): en slangbella. Håll in mellanslag eller fingret, styrkan går upp och ner, och en streckad bana visar var Plutt landar. Släpp när den pekar på molnet med rätt svar. För kort eller för långt: försök igen.
+  - 🧺 **Fånga talet** (nivå 4): talen hänger en stund och faller sedan från himlen. Flytta Plutt med piltangenterna eller fingret och fånga rätt tal i korgen.
+  - 🎯 **Kasta prick** (nivå 5): dra bollen bakåt som ett gummiband, sikta och släpp mot burkpyramiden med rätt svar, som rasar när man träffar. Med tangentbord: pilarna siktar och mellanslag ger kraft.
 - **Kluriga kamrater**: spelet minns svåra uppgifter i alla världar och låter eleven öva extra på dem.
 - **Belöningar**:
   - Svenska hejarop, konfetti, ljud och röst.

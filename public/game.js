@@ -435,6 +435,7 @@
   /* ================= Ändringslogg ================= */
   // Det nyaste först. Höj APP_VERSION och lägg till en rad när något ändras i spelet.
   const CHANGELOG = [
+    ['1.21', '9 okt 2026', ['Slangbellan visar en streckad bana så att man ser var Plutt landar, och den går att skjuta igen efter en miss.', 'I Fånga talet väntar talen en stund innan de börjar falla.', 'Kasta prick har små burkpyramider som rasar när man träffar rätt.', 'Instruktionen står under spelet i stället för inne i det.']],
     ['1.20', '9 okt 2026', ['Riktiga spel med Plutt: spänn slangbellan och flyg till rätt moln, flytta Plutt och fånga rätt tal, dra bollen bakåt och träffa rätt burk.', 'Låsta spel visar nivån och hur många stjärnor som är kvar.', 'Plutts önskan har ett eget kort på Hem.', 'I testläget är alla spel upplåsta.']],
     ['1.19', '8 okt 2026', ['Nya övningar under Fler utmaningar: Räknesagor (som läses upp), Saknas-talet och Pengar.', 'Spela med Plutt: Plutt flyger, Kasta prick och Studsboll. De låses upp när du når nivå 3, 4 och 5, och frågorna kommer från tal du redan kan.', 'Lärarkonton: varje lärare har en egen nyckel och ser sina klasser.']],
     ['1.18', '8 okt 2026', ['Jordgubbarna hamnar i korgen. Du väljer själv om de blir mat till Plutt eller saker i garderoben.', 'Mata Plutt en jordgubbe i taget.', 'Fler jordgubbar ju fler rätt och stjärnor du får, och lite fler klistermärken.', 'Nya saker till Plutt: guldkedja, ballong, glasstrut, kycklingkompis, trollstav, skateboard, gitarr, eget moln och raketryggsäck.', 'På tid! låses upp för ett tal när du har ★★★ på Lära och Öva och inga kluriga uppgifter kvar.', 'Klassen-fliken är nu hela klassidan: uppdraget, kompisutmaningen, klasskampen, flödet och kompisarna.']],
@@ -3645,62 +3646,66 @@
     };
     kit.stop = () => { kit.dead = true; cancelAnimationFrame(kit.raf); kit.off.forEach(f => f()); kit.off = []; };
     kit.at = (el, x, y, extra = '') => { el.style.transform = `translate(${x}px, ${y}px) ${extra}`; };
-    kit.hint = text => { const h = $('.g-hint', scene); if (h) h.innerHTML = text; };
+    kit.hint = text => { const h = $('#gHint'); if (h) h.innerHTML = text; };
     if (G) G.kit = kit;
     return kit;
   }
   const isSpace = e => e.code === 'Space' || e.key === ' ';
 
-  // ☁️ Plutt flyger: håll in (mellanslag eller fingret) för att spänna gummibandet, släpp för att flyga
+  // ☁️ Plutt flyger: håll in (mellanslag eller fingret) för att spänna gummibandet, släpp för att flyga.
+  // En streckad bana visar hela tiden var Plutt kommer att landa.
   function playFly(scene, task, done) {
     const k = gameKit(scene);
-    scene.innerHTML = `<div class="sling"></div><div class="g-actor">${petInScene()}</div>
+    scene.innerHTML = `<svg class="g-path" viewBox="0 0 ${k.w} ${k.h}" aria-hidden="true"><path d=""/><circle r="9"/></svg>
+      <div class="sling"></div><div class="g-actor">${petInScene()}</div>
       ${task.opts.map(v => `<div class="g-target cloud" data-v="${v}"><span>${v}</span></div>`).join('')}
-      <div class="g-power" aria-hidden="true"><i></i></div><p class="g-hint">Håll in <b>mellanslag</b> eller <b>fingret</b>. Släpp när det är lagom!</p>`;
-    const actor = $('.g-actor', scene), bar = $('.g-power i', scene);
+      <div class="g-power" aria-hidden="true"><i></i></div>`;
+    k.hint('Håll in <b>mellanslag</b> eller <b>fingret</b>. Den streckade banan visar var Plutt landar. Släpp när den pekar på rätt moln!');
+    const actor = $('.g-actor', scene), bar = $('.g-power i', scene), path = $('.g-path path', scene), mark = $('.g-path circle', scene);
     const clouds = $$('.cloud', scene), cx = [0.37, 0.63, 0.88].map(f => f * k.w), cy = [78, 104, 78];
     clouds.forEach((c, i) => k.at(c, cx[i] - 40, cy[i] - 26));
-    const sx = 30, sy = k.h - 96;
-    let state = 'ready', t = 0, power = 0;
-    k.at(actor, sx, sy);
-    const charge = () => { if (state !== 'ready') return; state = 'charge'; t = 0; sfx.tick(); };
-    const release = () => {
-      if (state !== 'charge') return;
-      state = 'fly';
-      const ex = sx + 35 + power * (k.w - sx - 40), ey = 84, start = [sx, sy];
-      let ft = 0;
-      sfx.select();
-      k.loop(dt => {
-        ft = Math.min(1, ft + dt / 0.85);
-        const x = start[0] + (ex - 35 - start[0]) * ft, y = start[1] + (ey - 35 - start[1]) * ft - 150 * 4 * ft * (1 - ft);
-        k.at(actor, x, y, `rotate(${ft * 360}deg)`);
-        if (ft < 1) return true;
-        const hit = clouds.find((c, i) => Math.abs(cx[i] - ex) < Math.min(46, (cx[1] - cx[0]) / 2));
-        if (hit) {
-          const right = +hit.dataset.v === task.ans;
-          hit.classList.add(right ? 'right' : 'wrong');
-          if (right) { hit.classList.add('pop'); k.at(actor, ex - 35, ey - 70); }
-          k.stop(); done(right, hit);
-        } else {
-          kit_reset(ex < cx[0] ? 'För kort! Håll lite längre och försök igen.' : 'För långt! Släpp lite tidigare och försök igen.');
-        }
-        return false;
-      });
+    const sx = 30, sy = k.h - 96, S = [sx + 35, sy + 35], ey = 84;
+    const landX = p => S[0] + p * (k.w - S[0] - 10);
+    const pos = (p, f) => { const ex = landX(p); return [S[0] + (ex - S[0]) * f, S[1] + (ey - S[1]) * f - 150 * 4 * f * (1 - f)]; };
+    let state = 'ready', t = 0, power = 0, ft = 0, waitUntil = 0;
+    const drawPath = () => {
+      if (power < 0.02) { path.setAttribute('d', ''); mark.style.opacity = 0; return; }
+      const pts = []; for (let f = 0; f <= 1.0001; f += 0.05) pts.push(pos(power, f).map(v => v.toFixed(1)).join(','));
+      path.setAttribute('d', 'M' + pts.join(' L'));
+      const [mx, my] = pos(power, 1); mark.setAttribute('cx', mx); mark.setAttribute('cy', my); mark.style.opacity = 1;
     };
-    const kit_reset = msg => {
-      k.hint(msg);
-      setTimeout(() => { if (k.dead) return; state = 'ready'; power = 0; bar.style.width = '0%'; k.at(actor, sx, sy); }, 500);
-    };
-    // Styrkan går upp och ner, så man måste släppa i rätt ögonblick
+    const reset = () => { state = 'ready'; power = 0; ft = 0; bar.style.width = '0%'; drawPath(); k.at(actor, sx, sy); };
+    reset();
+    // En enda loop som sköter laddning, flygning och nytt försök
     k.loop(dt => {
       if (state === 'charge') {
         t += dt;
-        power = 1 - Math.abs(((t * 0.75) % 2) - 1);
+        power = 1 - Math.abs(((t * 0.6) % 2) - 1);
         bar.style.width = (power * 100) + '%';
         k.at(actor, sx - power * 22, sy + power * 8);
-      }
-      return state !== 'fly';
+        drawPath();
+      } else if (state === 'fly') {
+        ft = Math.min(1, ft + dt / 0.85);
+        const [x, y] = pos(power, ft);
+        k.at(actor, x - 35, y - 35, `rotate(${ft * 360}deg)`);
+        if (ft >= 1) {
+          const ex = landX(power);
+          const hit = clouds.find((c, i) => Math.abs(cx[i] - ex) < Math.min(46, (cx[1] - cx[0]) / 2));
+          if (hit) {
+            const right = +hit.dataset.v === task.ans;
+            hit.classList.add(right ? 'right' : 'wrong');
+            if (right) hit.classList.add('pop');
+            path.setAttribute('d', ''); mark.style.opacity = 0;
+            k.stop(); done(right, hit); return false;
+          }
+          k.hint(ex < cx[0] ? 'För kort! Håll lite längre och försök igen.' : 'För långt! Släpp lite tidigare och försök igen.');
+          state = 'wait'; waitUntil = performance.now() + 600;
+        }
+      } else if (state === 'wait' && performance.now() > waitUntil) reset();
+      return true;
     });
+    const charge = () => { if (state !== 'ready') return; state = 'charge'; t = 0; sfx.tick(); };
+    const release = () => { if (state !== 'charge') return; state = 'fly'; ft = 0; path.setAttribute('d', ''); mark.style.opacity = 0; sfx.select(); };
     k.on(document, 'keydown', e => { if (isSpace(e)) { e.preventDefault(); if (!e.repeat) charge(); } });
     k.on(document, 'keyup', e => { if (isSpace(e)) { e.preventDefault(); release(); } });
     k.on(scene, 'pointerdown', e => { e.preventDefault(); charge(); });
@@ -3708,11 +3713,12 @@
     k.on(window, 'pointercancel', release);
   }
 
-  // 🧺 Fånga talet: talen faller, flytta Plutt med pilarna eller fingret och fånga rätt tal
+  // 🧺 Fånga talet: talen hänger först kvar en stund högst upp, sedan faller de.
+  // Flytta Plutt med pilarna eller fingret och fånga rätt tal.
   function playCatch(scene, task, done) {
     const k = gameKit(scene);
-    scene.innerHTML = `<div class="g-actor catcher">${petInScene()}<span class="basket" aria-hidden="true">🧺</span></div>
-      <p class="g-hint">Flytta Plutt med <b>pilarna</b> eller <b>fingret</b> och fånga rätt tal!</p>`;
+    scene.innerHTML = `<div class="g-actor catcher">${petInScene()}<span class="basket" aria-hidden="true">🧺</span></div>`;
+    k.hint('Flytta Plutt med <b>pilarna</b> eller <b>fingret</b> och fånga rätt tal!');
     const actor = $('.catcher', scene), py = k.h - 84;
     let px = k.w / 2, target = null, left = false, right = false, wrongs = 0;
     const lanes = shuffle([0.17, 0.5, 0.83]);
@@ -3720,9 +3726,10 @@
       const el = document.createElement('div');
       el.className = 'g-target fall'; el.dataset.v = v; el.innerHTML = `<span>${v}</span>`;
       scene.appendChild(el);
-      return { v, el, x: lanes[i] * k.w, y: -50 - i * 100, vy: 72 + Math.random() * 16, alive: true };
+      // Varje tal väntar en stund (lite olika länge) innan det börjar falla
+      return { v, el, x: lanes[i] * k.w, y: 8, vy: 72 + Math.random() * 16, wait: 1.6 + i * 1.1, alive: true };
     });
-    const respawn = it => { it.x = (0.12 + Math.random() * 0.76) * k.w; it.y = -60; };
+    const respawn = it => { it.x = (0.12 + Math.random() * 0.76) * k.w; it.y = 8; it.wait = 0.8; };
     k.loop(dt => {
       if (left) px -= 300 * dt;
       if (right) px += 300 * dt;
@@ -3731,9 +3738,10 @@
       k.at(actor, px - 35, py);
       for (const it of items) {
         if (!it.alive) continue;
+        if (it.wait > 0) { it.wait -= dt; it.el.classList.toggle('waiting', true); k.at(it.el, it.x - 26, it.y); continue; }
+        it.el.classList.remove('waiting');
         it.y += it.vy * dt;
         k.at(it.el, it.x - 26, it.y);
-        // Fångad i korgen?
         if (it.y + 46 >= py + 18 && it.y < py + 40 && Math.abs(it.x - px) < 46) {
           if (it.v === task.ans) {
             it.alive = false; it.el.classList.add('right', 'pop');
@@ -3756,20 +3764,22 @@
     k.on(document, 'keyup', e => key(e, false));
     const follow = e => { const r = scene.getBoundingClientRect(); target = e.clientX - r.left; };
     k.on(scene, 'pointerdown', e => { e.preventDefault(); follow(e); });
-    k.on(scene, 'pointermove', e => { if (e.pointerType !== 'mouse' || e.buttons || true) follow(e); });
+    k.on(scene, 'pointermove', follow);
   }
 
-  // 🎯 Kasta prick: dra bollen bakåt, sikta och släpp. Eller pilarna och mellanslag.
+  // 🎯 Kasta prick: en burkpyramid för varje tal. Dra bollen bakåt, sikta och släpp
+  // (eller pilarna och mellanslag). Träffar man rätt rasar hela pyramiden.
   function playThrow(scene, task, done) {
     const k = gameKit(scene);
-    scene.innerHTML = `<div class="shelf"></div>${task.opts.map(v => `<div class="g-target can" data-v="${v}"><span>${v}</span></div>`).join('')}
-      <div class="g-aim" aria-hidden="true"></div><span class="g-ball">⚽</span>
-      <p class="g-hint">Dra bollen <b>bakåt</b>, sikta och släpp! (Eller <b>pilarna</b> och <b>mellanslag</b>.)</p>`;
-    const ball = $('.g-ball', scene), aim = $('.g-aim', scene), cans = $$('.can', scene);
-    const canX = [0.2, 0.5, 0.8].map(f => f * k.w), canY = 26;
-    cans.forEach((c, i) => k.at(c, canX[i] - 30, canY));
-    $('.shelf', scene).style.top = (canY + 80) + 'px';
-    const bx = k.w / 2, by = k.h - 56;
+    const px = [0.2, 0.5, 0.8].map(f => f * k.w), base = 140; // underkant för pyramidernas nedersta rad
+    const can = (x, y) => `<i class="mini-can" style="left:${x}px;top:${y}px"></i>`;
+    scene.innerHTML = `<div class="shelf" style="top:${base}px"></div>
+      ${task.opts.map((v, i) => `<div class="pyr" data-v="${v}" style="left:${px[i] - 42}px;top:${base - 104}px">
+        <span class="g-tag">${v}</span>${can(4, 66)}${can(44, 66)}${can(24, 28)}</div>`).join('')}
+      <div class="g-aim" aria-hidden="true"></div><span class="g-ball">⚽</span>`;
+    k.hint('Dra bollen <b>bakåt</b>, sikta och släpp! (Eller <b>pilarna</b> och <b>mellanslag</b>.)');
+    const ball = $('.g-ball', scene), aim = $('.g-aim', scene), pyrs = $$('.pyr', scene);
+    const bx = k.w / 2, by = k.h - 50;
     let state = 'ready', drag = null, angle = 0, power = 0, t = 0;
     const showAim = (vx, vy) => {
       const len = Math.min(140, Math.hypot(vx, vy) / 7), ang = Math.atan2(vy, vx);
@@ -3781,24 +3791,36 @@
       setTimeout(() => { if (k.dead) return; state = 'ready'; power = 0; k.at(ball, bx - 20, by - 20); aim.style.opacity = 0; }, 450);
     };
     k.at(ball, bx - 20, by - 20);
+    // Träff: burkarna flyger åt olika håll och det sprutar konfetti
+    const tumble = (pyr, x, y) => {
+      const r = scene.getBoundingClientRect();
+      burst(r.left + x, r.top + y, 46);
+      $$('.mini-can', pyr).forEach((c, i) => {
+        const dx = (i - 1) * 60 + (Math.random() * 40 - 20), dy = 140 + Math.random() * 60, rot = (Math.random() < 0.5 ? -1 : 1) * (200 + Math.random() * 240);
+        c.animate([{ transform: 'translate(0,0) rotate(0)' }, { transform: `translate(${dx * 0.5}px, -40px) rotate(${rot * 0.4}deg)`, offset: 0.35 },
+          { transform: `translate(${dx}px, ${dy}px) rotate(${rot}deg)`, opacity: 0 }], { duration: 900, easing: 'ease-in', fill: 'forwards' });
+      });
+      $('.g-tag', pyr).classList.add('pop');
+      sfx.streak && sfx.streak();
+    };
     const throwIt = (vx, vy) => {
       state = 'fly'; aim.style.opacity = 0; sfx.select();
       let x = bx, y = by;
       k.loop(dt => {
         vy += 900 * dt; x += vx * dt; y += vy * dt;
         k.at(ball, x - 20, y - 20, `rotate(${x * 2}deg)`);
-        const hit = cans.find((c, i) => Math.abs(x - canX[i]) < 34 && y > canY - 6 && y < canY + 84);
-        if (hit) {
-          const right = +hit.dataset.v === task.ans;
-          hit.classList.add(right ? 'right' : 'wrong');
-          if (right) hit.classList.add('hit');
-          k.stop(); done(right, hit); return false;
+        const i = px.findIndex(p => Math.abs(x - p) < 44 && y > base - 110 && y < base + 4);
+        if (i >= 0) {
+          const pyr = pyrs[i], right = +pyr.dataset.v === task.ans;
+          if (right) { pyr.classList.add('right'); tumble(pyr, x, y); }
+          else { pyr.classList.add('wrong', 'wobble'); }
+          ball.style.opacity = 0;
+          k.stop(); done(right, pyr); return false;
         }
         if (x < -30 || x > k.w + 30 || y > k.h + 30 || y < -120) { reset('Miss! Försök igen.'); return false; }
         return true;
       });
     };
-    // Finger eller mus: dra bakåt som ett gummiband
     k.on(scene, 'pointerdown', e => { if (state !== 'ready') return; e.preventDefault(); drag = { x: e.clientX, y: e.clientY }; scene.setPointerCapture?.(e.pointerId); });
     k.on(scene, 'pointermove', e => {
       if (!drag || state !== 'ready') return;
@@ -3815,13 +3837,12 @@
       if (sp > max) { vx *= max / sp; vy *= max / sp; }
       throwIt(vx, vy);
     });
-    // Tangentbord: pilarna siktar, håll mellanslag för kraft och släpp
     const keyAim = () => { const sp = 300 + power * 650; showAim(Math.sin(angle) * sp, -Math.cos(angle) * sp); };
     k.on(document, 'keydown', e => {
       if (state !== 'ready' && state !== 'charge') return;
       if (e.key === 'ArrowLeft') { angle = Math.max(-0.9, angle - 0.08); keyAim(); e.preventDefault(); }
       if (e.key === 'ArrowRight') { angle = Math.min(0.9, angle + 0.08); keyAim(); e.preventDefault(); }
-      if (isSpace(e)) { e.preventDefault(); if (!e.repeat && state === 'ready') { state = 'charge'; t = 0; } }
+      if (isSpace(e)) { e.preventDefault(); if (!e.repeat && state === 'ready') { state = 'charge'; t = 0; chargeLoop(); } }
     });
     k.on(document, 'keyup', e => {
       if (!isSpace(e) || state !== 'charge') return;
@@ -3829,10 +3850,7 @@
       const sp = 300 + power * 650;
       throwIt(Math.sin(angle) * sp, -Math.cos(angle) * sp);
     });
-    k.loop(() => {
-      if (state === 'charge') { t += 1 / 60; power = 1 - Math.abs(((t * 0.75) % 2) - 1); keyAim(); }
-      return state !== 'fly' && !k.dead;
-    });
+    const chargeLoop = () => k.loop(dt => { if (state !== 'charge') return false; t += dt; power = 1 - Math.abs(((t * 0.75) % 2) - 1); keyAim(); return true; });
   }
   const GAME_PLAY = { fly: playFly, catch: playCatch, throw: playThrow };
 
@@ -3877,7 +3895,7 @@
     const scene = $('#quizScene'), ans = $('#quizAnswers');
     if (G.reward) {
       if (G.kit) G.kit.stop();
-      scene.innerHTML = `<div class="equation g-eq">${task.scene}</div><div class="gscene ${G.reward}" id="gscene"></div>`;
+      scene.innerHTML = `<div class="equation g-eq">${task.scene}</div><div class="gscene ${G.reward}" id="gscene"></div><p class="g-hint" id="gHint"></p>`;
       ans.innerHTML = ''; ans.hidden = true;
       GAME_PLAY[G.reward]($('#gscene'), task, (right, el) => { if (G && G.game === 'quiz' && !G.locked) { G.locked = true; quizResult(right, el); } });
     } else {
