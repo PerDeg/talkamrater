@@ -435,6 +435,7 @@
   /* ================= Ändringslogg ================= */
   // Det nyaste först. Höj APP_VERSION och lägg till en rad när något ändras i spelet.
   const CHANGELOG = [
+    ['1.20', '9 okt 2026', ['Riktiga spel med Plutt: spänn slangbellan och flyg till rätt moln, flytta Plutt och fånga rätt tal, dra bollen bakåt och träffa rätt burk.', 'Låsta spel visar nivån och hur många stjärnor som är kvar.', 'Plutts önskan har ett eget kort på Hem.', 'I testläget är alla spel upplåsta.']],
     ['1.19', '8 okt 2026', ['Nya övningar under Fler utmaningar: Räknesagor (som läses upp), Saknas-talet och Pengar.', 'Spela med Plutt: Plutt flyger, Kasta prick och Studsboll. De låses upp när du når nivå 3, 4 och 5, och frågorna kommer från tal du redan kan.', 'Lärarkonton: varje lärare har en egen nyckel och ser sina klasser.']],
     ['1.18', '8 okt 2026', ['Jordgubbarna hamnar i korgen. Du väljer själv om de blir mat till Plutt eller saker i garderoben.', 'Mata Plutt en jordgubbe i taget.', 'Fler jordgubbar ju fler rätt och stjärnor du får, och lite fler klistermärken.', 'Nya saker till Plutt: guldkedja, ballong, glasstrut, kycklingkompis, trollstav, skateboard, gitarr, eget moln och raketryggsäck.', 'På tid! låses upp för ett tal när du har ★★★ på Lära och Öva och inga kluriga uppgifter kvar.', 'Klassen-fliken är nu hela klassidan: uppdraget, kompisutmaningen, klasskampen, flödet och kompisarna.']],
     ['1.17', '5 okt 2026', ['Tydligare sammanfattning efter en runda, en rad per sak.', 'En tydlig huvudknapp för att gå vidare, och Spela igen under.', 'Lärarens fokus står alltid överst i Idag, och läraren kan välja flera fokus och se vem som tränat.', 'Plutt hoppar själv i Plutts hopp, ingen känguru.', 'Talkamraterna hälsar alltid på Hem, och din figur är profilbilden uppe till höger.', 'Tallinjen och Plutts hopp har ett tal i mitten på de lättare nivåerna.', 'Titeln visar vilken nivå du är på. Tryck på den så ser du hela resan, med ett eget märke för varje nivå.', 'Hejarop visas en gång, med rätt antal.', 'En inbjudan från en kompis syns direkt i Idag, även när spelet redan är öppet.']],
@@ -472,6 +473,7 @@
     ['Kompisutmaning', [['invite', '📩 Alva bjuder in dig'], ['sent', '⏳ Du väntar på svar från Sam'], ['active', '🤝 Pågående utmaning'],
       ['almost', '🏁 Nästan klar (spela en runda)'], ['mateplays', '🦄 Alva spelar en runda']]],
     ['Läraren', [['focus', '✏️ Träna på talkamraterna till 7'], ['focusminus', '✏️ Träna på minus från 10'], ['focusmany', '✏️ Tre fokus på en gång'], ['nofocus', '🧽 Inget fokus']]],
+    ['Spelen', [['games', '🎮 Spela med Plutt (alla upplåsta)']]],
     ['Klassen', [['contest', '🏔️ Klassens berg nästan på 75 %'], ['gift', '🎁 Hemlig present till Plutt'], ['cheer', '👏 Kompisar hejar på dig']]]
   ];
   async function startDemo() {
@@ -513,6 +515,8 @@
   async function runDemo(id) {
     closeSheet();
     if (id === 'reset') { ls.del(ACCOUNT_KEY); return startDemo(); }
+    // Spelen är alltid upplåsta i testläget: gå direkt till dem
+    if (id === 'games') { if (current !== 'start') { stopGame(); show('start'); } setTab('train'); setTimeout(() => $('#gamesCard').scrollIntoView({ behavior: 'smooth', block: 'center' }), 100); return; }
     try {
       const r = await api('POST', 'demo/scenario', { id });
       // Hämta allt på nytt, precis som när en elev öppnar spelet
@@ -927,6 +931,7 @@
     if (m && mood) { m.classList.remove('happy', 'oops'); void m.offsetWidth; m.classList.add(mood); }
   }
   function stopGame() {
+    if (G && G.kit) G.kit.stop();
     wishNote = null;
     stopSpeech();
     clearTimeout(timer); clearInterval(ticker);
@@ -1144,6 +1149,21 @@
     }
   }
   $('#wishBtn').addEventListener('click', () => { const w = save.pet.wish; if (w && WISH_TYPES[w.type]) WISH_TYPES[w.type].go(w); });
+  // Önskan på Hem: Plutt med en pratbubbla och godsaken som väntar
+  function renderHomeWish() {
+    const w = currentWish(), box = $('#homeWish');
+    box.hidden = !w || petStage(save.pet.xp) === 0;
+    if (box.hidden) return;
+    const t = treatOf(w);
+    $('#hwPet').innerHTML = petHTML(petStage(save.pet.xp), 'mood-happy', petWear());
+    $('#hwKicker').textContent = `${petName()} har en önskan!`;
+    $('#hwSay').textContent = `"Snälla, ${nm()}! Lös det här så får jag ${t[2]}!"`;
+    $('#hwTask').textContent = WISH_TYPES[w.type].text(w);
+    $('#hwMeter').style.width = (100 * w.have / w.need) + '%';
+    $('#hwTreat').textContent = t[1];
+    $('#hwGo').textContent = `Hjälp ${petName()} ›`;
+  }
+  $('#homeWish').addEventListener('click', () => { sfx.select(); const w = save.pet.wish; if (w && WISH_TYPES[w.type]) WISH_TYPES[w.type].go(w); });
   // Petar man för många gånger i rad blir husdjuret trött på det, och till slut tar det en tupplur
   const PET_ANNOYED = ['Aj aj!', 'Aj! Inte så hårt!', 'Det där kittlas inte längre …', 'Nu räcker det faktiskt!', 'Sluta pilla på mig!',
     'Jag säger till fröken!', 'Hörru, jag är inte en knapp!', 'Hmpf! Nu blir jag sur.', 'Okej, nu tar jag en tupplur. Zzz …'];
@@ -1763,7 +1783,7 @@
     }
     if (next) items.push({ main: true, ic: '🗺️', t: 'Vägen till expert', s: `${w.tab}: ${stepName(next)}`, go: 'Fortsätt', fn: () => (next.open ? openStation(next) : openRoad()) });
     const wish = currentWish();
-    if (wish) items.push({ ic: treatOf(wish)[1], t: `${petName()} har en önskan`, s: WISH_TYPES[wish.type].text(wish), go: 'Hjälp', fn: () => WISH_TYPES[wish.type].go(wish) });
+    // Plutts önskan har ett eget, roligare kort under Idag (renderHomeWish)
     const c = net.buddy && net.buddy.challenge;
     if (c && c.status === 'pending' && c.role === 'to') items.push({ ic: '🤝', t: `${c.mate.name} vill utmana dig`, s: c.title, go: 'Svara', fn: () => setTab('class') });
     else if (c && c.status === 'active') items.push({ ic: '🤝', t: 'Kompisutmaning', s: `${c.progress} av ${c.goal} ${c.unit} med ${c.mate.name}`, go: 'Visa', fn: () => setTab('class') });
@@ -1919,6 +1939,7 @@
     renderBuddyCard();
     renderPetTab();
     renderToday();
+    renderHomeWish();
     $('#noClassText').hidden = (!!net.player && !isSolo()) || !$('#joinCard').hidden;
     applyTab();
     document.body.classList.toggle('on-start', current === 'start');
@@ -3589,12 +3610,14 @@
   }
 
   // Spelen med Plutt: låses upp av nivåerna på resan. Frågorna kommer från tal man kan.
+  // Varje spel styrs på sitt eget sätt, med tangentbord eller finger.
   const GAMES = [
-    { id: 'fly', title: 'Plutt flyger', icon: '☁️', tier: 2, text: 'Flyg genom molnet med rätt svar' },
-    { id: 'throw', title: 'Kasta prick', icon: '🎯', tier: 3, text: 'Träffa burken med rätt svar' },
-    { id: 'bounce', title: 'Studsboll', icon: '🏀', tier: 4, text: 'Hoppa upp på plattan med rätt svar' }
+    { id: 'fly', title: 'Plutt flyger', icon: '☁️', tier: 2, text: 'Spänn gummibandet och flyg till rätt moln' },
+    { id: 'catch', title: 'Fånga talet', icon: '🧺', tier: 3, text: 'Flytta Plutt och fånga rätt tal' },
+    { id: 'throw', title: 'Kasta prick', icon: '🎯', tier: 4, text: 'Dra, sikta och träffa rätt burk' }
   ];
-  const gameOpen = gm => tierFor(save.total) >= gm.tier;
+  // I testläget är alla spel upplåsta, så att de går att prova
+  const gameOpen = gm => DEMO || tierFor(save.total) >= gm.tier;
   function gamePool() {
     const pool = [];
     for (const w of WORLD_IDS) for (const n of WORLDS[w].levels) if (bestOf(w, n) >= 2) pool.push([w, n]);
@@ -3606,6 +3629,212 @@
     const opts = choicesFor(q).filter(v => v !== q.ans).slice(0, 2).concat(q.ans);
     return { eq: true, scene: equationHTML(q, false), done: equationHTML(q, true), q: '', ans: q.ans, opts: shuffle(opts), explain: '' };
   }
+  function petInScene() {
+    const st = petStage(save.pet.xp);
+    return st > 0 ? petHTML(st, 'mood-happy', petWear()) : '<span class="tb-plutt big"><i></i><i></i></span>';
+  }
+  // Gemensamt för spelen: scenens storlek, en loop och lyssnare som städas bort efteråt
+  function gameKit(scene) {
+    const kit = { w: scene.clientWidth, h: scene.clientHeight, off: [], raf: 0, dead: false };
+    kit.on = (el, ev, fn, o) => { el.addEventListener(ev, fn, o); kit.off.push(() => el.removeEventListener(ev, fn, o)); };
+    kit.loop = fn => {
+      cancelAnimationFrame(kit.raf);
+      let last = performance.now();
+      const step = now => { if (kit.dead) return; const dt = Math.min(0.05, (now - last) / 1000); last = now; if (fn(dt) !== false) kit.raf = requestAnimationFrame(step); };
+      kit.raf = requestAnimationFrame(step);
+    };
+    kit.stop = () => { kit.dead = true; cancelAnimationFrame(kit.raf); kit.off.forEach(f => f()); kit.off = []; };
+    kit.at = (el, x, y, extra = '') => { el.style.transform = `translate(${x}px, ${y}px) ${extra}`; };
+    kit.hint = text => { const h = $('.g-hint', scene); if (h) h.innerHTML = text; };
+    if (G) G.kit = kit;
+    return kit;
+  }
+  const isSpace = e => e.code === 'Space' || e.key === ' ';
+
+  // ☁️ Plutt flyger: håll in (mellanslag eller fingret) för att spänna gummibandet, släpp för att flyga
+  function playFly(scene, task, done) {
+    const k = gameKit(scene);
+    scene.innerHTML = `<div class="sling"></div><div class="g-actor">${petInScene()}</div>
+      ${task.opts.map(v => `<div class="g-target cloud" data-v="${v}"><span>${v}</span></div>`).join('')}
+      <div class="g-power" aria-hidden="true"><i></i></div><p class="g-hint">Håll in <b>mellanslag</b> eller <b>fingret</b>. Släpp när det är lagom!</p>`;
+    const actor = $('.g-actor', scene), bar = $('.g-power i', scene);
+    const clouds = $$('.cloud', scene), cx = [0.37, 0.63, 0.88].map(f => f * k.w), cy = [78, 104, 78];
+    clouds.forEach((c, i) => k.at(c, cx[i] - 40, cy[i] - 26));
+    const sx = 30, sy = k.h - 96;
+    let state = 'ready', t = 0, power = 0;
+    k.at(actor, sx, sy);
+    const charge = () => { if (state !== 'ready') return; state = 'charge'; t = 0; sfx.tick(); };
+    const release = () => {
+      if (state !== 'charge') return;
+      state = 'fly';
+      const ex = sx + 35 + power * (k.w - sx - 40), ey = 84, start = [sx, sy];
+      let ft = 0;
+      sfx.select();
+      k.loop(dt => {
+        ft = Math.min(1, ft + dt / 0.85);
+        const x = start[0] + (ex - 35 - start[0]) * ft, y = start[1] + (ey - 35 - start[1]) * ft - 150 * 4 * ft * (1 - ft);
+        k.at(actor, x, y, `rotate(${ft * 360}deg)`);
+        if (ft < 1) return true;
+        const hit = clouds.find((c, i) => Math.abs(cx[i] - ex) < Math.min(46, (cx[1] - cx[0]) / 2));
+        if (hit) {
+          const right = +hit.dataset.v === task.ans;
+          hit.classList.add(right ? 'right' : 'wrong');
+          if (right) { hit.classList.add('pop'); k.at(actor, ex - 35, ey - 70); }
+          k.stop(); done(right, hit);
+        } else {
+          kit_reset(ex < cx[0] ? 'För kort! Håll lite längre och försök igen.' : 'För långt! Släpp lite tidigare och försök igen.');
+        }
+        return false;
+      });
+    };
+    const kit_reset = msg => {
+      k.hint(msg);
+      setTimeout(() => { if (k.dead) return; state = 'ready'; power = 0; bar.style.width = '0%'; k.at(actor, sx, sy); }, 500);
+    };
+    // Styrkan går upp och ner, så man måste släppa i rätt ögonblick
+    k.loop(dt => {
+      if (state === 'charge') {
+        t += dt;
+        power = 1 - Math.abs(((t * 0.75) % 2) - 1);
+        bar.style.width = (power * 100) + '%';
+        k.at(actor, sx - power * 22, sy + power * 8);
+      }
+      return state !== 'fly';
+    });
+    k.on(document, 'keydown', e => { if (isSpace(e)) { e.preventDefault(); if (!e.repeat) charge(); } });
+    k.on(document, 'keyup', e => { if (isSpace(e)) { e.preventDefault(); release(); } });
+    k.on(scene, 'pointerdown', e => { e.preventDefault(); charge(); });
+    k.on(window, 'pointerup', release);
+    k.on(window, 'pointercancel', release);
+  }
+
+  // 🧺 Fånga talet: talen faller, flytta Plutt med pilarna eller fingret och fånga rätt tal
+  function playCatch(scene, task, done) {
+    const k = gameKit(scene);
+    scene.innerHTML = `<div class="g-actor catcher">${petInScene()}<span class="basket" aria-hidden="true">🧺</span></div>
+      <p class="g-hint">Flytta Plutt med <b>pilarna</b> eller <b>fingret</b> och fånga rätt tal!</p>`;
+    const actor = $('.catcher', scene), py = k.h - 84;
+    let px = k.w / 2, target = null, left = false, right = false, wrongs = 0;
+    const lanes = shuffle([0.17, 0.5, 0.83]);
+    const items = task.opts.map((v, i) => {
+      const el = document.createElement('div');
+      el.className = 'g-target fall'; el.dataset.v = v; el.innerHTML = `<span>${v}</span>`;
+      scene.appendChild(el);
+      return { v, el, x: lanes[i] * k.w, y: -50 - i * 100, vy: 72 + Math.random() * 16, alive: true };
+    });
+    const respawn = it => { it.x = (0.12 + Math.random() * 0.76) * k.w; it.y = -60; };
+    k.loop(dt => {
+      if (left) px -= 300 * dt;
+      if (right) px += 300 * dt;
+      if (target != null) px += (target - px) * Math.min(1, dt * 12);
+      px = Math.max(30, Math.min(k.w - 30, px));
+      k.at(actor, px - 35, py);
+      for (const it of items) {
+        if (!it.alive) continue;
+        it.y += it.vy * dt;
+        k.at(it.el, it.x - 26, it.y);
+        // Fångad i korgen?
+        if (it.y + 46 >= py + 18 && it.y < py + 40 && Math.abs(it.x - px) < 46) {
+          if (it.v === task.ans) {
+            it.alive = false; it.el.classList.add('right', 'pop');
+            k.stop(); done(wrongs === 0, it.el); return false;
+          }
+          it.alive = false; wrongs++;
+          it.el.classList.add('wrong', 'pop'); sfx.wrong();
+          talk(`Oj, det var ${it.v}. Fånga rätt tal!`, 'oops');
+          if (wrongs >= 2) { k.stop(); done(false, it.el); return false; }
+        }
+        if (it.y > k.h) respawn(it);
+      }
+      return true;
+    });
+    const key = (e, down) => {
+      if (e.key === 'ArrowLeft') { left = down; target = null; e.preventDefault(); }
+      if (e.key === 'ArrowRight') { right = down; target = null; e.preventDefault(); }
+    };
+    k.on(document, 'keydown', e => key(e, true));
+    k.on(document, 'keyup', e => key(e, false));
+    const follow = e => { const r = scene.getBoundingClientRect(); target = e.clientX - r.left; };
+    k.on(scene, 'pointerdown', e => { e.preventDefault(); follow(e); });
+    k.on(scene, 'pointermove', e => { if (e.pointerType !== 'mouse' || e.buttons || true) follow(e); });
+  }
+
+  // 🎯 Kasta prick: dra bollen bakåt, sikta och släpp. Eller pilarna och mellanslag.
+  function playThrow(scene, task, done) {
+    const k = gameKit(scene);
+    scene.innerHTML = `<div class="shelf"></div>${task.opts.map(v => `<div class="g-target can" data-v="${v}"><span>${v}</span></div>`).join('')}
+      <div class="g-aim" aria-hidden="true"></div><span class="g-ball">⚽</span>
+      <p class="g-hint">Dra bollen <b>bakåt</b>, sikta och släpp! (Eller <b>pilarna</b> och <b>mellanslag</b>.)</p>`;
+    const ball = $('.g-ball', scene), aim = $('.g-aim', scene), cans = $$('.can', scene);
+    const canX = [0.2, 0.5, 0.8].map(f => f * k.w), canY = 26;
+    cans.forEach((c, i) => k.at(c, canX[i] - 30, canY));
+    $('.shelf', scene).style.top = (canY + 80) + 'px';
+    const bx = k.w / 2, by = k.h - 56;
+    let state = 'ready', drag = null, angle = 0, power = 0, t = 0;
+    const showAim = (vx, vy) => {
+      const len = Math.min(140, Math.hypot(vx, vy) / 7), ang = Math.atan2(vy, vx);
+      aim.style.width = len + 'px'; aim.style.opacity = len > 8 ? 1 : 0;
+      aim.style.transform = `translate(${bx}px, ${by}px) rotate(${ang}rad)`;
+    };
+    const reset = msg => {
+      if (msg) k.hint(msg);
+      setTimeout(() => { if (k.dead) return; state = 'ready'; power = 0; k.at(ball, bx - 20, by - 20); aim.style.opacity = 0; }, 450);
+    };
+    k.at(ball, bx - 20, by - 20);
+    const throwIt = (vx, vy) => {
+      state = 'fly'; aim.style.opacity = 0; sfx.select();
+      let x = bx, y = by;
+      k.loop(dt => {
+        vy += 900 * dt; x += vx * dt; y += vy * dt;
+        k.at(ball, x - 20, y - 20, `rotate(${x * 2}deg)`);
+        const hit = cans.find((c, i) => Math.abs(x - canX[i]) < 34 && y > canY - 6 && y < canY + 84);
+        if (hit) {
+          const right = +hit.dataset.v === task.ans;
+          hit.classList.add(right ? 'right' : 'wrong');
+          if (right) hit.classList.add('hit');
+          k.stop(); done(right, hit); return false;
+        }
+        if (x < -30 || x > k.w + 30 || y > k.h + 30 || y < -120) { reset('Miss! Försök igen.'); return false; }
+        return true;
+      });
+    };
+    // Finger eller mus: dra bakåt som ett gummiband
+    k.on(scene, 'pointerdown', e => { if (state !== 'ready') return; e.preventDefault(); drag = { x: e.clientX, y: e.clientY }; scene.setPointerCapture?.(e.pointerId); });
+    k.on(scene, 'pointermove', e => {
+      if (!drag || state !== 'ready') return;
+      const dx = drag.x - e.clientX, dy = drag.y - e.clientY;
+      k.at(ball, bx - 20 - dx * 0.25, by - 20 - dy * 0.25);
+      showAim(dx * 6, dy * 6);
+    });
+    k.on(scene, 'pointerup', e => {
+      if (!drag || state !== 'ready') return;
+      const dx = drag.x - e.clientX, dy = drag.y - e.clientY; drag = null;
+      if (Math.hypot(dx, dy) < 15) { k.at(ball, bx - 20, by - 20); aim.style.opacity = 0; return; }
+      let vx = dx * 6, vy = dy * 6;
+      const sp = Math.hypot(vx, vy), max = 1050;
+      if (sp > max) { vx *= max / sp; vy *= max / sp; }
+      throwIt(vx, vy);
+    });
+    // Tangentbord: pilarna siktar, håll mellanslag för kraft och släpp
+    const keyAim = () => { const sp = 300 + power * 650; showAim(Math.sin(angle) * sp, -Math.cos(angle) * sp); };
+    k.on(document, 'keydown', e => {
+      if (state !== 'ready' && state !== 'charge') return;
+      if (e.key === 'ArrowLeft') { angle = Math.max(-0.9, angle - 0.08); keyAim(); e.preventDefault(); }
+      if (e.key === 'ArrowRight') { angle = Math.min(0.9, angle + 0.08); keyAim(); e.preventDefault(); }
+      if (isSpace(e)) { e.preventDefault(); if (!e.repeat && state === 'ready') { state = 'charge'; t = 0; } }
+    });
+    k.on(document, 'keyup', e => {
+      if (!isSpace(e) || state !== 'charge') return;
+      e.preventDefault();
+      const sp = 300 + power * 650;
+      throwIt(Math.sin(angle) * sp, -Math.cos(angle) * sp);
+    });
+    k.loop(() => {
+      if (state === 'charge') { t += 1 / 60; power = 1 - Math.abs(((t * 0.75) % 2) - 1); keyAim(); }
+      return state !== 'fly' && !k.dead;
+    });
+  }
+  const GAME_PLAY = { fly: playFly, catch: playCatch, throw: playThrow };
 
   const QUIZ_COUNT = { story: 6, gap: 8, money: 6 };
   const QUIZ_MAKE = { story: storyTask, gap: gapTask, money: moneyTask };
@@ -3636,18 +3865,6 @@
     talk(gm.text + '!', 'happy');
     nextQuiz();
   }
-  function petInScene() {
-    const st = petStage(save.pet.xp);
-    return st > 0 ? petHTML(st, 'mood-happy', petWear()) : `<span class="tb-plutt big"><i></i><i></i></span>`;
-  }
-  // Scenen för spelen: alternativen blir moln, burkar eller plattor
-  function gameScene(gid, opts) {
-    const t = (cls, v, style) => `<button class="g-target ${cls}" data-v="${v}" style="${style}"><span>${v}</span></button>`;
-    if (gid === 'fly') return `<div class="gscene fly"><div class="g-actor" style="left:6%;top:42%">${petInScene()}</div>${opts.map((v, i) => t('cloud', v, `right:9%;top:${12 + i * 30}%`)).join('')}</div>`;
-    if (gid === 'throw') return `<div class="gscene throw"><div class="shelf"></div>${opts.map((v, i) => t('can', v, `left:${12 + i * 30}%;top:14%`)).join('')}<span class="g-ball" style="left:46%;bottom:6%">⚽</span></div>`;
-    const tops = shuffle([12, 34, 56]);
-    return `<div class="gscene bounce"><div class="g-actor" style="left:6%;bottom:4%">${petInScene()}</div>${opts.map((v, i) => t('plat', v, `left:${26 + i * 22}%;top:${tops[i]}%`)).join('')}</div>`;
-  }
   function nextQuiz() {
     if (!G || G.game !== 'quiz') return;
     const task = G.make();
@@ -3659,9 +3876,10 @@
     $('#quizRead').hidden = !task.q || G.extra === 'gap';
     const scene = $('#quizScene'), ans = $('#quizAnswers');
     if (G.reward) {
-      scene.innerHTML = `<div class="equation g-eq">${task.scene}</div>` + gameScene(G.reward, task.opts);
+      if (G.kit) G.kit.stop();
+      scene.innerHTML = `<div class="equation g-eq">${task.scene}</div><div class="gscene ${G.reward}" id="gscene"></div>`;
       ans.innerHTML = ''; ans.hidden = true;
-      $$('#quizScene .g-target').forEach(b => b.addEventListener('click', () => answerQuiz(b, +b.dataset.v)));
+      GAME_PLAY[G.reward]($('#gscene'), task, (right, el) => { if (G && G.game === 'quiz' && !G.locked) { G.locked = true; quizResult(right, el); } });
     } else {
       scene.innerHTML = `<div class="quiz-pic">${task.scene}</div>`;
       ans.hidden = false; ans.innerHTML = '';
@@ -3675,40 +3893,28 @@
     }
   }
   $('#quizRead').addEventListener('click', () => { if (G && G.cur && G.cur.q) say(G.cur.q); });
-  // Spelens rörelser: Plutt flyger eller hoppar, bollen kastas
-  function moveTo(el, target, scene, opts = {}) {
-    if (!el || !el.animate) return Promise.resolve();
-    const a = el.getBoundingClientRect(), b = target.getBoundingClientRect();
-    const dx = b.left + b.width / 2 - (a.left + a.width / 2), dy = b.top + (opts.onTop ? -a.height / 2 + 6 : b.height / 2 - a.height / 2) - a.top;
-    const lift = opts.arc ? -Math.max(60, Math.abs(dy) * 0.6) : 0;
-    const frames = [{ transform: 'translate(0,0)' }, { transform: `translate(${dx / 2}px, ${dy / 2 + lift}px)` }, { transform: `translate(${dx}px, ${dy}px)` }];
-    const back = opts.back ? [{ transform: `translate(${dx}px, ${dy}px)` }, { transform: `translate(${dx * 0.6}px, ${dy + 30}px) rotate(20deg)` }, { transform: 'translate(0,0)' }] : null;
-    return el.animate(frames, { duration: opts.ms || 520, easing: 'ease-in-out', fill: 'forwards' }).finished
-      .then(() => (back ? el.animate(back, { duration: 650, easing: 'ease-in', fill: 'forwards' }).finished : null)).catch(() => {});
-  }
-  async function answerQuiz(btn, v) {
+  function answerQuiz(btn, v) {
     if (!G || G.game !== 'quiz' || G.locked) return;
     G.locked = true;
-    const task = G.cur, right = v === task.ans, g = G;
-    $$('#quizAnswers .ans, #quizScene .g-target').forEach(x => { x.disabled = true; });
+    $$('#quizAnswers .ans').forEach(x => { x.disabled = true; });
+    const right = v === G.cur.ans;
     btn.classList.add(right ? 'right' : 'wrong');
-    if (G.reward) {
-      const scene = $('#quizScene'), actor = $('.g-actor', scene) || $('.g-ball', scene);
-      await moveTo(actor, btn, scene, { arc: G.reward !== 'fly', onTop: G.reward === 'bounce', back: !right, ms: G.reward === 'throw' ? 480 : 600 });
-      if (G !== g) return;
-      if (right) btn.classList.add(G.reward === 'throw' ? 'hit' : 'pop');
-      else if (G.reward === 'bounce') btn.classList.add('crumble');
-    }
+    quizResult(right, btn);
+  }
+  // Rätt eller fel: poäng, förklaring och sedan nästa uppgift (samma för övningar och spel)
+  function quizResult(right, el) {
+    const task = G.cur, g = G;
+    const eq = $('.g-eq', $('#quizScene'));
+    if (eq && task.done) eq.innerHTML = task.done;
     if (right) {
       G.score++; G.streak++; G.bestStreak = Math.max(G.bestStreak, G.streak); G.marks[G.idx] = true;
-      celebrate(btn, G.streak, true);
-      if (task.done) $('.g-eq', $('#quizScene')).innerHTML = task.done;
+      celebrate(el || $('#quizScene'), G.streak, true);
       $('#quizExplain').textContent = task.explain ? `Rätt! ${task.explain}` : 'Rätt!';
+      if (G.reward) talk(pick(['Pang! Rätt!', 'Snyggt!', 'Jippi!', 'Mitt i prick!']), 'happy');
     } else {
       G.mistakes++; G.streak = 0; G.marks[G.idx] = false;
       sfx.wrong();
-      $$('#quizAnswers .ans, #quizScene .g-target').forEach(x => { if (+x.dataset.v === task.ans) x.classList.add('correct-was'); });
-      if (task.done) $('.g-eq', $('#quizScene')).innerHTML = task.done;
+      $$('#quizAnswers .ans, #quizScene [data-v]').forEach(x => { if (+x.dataset.v === task.ans) x.classList.add('correct-was'); });
       $('#quizExplain').textContent = `Rätt svar var ${task.ans}${task.unit ? ' ' + task.unit : ''}.${task.explain ? ' ' + task.explain : ''}`;
       if (G.reward) talk(pick(['Oj, nästan!', 'Hoppsan! Nästa gång!', 'Det gör inget, vi kör vidare!']), 'oops');
     }
@@ -3722,26 +3928,33 @@
       const gm = G.reward && GAMES.find(x => x.id === G.reward);
       finish({ passed: true, stars, score: G.score, total: G.count, notes: note ? [note] : [],
         stats: `${G.score} rätt av ${G.count}${G.bestStreak > 2 ? ` · bästa svit ${G.bestStreak} i rad` : ''}${gm ? ` · ${gm.title}` : ''}` });
-    }, right ? 1100 : 2200);
+    }, right ? 1300 : 2400);
   }
 
-  // Kortet "Spela med Plutt" i Träna: spelen och vad som låser upp dem
+  // Kortet "Spela med Plutt" i Träna: spelen, och för låsta spel vad som behövs
   function renderGamesCard() {
     const box = $('#gamesRow'); if (!box) return;
     box.innerHTML = '';
+    const allOpen = GAMES.every(gameOpen);
+    $('#gamesSub').textContent = DEMO ? '🧪 Alla upplåsta i testläget' : allOpen ? '' : 'Låses upp när du når nya nivåer';
     for (const gm of GAMES) {
       const open = gameOpen(gm);
+      const [need, title] = TITLES[gm.tier], from = TITLES[gm.tier - 1] ? TITLES[gm.tier - 1][0] : 0;
+      const pct = Math.max(0, Math.min(100, Math.round(100 * (save.total - from) / (need - from))));
       const b = document.createElement('button');
       b.className = 'extra-btn game-btn' + (open ? '' : ' locked');
       b.innerHTML = `<span class="ex-ic" aria-hidden="true">${open ? gm.icon : '🔒'}</span><b>${esc(gm.title)}</b>
-        <small>${open ? esc(gm.text) : `Låses upp på nivå ${gm.tier + 1}: ${esc(TITLES[gm.tier][1])}`}</small>`;
+        <small>${open ? esc(gm.text) : `Nivå ${gm.tier + 1}: ${esc(title)}`}</small>
+        ${open ? '' : `<span class="g-lock"><span class="g-lockbar"><i style="width:${pct}%"></i></span><small>${need - save.total} ★ kvar</small></span>`}`;
       b.addEventListener('click', () => {
-        if (open) { sfx.select(); startGame(gm.id); }
-        else { sfx.select(); cheer(`Samla ${TITLES[gm.tier][0] - save.total} ★ till!`); }
+        sfx.select();
+        if (open) startGame(gm.id);
+        else cheer(`Samla ${need - save.total} ★ till så når du nivå ${gm.tier + 1}!`);
       });
       box.appendChild(b);
     }
   }
+
 
   /* ================= Diplom ================= */
   function showDiploma(wid, celebrateNow) {

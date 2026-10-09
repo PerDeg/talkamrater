@@ -25,7 +25,7 @@ Startsidan har en meny längst ner med fyra flikar. Överst hälsar alltid **tal
 
 | Flik | Innehåll |
 |---|---|
-| 🏠 **Hem** | Titeln, nyheter, listan **Idag** (lärarens fokus alltid överst, nästa steg på vägen, Plutts önskan, kompisutmaning och obesvarade inbjudningar, Kom ihåg-prov, kluriga, klassens uppdrag, klasskampen, dubbletter, och ett tips om dagen om något man inte provat, t.ex. att utmana en kompis eller tallinjen), dagens utmaning och Plutt i litet format. |
+| 🏠 **Hem** | Titeln, nyheter, listan **Idag** (lärarens fokus alltid överst, nästa steg på vägen, Plutts önskan, kompisutmaning och obesvarade inbjudningar, Kom ihåg-prov, kluriga, klassens uppdrag, klasskampen, dubbletter, och ett tips om dagen om något man inte provat, t.ex. att utmana en kompis eller tallinjen), Plutts önskan som ett eget kort (Plutt med en pratbubbla och godsaken), dagens utmaning och Plutt i litet format. |
 | ✏️ **Träna** | Plus, minus och dubblor: vägen till expert (kortet visar tydligt vilket räknesätt den gäller), kluriga, fri träning med alla tal och hur många stjärnor av max man har, fler utmaningar och spela två. |
 | Plutt (mini-Plutt som ikon) | Husdjuret och dess önskan, korgen med jordgubbar, garderoben med alla plagg (pris, låst eller ägt) och klistermärken per nivå. |
 | 👥 **Klassen** | Hela klassidan: veckans uppdrag med ditt bidrag, kompisutmaning, klasskamp, händer i klassen (heja), alla i klassen, Klassplutten och stjärnburken. Kunskapsväggen och Byt figur fälls ut. Utan klass: gå med i en klass. |
@@ -71,10 +71,10 @@ Startsidan har en meny längst ner med fyra flikar. Överst hälsar alltid **tal
   - 📖 **Räknesagor**: korta berättelser med bilder som läses upp, t.ex. *"Alva har 7 kulor men vill ha 10. Hur många till behöver hon?"*. Nivåer: får fler, hur många till, ger bort, blandat till 20, dubbelt och hälften.
   - 🔍 **Saknas-talet**: *3 + ? = 10*, *? − 4 = 8* och *4 + ? = 3 + 5*. Nivåer: plus till 10 och 20, minus, blandat och lika på båda sidor.
   - 🪙 **Pengar**: mynt och tjugolapp. Räkna mynten, hur mycket fattas till 10 och 20, och handla: hur mycket får du tillbaka?
-- **Spela med Plutt** (i Träna): tre spel som låses upp av nivåerna på resan. Frågorna kommer från tal eleven redan kan (★★ eller mer), och man trycker på rätt svar i scenen:
-  - ☁️ **Plutt flyger** (nivå 3): flyg genom molnet med rätt svar.
-  - 🎯 **Kasta prick** (nivå 4): kasta bollen på burken med rätt svar.
-  - 🏀 **Studsboll** (nivå 5): hoppa upp på plattan med rätt svar.
+- **Spela med Plutt** (i Träna): tre spel som låses upp av nivåerna på resan. Frågorna kommer från tal eleven redan kan (★★ eller mer). Låsta spel visar vilken nivå som behövs och hur många stjärnor som är kvar. I testläget är alla upplåsta.
+  - ☁️ **Plutt flyger** (nivå 3): en slangbella. Håll in mellanslag eller fingret, styrkan går upp och ner, och släpp när den är lagom så att Plutt landar på molnet med rätt svar. För kort eller för långt: försök igen.
+  - 🧺 **Fånga talet** (nivå 4): talen faller från himlen. Flytta Plutt med piltangenterna eller fingret och fånga rätt tal i korgen.
+  - 🎯 **Kasta prick** (nivå 5): dra bollen bakåt som ett gummiband, sikta och släpp mot burken med rätt svar. Med tangentbord: pilarna siktar och mellanslag ger kraft.
 - **Kluriga kamrater**: spelet minns svåra uppgifter i alla världar och låter eleven öva extra på dem.
 - **Belöningar**:
   - Svenska hejarop, konfetti, ljud och röst.
@@ -104,6 +104,7 @@ På `/test/` (länk under ⚙️ Inställningar) finns ett **testläge** med en 
 
 - **Kompisutmaning:** Alva bjuder in dig, du väntar på svar från Sam, en pågående utmaning, en som nästan är klar (spela en runda så firar ni) och Alva spelar en runda.
 - **Läraren:** fokus på talkamraterna till 7, på minus från 10, tre fokus på en gång, eller inget fokus.
+- **Spelen:** alla spel med Plutt är upplåsta i testläget, och knappen tar dig direkt till dem.
 - **Klassen:** klassens berg strax under 75 %, en hemlig present till Plutt och kompisar som hejar.
 
 Testläget sparar sina uppgifter i egna nycklar i webbläsaren och allt försvinner när servern startar om. Databasen är helst en SQLite i minnet. Finns inte SQLite i avbildningen används den vanliga databasen men med egna tabeller (`tk_demo_…`), som töms vid varje start. Kan testläget inte starta körs spelet ändå, utan det. Stäng av det med `DEMO=off` i env-filen.

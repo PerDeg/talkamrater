@@ -92,6 +92,18 @@
         <div class="todo" id="todoList"></div>
       </div>
 
+    <button class="panel homewish" id="homeWish" hidden>
+      <span class="hw-pet" id="hwPet" aria-hidden="true"></span>
+      <span class="hw-bubble">
+        <small class="hw-kicker" id="hwKicker">Plutt har en önskan!</small>
+        <b id="hwSay"></b>
+        <span class="hw-task" id="hwTask"></span>
+        <span class="hw-meter"><i id="hwMeter"></i></span>
+        <span class="hw-go" id="hwGo">Hjälp Plutt ›</span>
+      </span>
+      <span class="hw-treat" id="hwTreat" aria-hidden="true"></span>
+    </button>
+
     <div class="panel daily" id="dailyCard">
       <div class="daily-top">
         <div>
@@ -158,7 +170,7 @@
     </div>
 
     <div class="panel extras gamescard" id="gamesCard">
-      <div class="label">🎮 Spela med Plutt <small>Låses upp när du når nya nivåer</small></div>
+      <div class="label">🎮 Spela med Plutt <small id="gamesSub">Låses upp när du når nya nivåer</small></div>
       <div class="extra-row" id="gamesRow"></div>
     </div>
 
